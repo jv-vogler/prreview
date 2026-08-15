@@ -1,0 +1,26 @@
+/* App-wide base styles. Colors are Primer tokens only (GUD-002). */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--bgColor-default);
+	color: var(--fgColor-default);
+	font: var(--text-body-shorthand-medium);
+	-webkit-font-smoothing: antialiased;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+}

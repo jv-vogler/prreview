@@ -4,6 +4,10 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>prreview</title>
+		<!-- Pre-paint theme attributes so there is no flash. This must be an
+		     external classic script: the production CSP has no 'unsafe-inline'
+		     in script-src, so the plan's inline variant would be blocked. -->
+		<script src="/theme-init.js"></script>
 	</head>
 	<body>
 		<div id="root"></div>

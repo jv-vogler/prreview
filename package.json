@@ -42,6 +42,12 @@
 	},
 	"dependencies": {
 		"@hono/node-server": "^2.1.1",
+		"@pierre/diffs": "1.3.5",
+		"@primer/octicons-react": "^19.33.0",
+		"@primer/primitives": "^11.10.0",
+		"@radix-ui/react-dialog": "^1.1.23",
+		"@radix-ui/react-tooltip": "^1.2.16",
+		"@tanstack/react-query": "^5.101.4",
 		"commander": "^15.0.0",
 		"get-port": "^7.2.0",
 		"gitdiff-parser": "^0.3.1",
@@ -49,6 +55,7 @@
 		"open": "^11.0.1",
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
+		"react-router": "^8.3.0",
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {

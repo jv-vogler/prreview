@@ -1,0 +1,20 @@
+/*
+ * GitHub's published design tokens (ARCHITECTURE §10): base size and
+ * typography, functional size/border/typography/motion, and the six
+ * functional themes. The theme files scope every color token under Primer's
+ * scheme attributes (data-color-mode / data-light-theme / data-dark-theme),
+ * which the ThemeProvider maintains on the root element.
+ */
+@import "@primer/primitives/dist/css/base/size/size.css";
+@import "@primer/primitives/dist/css/base/typography/typography.css";
+@import "@primer/primitives/dist/css/functional/size/size.css";
+@import "@primer/primitives/dist/css/functional/size/border.css";
+@import "@primer/primitives/dist/css/functional/size/radius.css";
+@import "@primer/primitives/dist/css/functional/typography/typography.css";
+@import "@primer/primitives/dist/css/functional/motion/motion.css";
+@import "@primer/primitives/dist/css/functional/themes/light.css";
+@import "@primer/primitives/dist/css/functional/themes/dark.css";
+@import "@primer/primitives/dist/css/functional/themes/light-high-contrast.css";
+@import "@primer/primitives/dist/css/functional/themes/dark-high-contrast.css";
+@import "@primer/primitives/dist/css/functional/themes/light-colorblind.css";
+@import "@primer/primitives/dist/css/functional/themes/dark-colorblind.css";
