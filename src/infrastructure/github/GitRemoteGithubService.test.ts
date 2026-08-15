@@ -120,3 +120,13 @@ describe("publish methods (M4 scope)", () => {
 		}
 	});
 });
+
+describe("getCurrentBranchPr", () => {
+	it("throws GithubError('unsupported-backend') — no metadata without gh", async () => {
+		const repo = await fixtureRepo();
+		const service = new GitRemoteGithubService(new GitClient(repo.root));
+		const error = await rejectionOf(service.getCurrentBranchPr());
+		expect(error).toBeInstanceOf(GithubError);
+		expect((error as GithubError).reason).toBe("unsupported-backend");
+	});
+});

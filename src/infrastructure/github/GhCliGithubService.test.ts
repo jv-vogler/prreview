@@ -155,3 +155,53 @@ describe("publish methods (M4 scope)", () => {
 		expect((error as GithubError).reason).toBe("unsupported-backend");
 	});
 });
+
+describe("getCurrentBranchPr", () => {
+	it("asks gh for the current branch's PR — no number in the argv", async () => {
+		const logDirectory = await mkdtemp(join(tmpdir(), "prreview-ghlog-"));
+		const logPath = join(logDirectory, "invocations.log");
+		process.env.FAKE_GH_LOG = logPath;
+		try {
+			const pr = await service.getCurrentBranchPr();
+			expect(pr.url).toBe("https://github.com/acme/api/pull/482");
+			expect(pr.state).toBe("OPEN");
+			const log = await readFile(logPath, "utf8");
+			expect(log.trim()).toBe(
+				"pr view --json title,body,baseRefName,headRefName,headRefOid,url,state",
+			);
+		} finally {
+			await rm(logDirectory, { recursive: true, force: true });
+		}
+	});
+
+	it("throws raw when the branch has no PR (the auto-detect rung falls through upstairs)", async () => {
+		process.env.FAKE_GH_PR_VIEW_EXIT = "1";
+		const error = await rejectionOf(service.getCurrentBranchPr());
+		expect(error).not.toBeInstanceOf(AppError);
+	});
+});
+
+describe("fetchPrHead's resolved sha", () => {
+	it("resolves with the fetched head sha for the port's callers", async () => {
+		const origin = await createFixtureRepo();
+		try {
+			await origin.git(["checkout", "--quiet", "-b", "feature"]);
+			await origin.write("head.txt", "content\n");
+			const prHeadSha = await origin.commitAll("head commit");
+			await origin.git(["update-ref", "refs/pull/34/head", prHeadSha]);
+			await origin.git(["checkout", "--quiet", "main"]);
+			const cloned = await origin.clone();
+			try {
+				const clonedService = new GhCliGithubService(
+					new GitClient(cloned.root),
+					cloned.root,
+				);
+				expect(await clonedService.fetchPrHead(34)).toBe(prHeadSha);
+			} finally {
+				await cloned.dispose();
+			}
+		} finally {
+			await origin.dispose();
+		}
+	});
+});

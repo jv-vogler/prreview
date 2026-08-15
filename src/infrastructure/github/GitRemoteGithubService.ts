@@ -1,6 +1,6 @@
+import type { Git } from "../../application/ports/Git";
 import { GithubError } from "../../domain/errors/GithubError";
 import type { Toolchain } from "../../domain/session/Toolchain";
-import type { GitClient } from "../git/GitClient";
 
 /**
  * Read-only GithubService over plain git with the user's existing remote
@@ -10,9 +10,9 @@ import type { GitClient } from "../git/GitClient";
  * No metadata, no publishing.
  */
 export class GitRemoteGithubService {
-	private readonly git: GitClient;
+	private readonly git: Git;
 
-	constructor(git: GitClient) {
+	constructor(git: Git) {
 		this.git = git;
 	}
 
@@ -33,6 +33,13 @@ export class GitRemoteGithubService {
 		);
 	}
 
+	async getCurrentBranchPr(): Promise<never> {
+		throw new GithubError(
+			"unsupported-backend",
+			"Finding the current branch's PR needs the gh CLI; this repo only has plain git remote access.",
+		);
+	}
+
 	async getPrDiff(number: number): Promise<string> {
 		const headSha = await this.git.fetchPrHead(number);
 		const base = await this.resolveDefaultBranchRef();
@@ -40,8 +47,8 @@ export class GitRemoteGithubService {
 		return this.git.diff(mergeBase, headSha);
 	}
 
-	async fetchPrHead(number: number): Promise<void> {
-		await this.git.fetchPrHead(number);
+	async fetchPrHead(number: number): Promise<string> {
+		return this.git.fetchPrHead(number);
 	}
 
 	async findPendingReview(_pr: number): Promise<never> {

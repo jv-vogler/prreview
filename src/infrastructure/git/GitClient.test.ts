@@ -325,3 +325,53 @@ describe("fetchPrHead", () => {
 		await expect(new GitClient(cloned.root).fetchPrHead(99)).rejects.toThrow();
 	});
 });
+
+describe("currentBranch", () => {
+	it("names the checked-out branch", async () => {
+		const repo = await fixtureRepo();
+		expect(await new GitClient(repo.root).currentBranch()).toBe("main");
+	});
+
+	it("is null on a detached HEAD", async () => {
+		const repo = await fixtureRepo();
+		await repo.git(["checkout", "--quiet", "--detach", "HEAD"]);
+		expect(await new GitClient(repo.root).currentBranch()).toBeNull();
+	});
+});
+
+describe("localBranches", () => {
+	it("lists every local branch name", async () => {
+		const repo = await fixtureRepo();
+		await repo.git(["branch", "feat/rate-limit"]);
+		await repo.git(["branch", "fix-typo"]);
+		expect((await new GitClient(repo.root).localBranches()).sort()).toEqual([
+			"feat/rate-limit",
+			"fix-typo",
+			"main",
+		]);
+	});
+});
+
+describe("isDirty", () => {
+	it("is false on a clean checkout", async () => {
+		const repo = await fixtureRepo();
+		expect(await new GitClient(repo.root).isDirty()).toBe(false);
+	});
+
+	it("sees unstaged and staged tracked changes", async () => {
+		const repo = await fixtureRepo();
+		const client = new GitClient(repo.root);
+
+		await repo.write("README.md", "# edited\n");
+		expect(await client.isDirty()).toBe(true);
+
+		await repo.git(["add", "-A"]);
+		expect(await client.isDirty()).toBe(true);
+	});
+
+	it("does not count untracked files (they cannot appear in diffWorktree)", async () => {
+		const repo = await fixtureRepo();
+		await repo.write("brand-new.txt", "untracked\n");
+		expect(await new GitClient(repo.root).isDirty()).toBe(false);
+	});
+});

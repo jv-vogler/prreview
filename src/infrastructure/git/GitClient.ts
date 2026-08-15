@@ -94,6 +94,40 @@ export class GitClient {
 		);
 	}
 
+	/** The checked-out branch name, or null on a detached HEAD. */
+	async currentBranch(): Promise<string | null> {
+		const name = (await this.git(["rev-parse", "--abbrev-ref", "HEAD"])).trim();
+		return name === "HEAD" ? null : name;
+	}
+
+	/** Local branch names — the "did you mean" candidate pool. */
+	async localBranches(): Promise<string[]> {
+		const output = await this.git([
+			"for-each-ref",
+			"--format=%(refname:short)",
+			"refs/heads",
+		]);
+		return output
+			.split("\n")
+			.map((line) => line.trim())
+			.filter((line) => line !== "");
+	}
+
+	/**
+	 * Tracked staged or unstaged changes versus HEAD. Untracked files
+	 * deliberately do not count as dirt: `diffWorktree` cannot show them, so
+	 * auto-detecting "dirty" from them would open an empty review.
+	 */
+	async isDirty(): Promise<boolean> {
+		const output = await this.git(["status", "--porcelain=v2", "-z"]);
+		return splitNulTerminated(output).some(
+			(entry) =>
+				entry.startsWith("1 ") ||
+				entry.startsWith("2 ") ||
+				entry.startsWith("u "),
+		);
+	}
+
 	/** The remote's URL; throws raw when the remote does not exist (the git-remote probe). */
 	async remoteUrl(remoteName: string): Promise<string> {
 		return (await this.git(["remote", "get-url", remoteName])).trim();

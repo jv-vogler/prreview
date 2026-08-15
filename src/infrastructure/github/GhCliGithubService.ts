@@ -1,8 +1,8 @@
+import type { Git } from "../../application/ports/Git";
+import type { PrInfo } from "../../application/ports/GithubService";
 import { GithubError } from "../../domain/errors/GithubError";
 import type { Toolchain } from "../../domain/session/Toolchain";
 import { exec } from "../git/exec";
-import type { GitClient } from "../git/GitClient";
-import type { PrInfo } from "./PrInfo";
 
 /** Probes must answer fast and never touch the network (ARCHITECTURE §3). */
 const PROBE_TIMEOUT_MS = 2000;
@@ -17,10 +17,10 @@ const PR_VIEW_JSON_FIELDS =
  * (CON-003) — `pr-not-found` and friends are the use-cases' interpretation.
  */
 export class GhCliGithubService {
-	private readonly git: GitClient;
+	private readonly git: Git;
 	private readonly cwd: string;
 
-	constructor(git: GitClient, cwd: string) {
+	constructor(git: Git, cwd: string) {
 		this.git = git;
 		this.cwd = cwd;
 	}
@@ -51,12 +51,18 @@ export class GhCliGithubService {
 		return JSON.parse(json) as PrInfo;
 	}
 
+	/** The PR belonging to the checked-out branch: `gh pr view` with no number. */
+	async getCurrentBranchPr(): Promise<PrInfo> {
+		const json = await this.gh(["pr", "view", "--json", PR_VIEW_JSON_FIELDS]);
+		return JSON.parse(json) as PrInfo;
+	}
+
 	async getPrDiff(number: number): Promise<string> {
 		return this.gh(["pr", "diff", String(number)]);
 	}
 
-	async fetchPrHead(number: number): Promise<void> {
-		await this.git.fetchPrHead(number);
+	async fetchPrHead(number: number): Promise<string> {
+		return this.git.fetchPrHead(number);
 	}
 
 	async findPendingReview(_pr: number): Promise<never> {
