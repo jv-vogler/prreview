@@ -1,7 +1,8 @@
 node_modules/
 dist/
 .prreview/
-coverage/
+# root-anchored: src/domain/coverage/ is source code
+/coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo

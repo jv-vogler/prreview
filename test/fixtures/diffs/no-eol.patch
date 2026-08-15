@@ -1,0 +1,20 @@
+diff --git a/tail-new-noeol.txt b/tail-new-noeol.txt
+index 4cb29ea..9a719fe 100644
+--- a/tail-new-noeol.txt
++++ b/tail-new-noeol.txt
+@@ -1,3 +1,3 @@
+ one
+ two
+-three
++three went missing its newline
+\ No newline at end of file
+diff --git a/tail-old-noeol.txt b/tail-old-noeol.txt
+index ef9707a..474c1ef 100644
+--- a/tail-old-noeol.txt
++++ b/tail-old-noeol.txt
+@@ -1,3 +1,3 @@
+ alpha
+ beta
+-gamma ends without newline
+\ No newline at end of file
++gamma now ends with newline
