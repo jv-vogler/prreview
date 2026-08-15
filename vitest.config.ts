@@ -9,7 +9,9 @@ export default defineConfig({
 				test: {
 					name: "server",
 					environment: "node",
-					include: ["src/**/*.test.ts"],
+					// test/ holds the cross-layer suites (hostile requests); unit
+					// tests stay colocated under src/
+					include: ["src/**/*.test.ts", "test/**/*.test.ts"],
 					exclude: ["src/client/**"],
 				},
 			},

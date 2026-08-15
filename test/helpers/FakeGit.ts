@@ -24,6 +24,10 @@ export interface FakeGitState {
 	worktreeDiff?: string;
 	remotes?: Record<string, string>;
 	gitCommonDir?: string;
+	/** `${ref}:${path}` → committed blob content (readBlob's lookup table) */
+	blobs?: Record<string, string | Buffer>;
+	/** path → staged blob content (readIndexBlob's lookup table) */
+	indexBlobs?: Record<string, string | Buffer>;
 }
 
 const DEFAULT_HEAD_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -96,12 +100,20 @@ export class FakeGit implements Git {
 		return this.state.worktreeDiff ?? "";
 	}
 
-	async readBlob(_ref: string, _path: string): Promise<Buffer> {
-		throw new Error("fake git: readBlob is not modelled");
+	async readBlob(ref: string, path: string): Promise<Buffer> {
+		const content = this.state.blobs?.[`${ref}:${path}`];
+		if (content === undefined) {
+			throw new Error(`fake git: no blob at ${ref}:${path}`);
+		}
+		return Buffer.from(content);
 	}
 
-	async readIndexBlob(_path: string): Promise<Buffer> {
-		throw new Error("fake git: readIndexBlob is not modelled");
+	async readIndexBlob(path: string): Promise<Buffer> {
+		const content = this.state.indexBlobs?.[path];
+		if (content === undefined) {
+			throw new Error(`fake git: no staged blob at ${path}`);
+		}
+		return Buffer.from(content);
 	}
 
 	async hashObject(_path: string): Promise<string> {
