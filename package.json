@@ -1,0 +1,64 @@
+{
+	"name": "prreview",
+	"version": "0.1.0",
+	"description": "GitHub-style diff viewer on localhost for reviewing PRs, branches, commit ranges, and working-tree changes",
+	"keywords": [
+		"code-review",
+		"diff",
+		"pull-request",
+		"git",
+		"cli",
+		"review",
+		"local-first"
+	],
+	"homepage": "https://github.com/jv-vogler/prreview#readme",
+	"bugs": {
+		"url": "https://github.com/jv-vogler/prreview/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/jv-vogler/prreview.git"
+	},
+	"license": "MIT",
+	"author": "João Vogler",
+	"type": "module",
+	"bin": {
+		"prreview": "./dist/cli.js"
+	},
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=20.19"
+	},
+	"scripts": {
+		"build": "tsdown && vite build src/client",
+		"dev": "concurrently \"tsx watch src/interface/cli/index.ts --dev\" \"vite src/client\"",
+		"test": "vitest run",
+		"test:e2e": "playwright test",
+		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input",
+		"typecheck": "tsc -b",
+		"prepack": "npm run build"
+	},
+	"dependencies": {
+		"react": "^19.2.8",
+		"react-dom": "^19.2.8"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.8",
+		"@playwright/test": "^1.62.1",
+		"@testing-library/react": "^16.3.2",
+		"@types/node": "^26.2.0",
+		"@types/react": "^19.2.18",
+		"@types/react-dom": "^19.2.4",
+		"@vitejs/plugin-react": "^6.0.5",
+		"concurrently": "^10.0.5",
+		"jsdom": "^29.1.1",
+		"stylelint": "^17.14.1",
+		"tsdown": "^0.22.14",
+		"tsx": "^4.23.12",
+		"typescript": "^7.0.2",
+		"vite": "^8.2.1",
+		"vitest": "^4.1.10"
+	}
+}
