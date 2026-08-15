@@ -1,0 +1,24 @@
+.shell {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	background: var(--bgColor-default);
+}
+
+.body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+}
+
+.sidebar {
+	width: 280px;
+	flex-shrink: 0;
+	min-height: 0;
+}
+
+.workspace {
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+}

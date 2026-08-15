@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -16,6 +17,15 @@ export default defineConfig({
 				},
 			},
 			{
+				// mirror of src/client/vite.config.ts's alias so client tests
+				// resolve the wire contract the same way the app does (CON-002)
+				resolve: {
+					alias: {
+						"@dto": fileURLToPath(
+							new URL("./src/interface/http/dto", import.meta.url),
+						),
+					},
+				},
 				test: {
 					name: "client",
 					environment: "jsdom",

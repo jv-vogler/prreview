@@ -1,0 +1,30 @@
+.ring {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--base-size-6);
+}
+
+.track {
+	stroke: var(--borderColor-default);
+}
+
+.progress {
+	stroke: var(--fgColor-accent);
+	transition: stroke-dashoffset var(--motion-duration-short)
+		var(--motion-easing-hover);
+}
+
+.ring[data-complete] .progress {
+	stroke: var(--fgColor-success);
+}
+
+.label {
+	font-size: var(--text-body-size-small);
+	font-variant-numeric: tabular-nums;
+	color: var(--fgColor-muted);
+	min-width: var(--base-size-32);
+}
+
+.ring[data-complete] .label {
+	color: var(--fgColor-success);
+}
