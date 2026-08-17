@@ -66,6 +66,11 @@ Key structural facts:
    nothing, and any resume that could overlap another **must** pass `--fork-session` or both
    threads interleave into the parent session file. Both are empirical (`spikes/*/VERDICT.md`),
    both live in `src/infrastructure/engine/argv.ts`, and the fake enforces the first.
+5. `--json-schema` must be **draft-07**: the CLI validates it with Ajv 8, which cannot resolve a
+   draft-2020-12 `$schema` and kills the run at spawn (CON-014, `docs/engine-notes.md`). Build
+   schema strings only through `toJsonSchema`, and register every task schema in
+   `src/application/analysis/taskSchemas.ts` — that registry is what the Ajv gate iterates. The
+   fake validates the flag too, so a violation is a red unit test rather than a broken product.
 
 ## Testing the agent without paying for it
 
