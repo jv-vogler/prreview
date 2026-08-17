@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { comprehensionOutSchema } from "./schemas";
+import { representativeTopicsOutSchema } from "./topicSchemas";
 
 /**
  * Every zod schema that is ever converted by `toJsonSchema` and handed to
@@ -13,4 +14,7 @@ import { comprehensionOutSchema } from "./schemas";
  */
 export const TASK_SCHEMAS: Readonly<Record<string, z.ZodType>> = {
 	comprehension: comprehensionOutSchema,
+	// per-round `maxTopics` varies, but the gates test the schema's shape, which
+	// does not — so one representative instance covers every round
+	topics: representativeTopicsOutSchema,
 };
