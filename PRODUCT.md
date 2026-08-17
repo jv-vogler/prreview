@@ -83,17 +83,28 @@ Both are first-class.
 
 1. **Open.** `npx prreview` auto-detects the changeset. Explicit forms: PR number/URL, branch
    vs base, commit range, working tree. The tool states what it resolved.
-2. **Orient.** The intent map: what this change is for, clustered by purpose, ticket alignment,
-   risk overview. Read this before any diff.
-3. **Walk.** A guided walkthrough in logical reading order with narration, or free browsing.
-   Coverage is tracked either way.
-4. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"),
-   annotation edits, re-analysis lenses.
-5. **Curate.** Accept, edit, or dismiss findings.
-6. **Ship.** Export the markdown scratchfile and/or publish a pending GitHub review. Authors
-   can generate the PR description.
-7. **Loop.** Hand accepted findings to a fixer agent as a fix brief. prreview detects that the
+2. **Orient.** *Overview*: what this change is for, the ticket when one was cheap to find, and
+   whether the code appears to do what it set out to do. Read this before any diff.
+3. **Understand.** The change retold as plain-language topics, each carrying the hunks that serve
+   it. Topics overlap where one hunk does two things — they name what the change does rather than
+   partition it. Coverage is tracked as you read.
+4. **Browse.** The plain diff, always available and free. A toggle overlays suggested comments as
+   balloons where they land.
+5. **Review.** *Suggested comments*: candidate comments about problems this change introduced, at
+   a depth you choose. A separate, deliberate spend — nothing chains it off step 2 or 3. Problems
+   that predate the change are kept in their own section and never mixed into review feedback.
+6. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"), and
+   operations on the suggested comments themselves.
+7. **Curate.** Accept, edit, or dismiss comments. A dismissal is remembered, so a later pass does
+   not raise it again.
+8. **Ship.** Export the markdown scratchfile and/or publish a pending GitHub review. Authors can
+   generate the PR description.
+9. **Loop.** Hand accepted findings to a fixer agent as a fix brief. prreview detects that the
    code changed and offers an incremental re-review.
+
+Steps 2–3 share one pass; step 5 is its own. Each AI surface states its own cost before spending
+anything, and with no agent installed those surfaces are absent rather than disabled — the diff
+viewer stands on its own.
 
 ## 7. Functional requirements
 

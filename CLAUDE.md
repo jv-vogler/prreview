@@ -4,11 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-prreview: a CLI (`npx prreview`) that serves a GitHub-style diff viewer on localhost for
-reviewing PRs, branches, commit ranges, and working-tree changes. M1 (the viewer) and M2
-(explanations: intent map, anchored explanations, guided walkthrough, chat) are built; findings,
-curation, and export arrive in M3, ticket alignment and GitHub publishing in M4. Authority docs:
-`PRODUCT.md` (what and why), `ARCHITECTURE.md` (how), `plan/` (execution state).
+prreview: a CLI (`npx prreview`) that serves a code review workspace on localhost for PRs,
+branches, commit ranges, and working-tree changes. **Four tabs**, each a separate deliberate
+spend:
+
+| Tab | Route | What it is | Spend |
+|---|---|---|---|
+| Overview | `/overview` | what the change is for; ticket when cheaply found; whether the code matches | shares the comprehension pass |
+| Diff | `/diff` | plain GitHub-style diff; a toggle overlays finding balloons | free |
+| Understanding | `/understand` | the change as plain-language topics, each carrying its code | comprehension pass |
+| Suggested comments | `/comments` | candidate review comments at a chosen depth | its own pass |
+
+Nothing chains one pass off another: reading about a change must never quietly spend on a review
+nobody asked for. With no agent installed the three AI tabs are **absent** (not disabled), and
+the routes redirect to the diff.
+
+Built and working: the viewer, the comprehension pass (topics + overview + opportunistic ticket),
+the findings pass (six lenses, adjudication, form and grounding gates), and chat. Not yet:
+chat operating on findings as structured ops, `--brain`, and GitHub publishing.
+
+Authority docs: `PRODUCT.md` (what and why), `ARCHITECTURE.md` (how), `plan/` (execution state,
+gitignored — `plan/design-understanding-and-comments.md` is the current design agreement).
 
 ## Commands
 
@@ -43,12 +59,20 @@ Key structural facts:
   recomputed for display.
 - **Sessions live in `.prreview/`** at the reviewed repo's root (JSON, atomic temp+rename
   writes, ~500ms debounce, pidfile lock). Delete `.prreview/` to reset a session.
-- **Diff rendering**: `@pierre/diffs` (pinned) is imported by exactly one module,
-  `src/client/src/view/diff/DiffWorkspace.tsx`.
+- **Diff rendering**: `@pierre/diffs` (pinned) is imported by exactly three modules, and no
+  others: `view/app/WorkerPoolHost.tsx` (the pool + theme, hoisted above the tabs so a tab switch
+  does not terminate four workers), `view/diff/DiffWorkspace.tsx` (the Diff tab's virtualized
+  `CodeView`), and `view/understanding/TopicBlock.tsx` (the Understanding tab's per-topic
+  `FileDiff` excerpts). The narrowing recipe lives in `domain/understanding/narrowToHunks.ts` —
+  read its comment before touching it; filtering the `hunks` array does **not** work, and the
+  failure renders nothing while logging a renderer error (`spikes/topic-render/VERDICT.md`).
 - **Engine layer**: the intelligence is the user's own `claude` CLI, driven as short-lived child
   processes. `src/infrastructure/engine/` spawns them (argv array, `shell: false`, prompt on
-  stdin, line-delimited JSON back), and `runManager.ts` runs at most two at a time — one analysis
-  lane, one chat lane. Everything above it talks to the `Engine` port in `application/ports/`, so
+  stdin, line-delimited JSON back), and `runManager.ts` runs at most two **runs** at a time — one
+  analysis lane, one chat lane. A review run fans out to up to five lens children *inside* its own
+  job, behind a semaphore, so the manager still sees one runId, one 202, one cancel, and one abort
+  signal; the lane policy is deliberately unaware of it. Every lens resume passes `--fork-session`
+  (measured clean at five, `spikes/depth-and-fanout/VERDICT.md`). Everything above it talks to the `Engine` port in `application/ports/`, so
   a second CLI needs no change to a use-case, a route, or the client. Analysis is only ever
   user-triggered; with no agent installed `deriveFeatureFlags` returns all-false and every AI
   surface is absent rather than disabled.

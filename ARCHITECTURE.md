@@ -740,10 +740,10 @@ Everything lives under `/api`; the DTOs are in `interface/http/dto/`.
 | `GET /api/changeset` · `POST /api/changeset/refresh` | files, hunks, risk projection; re-resolve after drift |
 | `GET /api/blob?ref=&path=` | context expansion for Pierre's `loadDiffFiles` |
 | `GET /api/annotations` · `PATCH /api/annotations/:id` · `POST /api/annotations/batch` | full set; curation and edits; batch ops |
-| `GET /api/intent-map` · `GET /api/walkthrough` | 404 with a reason until produced |
+| `GET /api/understanding` | topics + overview from one comprehension pass; 404 `not-produced` until it has run |
 | `POST /api/analysis` · `GET /api/analysis/runs[/:id]` · `POST /api/analysis/runs/:id/cancel` | one run machine for every task type |
 | `GET /api/chat/messages` · `POST /api/chat/messages` | history; post a turn → 202 `{turnId}`, reply streams over SSE |
-| `PUT /api/coverage` · `PUT /api/walkthrough/progress` | batched, idempotent, set-semantics |
+| `PUT /api/coverage` | batched, idempotent, set-semantics |
 | `POST /api/export/markdown` | `{write, path?}` → `{content, path?}` |
 | `POST /api/publish/github` | synchronous, ≤ 30s |
 | `POST /api/fix-brief` | `channel: 'file' \| 'dispatch'` |
@@ -848,17 +848,26 @@ client-only. Diff mode and theme live in localStorage.
   because focus trapping and dismissal are the highest-defect-density code in any UI, while the
   visuals stay 100% ours through tokens. The rest are plain styled elements.
 
-**pages/** `/` is the gate plus providers, redirecting to `/orient` when an intent map exists
-and coverage is 0, otherwise to `/diff`. Then `/orient`, and
-`/diff?file=&hunk=&walkthrough=<step>`. **The walkthrough is a mode over `/diff`, not a route.**
-Jumping out is a flow transition over one mounted workspace rather than a remount, and the URL
-parameter restores the step after a refresh.
+**pages/** `/` is the gate, redirecting to `/overview` when a comprehension pass has run and
+coverage is 0, otherwise to `/diff`. The four surfaces are **nested routes under one
+`ReviewLayout`**: `/overview`, `/diff?file=&hunk=&finding=`, `/understand?topic=`, `/comments`.
+`/orient` redirects to `/overview` permanently, so a saved link still lands somewhere true.
+
+The layout owns everything that must survive a tab switch — the session and changeset gate,
+coverage, analysis, chat, the diff cursor, the drift banner, and **the highlight worker pool**.
+The pool in particular cannot live inside the diff: it is a singleton that terminates when its
+last provider unmounts, so a tab switch would kill four workers and the switch back would
+re-highlight everything. Hoisted, with content-derived cache keys, a remount is a cache hit.
+
+Without an agent the three AI routes redirect to `/diff`. Hiding the tabs is not enough — a
+saved link, the `/orient` redirect, or a typed URL all reach a route directly, and the page they
+would land on invites the reader to start a pass no agent can run.
 
 **Keyboard-first.** `DiffNavigationProvider` owns a `{fileIndex, hunkIndex}` cursor kept in sync
 with scrolling. Keymap: `j`/`k` files, `n`/`p` hunks, `]`/`[` annotations, `a`/`e`/`x`
-accept/edit/dismiss, `v`/`m` mark hunk/file reviewed, `w` walkthrough, `c` chat, `s`
-split/unified, `g o` and `g d` go to orient/diff, `?` help. All suppressed inside inputs and
-dialogs.
+accept/edit/dismiss, `v`/`m` mark hunk/file reviewed, `f` toggle finding balloons, `c` chat, `s`
+split/unified, `g o`/`g d`/`g u`/`g c` go to overview/diff/understanding/comments, `?` help. All
+suppressed inside inputs and dialogs.
 
 ---
 
