@@ -77,3 +77,19 @@
 	font-size: var(--text-body-size-small);
 	color: var(--fgColor-attention);
 }
+
+.action {
+	appearance: none;
+	border: 1px solid var(--borderColor-default);
+	background: var(--bgColor-default);
+	border-radius: var(--borderRadius-small);
+	padding: 1px 8px;
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+	cursor: pointer;
+}
+
+.action:hover {
+	color: var(--fgColor-default);
+	background: var(--bgColor-muted);
+}

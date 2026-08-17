@@ -24,6 +24,9 @@ export interface FindingCardProps {
 	selected: boolean;
 	onSelect(): void;
 	dimmed?: boolean;
+	/** curation actions; absent on surfaces that only display */
+	onDrop?(): void;
+	onRestore?(): void;
 }
 
 export function FindingCard({
@@ -32,6 +35,8 @@ export function FindingCard({
 	selected,
 	onSelect,
 	dimmed = false,
+	onDrop,
+	onRestore,
 }: FindingCardProps) {
 	const { anchor } = finding;
 	const location = `${anchor.path}:${anchor.startLine}`;
@@ -72,6 +77,21 @@ export function FindingCard({
 			<p className={styles.body}>{finding.body}</p>
 
 			<footer className={styles.footer}>
+				{/*
+					Dismissing is never deletion: it moves the comment to the dismissed
+					lane, where it stays recoverable and where the next review pass
+					reads it as a suppression.
+				*/}
+				{onDrop !== undefined && (
+					<button type="button" className={styles.action} onClick={onDrop}>
+						Dismiss
+					</button>
+				)}
+				{onRestore !== undefined && (
+					<button type="button" className={styles.action} onClick={onRestore}>
+						Restore
+					</button>
+				)}
 				{/*
 					Two honesty markers, both of which the reader needs before acting:
 					a claim whose citations were not all actually read, and a claim

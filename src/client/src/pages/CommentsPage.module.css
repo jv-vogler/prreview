@@ -67,3 +67,16 @@
 	color: var(--fgColor-muted);
 	text-align: center;
 }
+
+.rejections {
+	border: 1px solid var(--borderColor-danger-muted);
+	background: var(--bgColor-danger-muted);
+	border-radius: var(--borderRadius-medium);
+	padding: 10px 12px;
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-default);
+}
+
+.rejections p {
+	margin: 0 0 4px;
+}

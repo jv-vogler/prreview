@@ -3,6 +3,7 @@ import { AnalysisInvitation } from "../view/analysis/AnalysisInvitation";
 import { useAnnotations } from "../view/annotations/useAnnotations";
 import { FindingCard } from "../view/findings/FindingCard";
 import { useFindingSelection } from "../view/findings/FindingSelectionProvider";
+import { useAnnotationOps } from "../view/findings/useAnnotationOps";
 import styles from "./CommentsPage.module.css";
 
 /**
@@ -20,6 +21,27 @@ import styles from "./CommentsPage.module.css";
 export function CommentsPage() {
 	const annotations = useAnnotations();
 	const selection = useFindingSelection();
+	const ops = useAnnotationOps();
+
+	/**
+	 * Handles are assigned over **every** comment species, in stored order —
+	 * the same rule the server applies when it resolves `F3` back to an id.
+	 *
+	 * Numbering only the findings here would mean `F3` referred to different
+	 * comments on the two sides the moment a related finding existed, and the
+	 * failure would be a dismissal landing on the wrong one. Handles exist so
+	 * that a person, the chat lane, and the server agree; they have to be
+	 * derived identically or they are worse than nothing.
+	 */
+	const handled = annotations.filter(
+		(annotation) =>
+			annotation.species === "finding" ||
+			annotation.species === "related-finding",
+	);
+	const handleOf = (id: string) => {
+		const index = handled.findIndex((annotation) => annotation.id === id);
+		return index < 0 ? "—" : `F${index + 1}`;
+	};
 
 	const findings = annotations.filter(
 		(annotation) => annotation.species === "finding",
@@ -49,14 +71,30 @@ export function CommentsPage() {
 				</p>
 			</header>
 
+			{ops.rejections.length > 0 && (
+				<div className={styles.rejections} role="alert">
+					{ops.rejections.map((rejection) => (
+						<p key={`${rejection.handle}:${rejection.reason}`}>
+							{rejection.handle}: {rejection.reason}
+						</p>
+					))}
+					<button type="button" onClick={ops.clearRejections}>
+						Dismiss
+					</button>
+				</div>
+			)}
+
 			<div className={styles.list}>
-				{active.map((finding, index) => (
+				{active.map((finding) => (
 					<FindingCard
 						key={finding.id}
 						finding={finding}
-						handle={`F${index + 1}`}
+						handle={handleOf(finding.id)}
 						selected={selection.selectedId === finding.id}
 						onSelect={() => selection.select(finding.id)}
+						onDrop={() =>
+							ops.apply([{ op: "drop", handle: handleOf(finding.id) }])
+						}
 					/>
 				))}
 			</div>
@@ -75,7 +113,7 @@ export function CommentsPage() {
 							<FindingCard
 								key={finding.id}
 								finding={finding}
-								handle="—"
+								handle={handleOf(finding.id)}
 								selected={selection.selectedId === finding.id}
 								onSelect={() => selection.select(finding.id)}
 							/>
@@ -94,9 +132,12 @@ export function CommentsPage() {
 							<FindingCard
 								key={finding.id}
 								finding={finding}
-								handle="—"
+								handle={handleOf(finding.id)}
 								selected={selection.selectedId === finding.id}
 								onSelect={() => selection.select(finding.id)}
+								onRestore={() =>
+									ops.apply([{ op: "restore", handle: handleOf(finding.id) }])
+								}
 								dimmed
 							/>
 						))}

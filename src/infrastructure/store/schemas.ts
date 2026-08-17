@@ -209,6 +209,23 @@ const storedAnnotationSchema: z.ZodType<StoredAnnotation> = z.object({
 	title: z.string().optional(),
 	originalBody: z.string().optional(),
 	category: z.string().optional(),
+	severity: z.string().optional(),
+	proof: z
+		.object({
+			mode: z.enum(["traced", "inferred"]),
+			how: z.string(),
+			stale: z.boolean().optional(),
+		})
+		.optional(),
+	editTrail: z
+		.array(
+			z.object({
+				at: z.string(),
+				by: z.enum(["user", "chat"]),
+				previousBody: z.string(),
+			}),
+		)
+		.optional(),
 	confidence: z.enum(["high", "medium", "low"]).optional(),
 	citations: z.array(citationSchema).optional(),
 	groundingVerified: z.boolean().optional(),

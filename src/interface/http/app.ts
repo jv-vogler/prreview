@@ -147,7 +147,14 @@ export function createApp(deps: AppDeps): Hono {
 			runManager: deps.container.runManager,
 		}),
 	);
-	app.route("/api/annotations", annotationsRoute({ state: deps.state }));
+	app.route(
+		"/api/annotations",
+		annotationsRoute({
+			state: deps.state,
+			store: deps.container.store,
+			publish: deps.container.publish,
+		}),
+	);
 	app.route("/api/understanding", understandingRoute({ state: deps.state }));
 	app.route(
 		"/api/chat",

@@ -64,6 +64,16 @@ export interface StoredAnnotation {
 	originalBody?: string;
 	/** an ExplanationKind for explanations; a finding category for findings */
 	category?: string;
+	/** how much a finding matters: blocker | should-fix | consider | nitpick */
+	severity?: string;
+	/**
+	 * How the claim was established, and how. Kept off the body so a publisher
+	 * can omit it without editing prose, and marked stale when a rewrite changes
+	 * the sentence the proof was about.
+	 */
+	proof?: { mode: "traced" | "inferred"; how: string; stale?: boolean };
+	/** append-only record of every edit, so a rewrite is never a silent swap */
+	editTrail?: { at: string; by: "user" | "chat"; previousBody: string }[];
 	confidence?: "high" | "medium" | "low";
 	citations?: Citation[];
 	groundingVerified?: boolean;
