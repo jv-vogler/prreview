@@ -1,0 +1,79 @@
+/*
+ * Deliberately not a card. A review comment is a bubble with an author and
+ * actions; an explanation is a hairline strip in the code's own flow, so the
+ * two can never be confused at a glance (F3).
+ */
+.note {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--base-size-8);
+	padding: var(--base-size-8) var(--base-size-16);
+	background: var(--bgColor-muted);
+	border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
+	border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+	font: var(--text-body-shorthand-small);
+	color: var(--fgColor-default);
+	animation: note-arrive var(--motion-duration-short) var(--motion-easing-enter);
+}
+
+/*
+ * The one authored moment in this milestone: notes stream in one event at a
+ * time while the agent works, so each one settles into place instead of
+ * snapping in. The resting state is the visible one — if the animation never
+ * runs, the note is already where it belongs.
+ */
+@keyframes note-arrive {
+	from {
+		opacity: 0;
+		transform: translateY(calc(-1 * var(--base-size-4)));
+		filter: blur(1px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.note {
+		animation: none;
+	}
+}
+
+.icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	padding-top: var(--base-size-2);
+	color: var(--fgColor-muted);
+}
+
+.content {
+	min-width: 0;
+}
+
+.meta {
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-8);
+	margin: 0 0 var(--base-size-2);
+}
+
+.kind {
+	font-size: var(--text-caption-size);
+	font-weight: var(--base-text-weight-semibold);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--fgColor-muted);
+}
+
+.moved {
+	font-size: var(--text-caption-size);
+	color: var(--fgColor-muted);
+	border: var(--borderWidth-thin) solid var(--borderColor-muted);
+	border-radius: var(--borderRadius-full);
+	padding: 0 var(--base-size-6);
+	cursor: help;
+}
+
+.body {
+	margin: 0;
+	/* prose measure: long enough to read, short enough not to scan back */
+	max-inline-size: 68ch;
+	line-height: var(--text-body-lineHeight-medium);
+}

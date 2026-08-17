@@ -1,0 +1,23 @@
+.analyze {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--base-size-6);
+	white-space: nowrap;
+	padding: var(--base-size-4) var(--base-size-12);
+	background: var(--button-default-bgColor-rest);
+	border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+	transition: background var(--motion-transition-hover);
+}
+
+.analyze:hover:not(:disabled) {
+	background: var(--button-default-bgColor-hover);
+}
+
+.analyze:disabled {
+	color: var(--fgColor-muted);
+	cursor: default;
+}

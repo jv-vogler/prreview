@@ -6,6 +6,7 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import { buildClientContainer } from "./infrastructure/container";
 import { installGoodbyeBeacon } from "./infrastructure/lifecycle/installGoodbyeBeacon";
 import { DiffPage } from "./pages/DiffPage";
+import { OrientPage } from "./pages/OrientPage";
 import { RootPage } from "./pages/RootPage";
 import { ClientContainerProvider } from "./view/app/ClientContainerProvider";
 import { TooltipProvider } from "./view/general/Tooltip";
@@ -31,6 +32,7 @@ const queryClient = new QueryClient({
 
 const router = createBrowserRouter([
 	{ path: "/", element: <RootPage /> },
+	{ path: "/orient", element: <OrientPage /> },
 	{ path: "/diff", element: <DiffPage /> },
 	{ path: "*", element: <RootPage /> },
 ]);

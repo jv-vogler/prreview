@@ -10,9 +10,17 @@ import type { CodeViewHandle } from "@pierre/diffs/react";
 import { CodeView, WorkerPoolContextProvider } from "@pierre/diffs/react";
 import DiffsWorker from "@pierre/diffs/worker/worker.js?worker";
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import type {
+	AnnotationCard,
+	PlacedAnnotation,
+} from "../../domain/annotation/placeAnnotations";
+import { placeAnnotations } from "../../domain/annotation/placeAnnotations";
 import { blobSidesFor } from "../../domain/changeset/blobSidesFor";
 import { buildPatchText } from "../../domain/changeset/buildPatchText";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
+import { ExplanationNote } from "../annotations/ExplanationNote";
+import { UnanchoredTray } from "../annotations/UnanchoredTray";
+import { useAnnotations } from "../annotations/useAnnotations";
 import { useClientContainer } from "../app/ClientContainerProvider";
 import { useCoverageActions } from "../coverage/CoverageProvider";
 import type { DiffCursor } from "./DiffNavigationProvider";
@@ -50,6 +58,15 @@ export interface DiffWorkspaceProps {
 	diffStyle: DiffStyle;
 }
 
+/**
+ * What the renderer carries per annotation. A wrapper object rather than the
+ * card union itself: Pierre's `OptionalMetadata<T>` is a conditional type, so a
+ * union metadata would distribute and demand one specific card kind.
+ */
+interface AnnotationMetadata {
+	card: AnnotationCard;
+}
+
 export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 	return (
 		<WorkerPoolContextProvider
@@ -69,7 +86,8 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 	const changeset = useGuaranteedChangeset();
 	const navigation = useDiffNavigation();
 	const { markViewed } = useCoverageActions();
-	const handleRef = useRef<CodeViewHandle<undefined>>(null);
+	const annotations = useAnnotations();
+	const handleRef = useRef<CodeViewHandle<AnnotationMetadata>>(null);
 
 	// files without hunks (binary, mode-only, pure renames) have no rows to
 	// render; they stay in the tree but not in the code view
@@ -78,7 +96,14 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 		[navigation.files],
 	);
 
-	const items = useMemo<CodeViewDiffItem<undefined>[]>(() => {
+	// where every note hangs, decided by the domain; this module only hands the
+	// result to the renderer (ARCHITECTURE §6, consumer 1)
+	const placedByFileId = useMemo(
+		() => placeAnnotations(annotations),
+		[annotations],
+	);
+
+	const items = useMemo<CodeViewDiffItem<AnnotationMetadata>[]>(() => {
 		const parsed = parsePatchFiles(
 			buildPatchText(renderedFiles),
 			changeset.roundId,
@@ -92,9 +117,22 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 				);
 				return [];
 			}
-			return [{ id: file.id, type: "diff" as const, fileDiff }];
+			const placed = placedByFileId.get(file.id) ?? [];
+			return [
+				{
+					id: file.id,
+					type: "diff" as const,
+					fileDiff,
+					version: annotationsVersion(placed),
+					annotations: placed.map((entry) => ({
+						side: entry.side,
+						lineNumber: entry.lineNumber,
+						metadata: { card: entry.card },
+					})),
+				},
+			];
 		});
-	}, [renderedFiles, changeset.roundId]);
+	}, [renderedFiles, changeset.roundId, placedByFileId]);
 
 	const filesByPath = useMemo(
 		() => new Map(renderedFiles.map((file) => [file.path, file])),
@@ -191,11 +229,12 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 	}, [viewport]);
 
 	return (
-		<CodeView<undefined>
+		<CodeView<AnnotationMetadata>
 			ref={handleRef}
 			items={items}
 			className={styles.codeView}
 			onScroll={viewport.scheduleSync}
+			renderAnnotation={(annotation) => renderCard(annotation.metadata.card)}
 			options={{
 				theme: PIERRE_THEME_NAME,
 				diffStyle,
@@ -207,6 +246,50 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 			}}
 		/>
 	);
+}
+
+/** 32-bit FNV-1a constants: a content signature, not a cryptographic hash */
+const FNV_OFFSET_BASIS = 0x811c9dc5;
+const FNV_PRIME = 0x01000193;
+const NO_ANNOTATIONS_VERSION = 0;
+
+/**
+ * The renderer reuses a file's rendered record until that item's `version`
+ * changes, so notes arriving mid-run appear only if the version moves with
+ * them. Derived from what is actually placed rather than from a counter, so the
+ * number a reload computes is the number the previous render had, and an
+ * unchanged file is never re-laid-out.
+ */
+function annotationsVersion(placed: readonly PlacedAnnotation[]): number {
+	if (placed.length === 0) {
+		return NO_ANNOTATIONS_VERSION;
+	}
+	let hash = FNV_OFFSET_BASIS;
+	for (const entry of placed) {
+		const ids =
+			entry.card.kind === "note"
+				? entry.card.note.id + entry.card.note.anchorStatus
+				: entry.card.notes.map((note) => note.id).join(",");
+		const signature = `${entry.side}:${entry.lineNumber}:${entry.card.kind}:${ids};`;
+		for (let at = 0; at < signature.length; at++) {
+			hash ^= signature.charCodeAt(at);
+			hash = Math.imul(hash, FNV_PRIME);
+		}
+	}
+	// zero means "no notes", so a signature that lands there borrows the next one
+	return hash >>> 0 || 1;
+}
+
+/**
+ * The renderer calls this through a React portal for every annotation it lays
+ * out, so the cards are ordinary components with variable heights (proven by
+ * the Pierre spike).
+ */
+function renderCard(card: AnnotationCard) {
+	if (card.kind === "unanchored") {
+		return <UnanchoredTray notes={card.notes} />;
+	}
+	return <ExplanationNote note={card.note} />;
 }
 
 /**

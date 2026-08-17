@@ -1,20 +1,26 @@
 import {
 	ColumnsIcon,
+	FileDiffIcon,
 	MoonIcon,
 	QuestionIcon,
 	RowsIcon,
 	SunIcon,
+	TelescopeIcon,
 } from "@primer/octicons-react";
+import { Link, useLocation } from "react-router";
+import { AnalyzeMenu } from "../analysis/AnalyzeMenu";
 import type { DiffStyle } from "../diff/useDiffStyle";
 import { Tooltip } from "../general/Tooltip";
+import { useFeatureFlags } from "../session/useFeatureFlags";
 import { useGuaranteedSession } from "../session/useGuaranteedSession";
 import { useTheme } from "../styling/useTheme";
 import { CoverageRing } from "./CoverageRing";
 import styles from "./TopBar.module.css";
 
 export interface TopBarProps {
-	diffStyle: DiffStyle;
-	onToggleDiffStyle(): void;
+	/** absent on pages with no diff to lay out, like `/orient` */
+	diffStyle?: DiffStyle;
+	onToggleDiffStyle?(): void;
 	onOpenHelp(): void;
 }
 
@@ -23,6 +29,8 @@ const THEME_MODE_LABEL = {
 	dark: "Theme: dark",
 	auto: "Theme: auto",
 } as const;
+
+const ORIENT_PATH = "/orient";
 
 /** The app header (TASK-047): what is under review, and how far along it is. */
 export function TopBar({
@@ -43,27 +51,31 @@ export function TopBar({
 				{session.resumed && <span className={styles.resumed}>resumed</span>}
 			</div>
 			<div className={styles.controls}>
+				<OrientationLink />
+				<AnalyzeMenu />
 				<CoverageRing percent={session.coverage.total} />
-				<Tooltip
-					label={
-						diffStyle === "unified"
-							? "Switch to split view (s)"
-							: "Switch to unified view (s)"
-					}
-				>
-					<button
-						type="button"
-						className={styles.iconButton}
-						onClick={onToggleDiffStyle}
-						aria-label="Toggle split or unified diff"
+				{diffStyle !== undefined && onToggleDiffStyle !== undefined && (
+					<Tooltip
+						label={
+							diffStyle === "unified"
+								? "Switch to split view (s)"
+								: "Switch to unified view (s)"
+						}
 					>
-						{diffStyle === "unified" ? (
-							<ColumnsIcon size={16} />
-						) : (
-							<RowsIcon size={16} />
-						)}
-					</button>
-				</Tooltip>
+						<button
+							type="button"
+							className={styles.iconButton}
+							onClick={onToggleDiffStyle}
+							aria-label="Toggle split or unified diff"
+						>
+							{diffStyle === "unified" ? (
+								<ColumnsIcon size={16} />
+							) : (
+								<RowsIcon size={16} />
+							)}
+						</button>
+					</Tooltip>
+				)}
 				<Tooltip label={THEME_MODE_LABEL[mode]}>
 					<button
 						type="button"
@@ -90,5 +102,33 @@ export function TopBar({
 				</Tooltip>
 			</div>
 		</header>
+	);
+}
+
+/**
+ * The one crossing between the two pages, and only once there is an
+ * orientation to cross to: whether an intent map exists is the server's answer
+ * (`session.analysis`), not something the flags can say — a flag reports what
+ * this session can ever do, availability changes every time a run lands.
+ */
+function OrientationLink() {
+	const flags = useFeatureFlags();
+	const session = useGuaranteedSession();
+	const { pathname } = useLocation();
+
+	if (!flags.analysis || !session.analysis.intentMapAvailable) {
+		return null;
+	}
+	const onOrient = pathname === ORIENT_PATH;
+
+	return (
+		<Link
+			className={styles.pageLink}
+			to={onOrient ? "/diff" : ORIENT_PATH}
+			title={onOrient ? "Back to the diff (g d)" : "Orientation (g o)"}
+		>
+			{onOrient ? <FileDiffIcon size={16} /> : <TelescopeIcon size={16} />}
+			{onOrient ? "Diff" : "Orientation"}
+		</Link>
 	);
 }

@@ -43,6 +43,25 @@
 	gap: var(--base-size-8);
 }
 
+.pageLink {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--base-size-6);
+	padding: var(--base-size-4) var(--base-size-8);
+	border-radius: var(--borderRadius-medium);
+	color: var(--fgColor-muted);
+	text-decoration: none;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+	white-space: nowrap;
+	transition: background var(--motion-transition-hover);
+}
+
+.pageLink:hover {
+	background: var(--control-transparent-bgColor-hover);
+	color: var(--fgColor-default);
+}
+
 .iconButton {
 	display: inline-flex;
 	align-items: center;

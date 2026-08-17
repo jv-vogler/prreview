@@ -1,0 +1,76 @@
+.tray {
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-12);
+	padding: var(--base-size-8) var(--base-size-16);
+	border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+	background: var(--bgColor-muted);
+	font-size: var(--text-body-size-small);
+}
+
+.tray[data-state="failed"] {
+	background: var(--bgColor-danger-muted);
+	border-bottom-color: var(--borderColor-danger-muted);
+}
+
+.icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	color: var(--fgColor-danger);
+}
+
+.message {
+	display: flex;
+	align-items: baseline;
+	gap: var(--base-size-8);
+	flex: 1;
+	min-width: 0;
+}
+
+.elapsed {
+	font-variant-numeric: tabular-nums;
+	color: var(--fgColor-muted);
+}
+
+/*
+ * A run takes minutes, so the one moving thing on screen is what tells the
+ * reader prreview is still working. Linear because it never arrives.
+ */
+.spinner {
+	flex-shrink: 0;
+	width: var(--base-size-16);
+	height: var(--base-size-16);
+	border: var(--borderWidth-thick) solid var(--borderColor-muted);
+	border-top-color: var(--fgColor-accent);
+	border-radius: var(--borderRadius-full);
+	animation: tray-spin calc(var(--motion-duration-long) * 2)
+		var(--motion-easing-linear) infinite;
+}
+
+@keyframes tray-spin {
+	to {
+		transform: rotate(1turn);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spinner {
+		animation-duration: calc(var(--motion-duration-long) * 8);
+	}
+}
+
+.action {
+	white-space: nowrap;
+	padding: var(--base-size-4) var(--base-size-12);
+	background: var(--button-default-bgColor-rest);
+	border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+	transition: background var(--motion-transition-hover);
+}
+
+.action:hover {
+	background: var(--button-default-bgColor-hover);
+}

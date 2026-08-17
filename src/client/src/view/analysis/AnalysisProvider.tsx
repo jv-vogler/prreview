@@ -27,6 +27,8 @@ export interface Analysis {
 	starting: boolean;
 	startAnalysis(): void;
 	cancelRun(runId: string): void;
+	/** the 409's way out: stop the run that is in the way, then start ours */
+	cancelAndRestart(runId: string): void;
 }
 
 const AnalysisContext = createContext<Analysis | null>(null);
@@ -77,6 +79,10 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
 			starting: start.isPending,
 			startAnalysis: () => start.mutate(),
 			cancelRun: (runId) => cancel.mutate(runId),
+			// sequential on purpose: starting before the cancel lands would race
+			// the lane and earn a second 409
+			cancelAndRestart: (runId) =>
+				cancel.mutate(runId, { onSuccess: () => start.mutate() }),
 		};
 	}, [runs, conflictRunId, start, cancel]);
 

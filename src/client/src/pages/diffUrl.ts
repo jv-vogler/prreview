@@ -32,6 +32,19 @@ export function cursorFromSearchParams(
 	};
 }
 
+/**
+ * A link into the diff at one file, optionally at one hunk (TASK-053): the
+ * orientation page's members and its entry point both land through here, so
+ * "where a file lives in the URL" is decided in exactly one module.
+ */
+export function diffPathFor(fileId: string, hunkId?: string | null): string {
+	const params = new URLSearchParams({ [FILE_PARAM]: fileId });
+	if (hunkId !== undefined && hunkId !== null) {
+		params.set(HUNK_PARAM, hunkId);
+	}
+	return `/diff?${params.toString()}`;
+}
+
 export function searchParamsForCursor(
 	current: URLSearchParams,
 	files: readonly FileDiffDto[],

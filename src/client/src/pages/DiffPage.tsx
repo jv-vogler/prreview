@@ -6,9 +6,15 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
+import {
+	annotationStops,
+	nextAnnotationStop,
+} from "../domain/annotation/annotationStops";
 import { sortFilesByAttention } from "../domain/changeset/sortFilesByAttention";
 import { AnalysisProvider } from "../view/analysis/AnalysisProvider";
+import { AnalysisTray } from "../view/analysis/AnalysisTray";
+import { useAnnotations } from "../view/annotations/useAnnotations";
 import { AppShell } from "../view/app/AppShell";
 import { TopBar } from "../view/app/TopBar";
 import { ChatProvider } from "../view/chat/ChatProvider";
@@ -31,6 +37,7 @@ import { useKeymap } from "../view/diff/useKeymap";
 import { LoadingScreen } from "../view/general/LoadingScreen";
 import { ChangesDetectedBanner } from "../view/session/ChangesDetectedBanner";
 import { useDriftBanner } from "../view/session/useDriftBanner";
+import { ViewerOnlyNotice } from "../view/session/ViewerOnlyNotice";
 import { cursorFromSearchParams, searchParamsForCursor } from "./diffUrl";
 
 /** `/diff` — the review workspace behind the suspense gate (TASK-049/051). */
@@ -88,6 +95,12 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 	const [diffStyle, toggleDiffStyle] = useDiffStyle();
 	const [helpOpen, setHelpOpen] = useState(false);
 	const drift = useDriftBanner();
+	const navigate = useNavigate();
+	const annotations = useAnnotations();
+	const stops = useMemo(
+		() => annotationStops(annotations, navigation.files),
+		[annotations, navigation.files],
+	);
 
 	useCursorUrlSync();
 
@@ -117,12 +130,27 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 		[navigation.files, navigation.cursor],
 	);
 
+	const jumpToStop = useCallback(
+		(direction: "next" | "previous") => {
+			const stop = nextAnnotationStop(stops, navigation.cursor, direction);
+			if (stop !== null) {
+				navigation.jumpTo(stop);
+			}
+		},
+		[stops, navigation.cursor, navigation.jumpTo],
+	);
+
 	const onKeyAction = useCallback(
 		(action: KeyAction) => {
-			// the AI surfaces' keys (]/[ notes, w walkthrough, c chat, g o / g d)
-			// resolve already and are answered by the surfaces that own them, in
-			// the phases that build them; until then they do nothing
+			// `w` (walkthrough) and `c` (chat) resolve already and are answered by
+			// the surfaces phase 9 builds; until then they do nothing
 			switch (action) {
+				case "next-annotation":
+					return jumpToStop("next");
+				case "prev-annotation":
+					return jumpToStop("previous");
+				case "go-orient":
+					return navigate("/orient");
 				case "next-file":
 					return navigation.nextFile();
 				case "prev-file":
@@ -141,7 +169,14 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 					return setHelpOpen(true);
 			}
 		},
-		[navigation, markReviewed, reviewedHunkIdsFor, toggleDiffStyle],
+		[
+			navigation,
+			markReviewed,
+			reviewedHunkIdsFor,
+			toggleDiffStyle,
+			jumpToStop,
+			navigate,
+		],
 	);
 
 	useKeymap({ dialogOpen: helpOpen, onAction: onKeyAction });
@@ -157,12 +192,16 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 					/>
 				}
 				banner={
-					drift.driftDetected ? (
-						<ChangesDetectedBanner
-							refreshing={drift.refreshing}
-							onRefresh={drift.refresh}
-						/>
-					) : undefined
+					<>
+						{drift.driftDetected && (
+							<ChangesDetectedBanner
+								refreshing={drift.refreshing}
+								onRefresh={drift.refresh}
+							/>
+						)}
+						<AnalysisTray />
+						<ViewerOnlyNotice />
+					</>
 				}
 				sidebar={<FileTreePanel />}
 				workspace={<DiffWorkspace diffStyle={diffStyle} />}

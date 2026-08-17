@@ -4,7 +4,8 @@ import styles from "./AppShell.module.css";
 export interface AppShellProps {
 	topBar: ReactNode;
 	banner?: ReactNode;
-	sidebar: ReactNode;
+	/** absent on pages that are one column, like `/orient` */
+	sidebar?: ReactNode;
 	workspace: ReactNode;
 }
 
@@ -20,7 +21,9 @@ export function AppShell({
 			{topBar}
 			{banner}
 			<div className={styles.body}>
-				<aside className={styles.sidebar}>{sidebar}</aside>
+				{sidebar !== undefined && (
+					<aside className={styles.sidebar}>{sidebar}</aside>
+				)}
 				<main className={styles.workspace}>{workspace}</main>
 			</div>
 		</div>

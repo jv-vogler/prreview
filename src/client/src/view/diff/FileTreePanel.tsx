@@ -1,9 +1,13 @@
 import type { FileDiffDto } from "@dto/ChangesetDto";
 import {
+	BookIcon,
 	CheckCircleFillIcon,
 	FileBinaryIcon,
 	FileDiffIcon,
 } from "@primer/octicons-react";
+import { useMemo } from "react";
+import { countNotesByFileId } from "../../domain/annotation/countNotesByFileId";
+import { useAnnotations } from "../annotations/useAnnotations";
 import { useGuaranteedSession } from "../session/useGuaranteedSession";
 import { useDiffNavigation } from "./DiffNavigationProvider";
 import styles from "./FileTreePanel.module.css";
@@ -19,6 +23,11 @@ const FULLY_COVERED_PERCENT = 100;
 export function FileTreePanel() {
 	const { files, cursor, jumpToFile } = useDiffNavigation();
 	const session = useGuaranteedSession();
+	const annotations = useAnnotations();
+	const noteCounts = useMemo(
+		() => countNotesByFileId(annotations),
+		[annotations],
+	);
 
 	return (
 		<nav className={styles.panel} aria-label="Changed files">
@@ -50,6 +59,7 @@ export function FileTreePanel() {
 								{basenameOf(file.path)}
 							</span>
 							<span className={styles.meta}>
+								<NoteCount count={noteCounts.get(file.id) ?? 0} />
 								<ChangedLines file={file} />
 								<span className={styles.tick}>
 									{(session.coverage.byFile[file.id] ?? 0) >=
@@ -63,6 +73,25 @@ export function FileTreePanel() {
 				))}
 			</ul>
 		</nav>
+	);
+}
+
+/**
+ * How many notes this file carries. Absent at zero, so a session with no
+ * analysis (or no agent at all) leaves the panel exactly as M1 drew it.
+ */
+function NoteCount({ count }: { count: number }) {
+	if (count === 0) {
+		return null;
+	}
+	return (
+		<span
+			className={styles.noteCount}
+			title={count === 1 ? "1 note" : `${count} notes`}
+		>
+			<BookIcon size={12} />
+			{count}
+		</span>
 	);
 }
 

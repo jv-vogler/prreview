@@ -1,0 +1,51 @@
+.notice {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--base-size-16);
+	padding: var(--base-size-8) var(--base-size-16);
+	background: var(--bgColor-muted);
+	border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+	font-size: var(--text-body-size-small);
+}
+
+.text {
+	margin: 0;
+	max-inline-size: 90ch;
+	line-height: var(--text-body-lineHeight-medium);
+	color: var(--fgColor-muted);
+}
+
+.lead {
+	color: var(--fgColor-default);
+	font-weight: var(--base-text-weight-semibold);
+}
+
+.code {
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-codeInline-size);
+	padding: 0 var(--base-size-4);
+	background: var(--bgColor-neutral-muted);
+	border-radius: var(--borderRadius-small);
+	color: var(--fgColor-default);
+}
+
+.dismiss {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	margin-left: auto;
+	width: var(--base-size-24);
+	height: var(--base-size-24);
+	background: transparent;
+	border: none;
+	border-radius: var(--borderRadius-medium);
+	cursor: pointer;
+	color: var(--fgColor-muted);
+	transition: background var(--motion-transition-hover);
+}
+
+.dismiss:hover {
+	background: var(--control-transparent-bgColor-hover);
+	color: var(--fgColor-default);
+}
