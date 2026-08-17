@@ -14,6 +14,7 @@ import type { SessionStore } from "./application/ports/SessionStore";
 import { makeRefreshChangeset } from "./application/refreshChangeset";
 import { makeResolveChangeset } from "./application/resolveChangeset";
 import { makeRunAnalysis } from "./application/runAnalysis";
+import { makeRunReview } from "./application/runReview";
 import { makeUpdateCoverage } from "./application/updateCoverage";
 import type { Toolchain } from "./domain/session/Toolchain";
 import { ClaudeEngine } from "./infrastructure/engine/ClaudeEngine";
@@ -140,6 +141,14 @@ export function buildContainer(
 			store,
 			publish,
 		}),
+		runReview: makeRunReview({
+			engine,
+			runManager,
+			workspaces: engineWorkspaces,
+			git,
+			store,
+			publish,
+		}),
 		chatTurn: makeChatTurn({
 			engine,
 			runManager,
@@ -171,6 +180,7 @@ export interface Container {
 	updateCoverage: ReturnType<typeof makeUpdateCoverage>;
 	detectDrift: ReturnType<typeof makeDetectDrift>;
 	runAnalysis: ReturnType<typeof makeRunAnalysis>;
+	runReview: ReturnType<typeof makeRunReview>;
 	chatTurn: ReturnType<typeof makeChatTurn>;
 }
 

@@ -1,5 +1,5 @@
 import { Suspense, useMemo, useRef, useState } from "react";
-import { Outlet, useSearchParams } from "react-router";
+import { Navigate, Outlet, useLocation, useSearchParams } from "react-router";
 import { sortFilesByAttention } from "../domain/changeset/sortFilesByAttention";
 import { AnalysisProvider } from "../view/analysis/AnalysisProvider";
 import { AppShell } from "../view/app/AppShell";
@@ -79,12 +79,30 @@ function ReviewLayoutContent() {
 	);
 }
 
+/** the tabs that need an agent; with none, they do not exist */
+const AI_TABS = ["/overview", "/understand", "/comments"];
+
+/**
+ * Sends a reader who reached an AI route without an agent back to the diff.
+ *
+ * The tab bar already hides these, but a saved link, a redirect from `/orient`,
+ * or a typed URL all reach the route directly — and the page they would land on
+ * invites the reader to start a pass no agent can run. Absence has to hold at
+ * the route, not only in the navigation.
+ */
+function useAgentRouteGuard(): boolean {
+	const flags = useFeatureFlags();
+	const { pathname } = useLocation();
+	return !flags.analysis && AI_TABS.includes(pathname);
+}
+
 function ReviewFrame() {
 	const [diffStyle, toggleDiffStyle] = useDiffStyle();
 	const [helpOpen, setHelpOpen] = useState(false);
 	const [chatOpen, setChatOpen] = useState(false);
 	const flags = useFeatureFlags();
 	const drift = useDriftBanner();
+	const blocked = useAgentRouteGuard();
 
 	// The chat toggle is owned here rather than by a tab, so a question asked
 	// while reading the diff is still open after switching to Understanding.
@@ -122,9 +140,13 @@ function ReviewFrame() {
 			}
 			workspace={
 				<>
-					<Suspense fallback={<LoadingScreen />}>
-						<Outlet context={{ diffStyle, toggleDiffStyle }} />
-					</Suspense>
+					{blocked ? (
+						<Navigate to="/diff" replace />
+					) : (
+						<Suspense fallback={<LoadingScreen />}>
+							<Outlet context={{ diffStyle, toggleDiffStyle }} />
+						</Suspense>
+					)}
 					<HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 				</>
 			}

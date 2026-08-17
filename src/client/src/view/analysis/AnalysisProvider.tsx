@@ -1,3 +1,4 @@
+import type { AnalysisRequest, ReviewDepthRequest } from "@dto/AnalysisRequest";
 import type { RunDto, RunFailureReasonDto } from "@dto/RunDto";
 import { runFailureReasonDtoSchema } from "@dto/RunDto";
 import { useMutation } from "@tanstack/react-query";
@@ -25,7 +26,15 @@ export interface Analysis {
 	conflictRunId: string | null;
 	/** the trigger request itself is in flight — not the run */
 	starting: boolean;
+	/** the comprehension pass: fills Overview and Understanding */
 	startAnalysis(): void;
+	/**
+	 * The findings pass: fills Suggested comments.
+	 *
+	 * A separate trigger, never chained off the comprehension one — reading
+	 * about a change must not quietly spend on a review nobody asked for.
+	 */
+	startReview(depth?: ReviewDepthRequest): void;
 	cancelRun(runId: string): void;
 	/** the 409's way out: stop the run that is in the way, then start ours */
 	cancelAndRestart(runId: string): void;
@@ -57,7 +66,7 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
 	const [conflictRunId, setConflictRunId] = useState<string | null>(null);
 
 	const start = useMutation({
-		mutationFn: () => postAnalysis(api, { task: "comprehension" }),
+		mutationFn: (request: AnalysisRequest) => postAnalysis(api, request),
 		onSuccess: (result) => {
 			setConflictRunId(
 				result.kind === "conflict" ? result.existingRunId : null,
@@ -77,12 +86,19 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
 			failure: toFailure(start.error) ?? runs.lastError,
 			conflictRunId,
 			starting: start.isPending,
-			startAnalysis: () => start.mutate(),
+			startAnalysis: () => start.mutate({ task: "comprehension" }),
+			startReview: (depth) =>
+				start.mutate({
+					task: "review",
+					...(depth === undefined ? {} : { depth }),
+				}),
 			cancelRun: (runId) => cancel.mutate(runId),
 			// sequential on purpose: starting before the cancel lands would race
 			// the lane and earn a second 409
 			cancelAndRestart: (runId) =>
-				cancel.mutate(runId, { onSuccess: () => start.mutate() }),
+				cancel.mutate(runId, {
+					onSuccess: () => start.mutate({ task: "comprehension" }),
+				}),
 		};
 	}, [runs, conflictRunId, start, cancel]);
 

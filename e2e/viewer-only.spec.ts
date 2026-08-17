@@ -53,7 +53,8 @@ test.describe("viewer only: no agent, no AI surfaces", () => {
 		// the server's own account of the toolchain, before any browser exists
 		const session = await fetchSession(server.url);
 		expect(session.toolchain.agent.kind).toBe("none");
-		expect(session.analysis.intentMapAvailable).toBe(false);
+		expect(session.analysis.understandingAvailable).toBe(false);
+		expect(session.analysis.findingsAvailable).toBe(false);
 
 		await page.goto(server.url);
 
@@ -72,19 +73,18 @@ test.describe("viewer only: no agent, no AI surfaces", () => {
 			page.getByText(/No agent CLI was found/).first(),
 		).toBeVisible();
 
-		// every AI surface is absent, not greyed out
+		// Every AI surface is absent, not greyed out — including the tabs
+		// themselves. A disabled tab says "you could have this"; absence says
+		// "this build does not do that", which is the truth with no agent.
+		await expect(page.locator('[data-tab="diff"]')).toBeVisible();
+		await expect(page.locator('[data-tab="overview"]')).toHaveCount(0);
+		await expect(page.locator('[data-tab="understand"]')).toHaveCount(0);
+		await expect(page.locator('[data-tab="comments"]')).toHaveCount(0);
+		await expect(page.locator("[data-analysis-start]")).toHaveCount(0);
 		await expect(
 			page.getByRole("button", { name: "Explain this change" }),
 		).toHaveCount(0);
-		await expect(page.getByRole("link", { name: "Orientation" })).toHaveCount(
-			0,
-		);
-		await expect(page.getByRole("button", { name: "Walkthrough" })).toHaveCount(
-			0,
-		);
-		await expect(
-			page.locator('[data-annotation-species="explanation"]'),
-		).toHaveCount(0);
+		await expect(page.locator("[data-annotation-id]")).toHaveCount(0);
 
 		// the chat key belongs to a surface that does not exist here
 		await page.keyboard.press("c");
@@ -146,7 +146,10 @@ test.describe("viewer only: no agent, no AI surfaces", () => {
 
 interface SessionSnapshot {
 	readonly toolchain: { readonly agent: { readonly kind: string } };
-	readonly analysis: { readonly intentMapAvailable: boolean };
+	readonly analysis: {
+		readonly understandingAvailable: boolean;
+		readonly findingsAvailable: boolean;
+	};
 }
 
 function fetchSession(baseUrl: string): Promise<SessionSnapshot> {

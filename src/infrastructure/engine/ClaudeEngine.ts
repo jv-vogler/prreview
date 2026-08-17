@@ -67,12 +67,20 @@ export class ClaudeEngine implements Engine {
 	}
 
 	runTask(task: TaskSpec, input: TaskInput): AsyncIterable<EngineEvent> {
+		// the resume may come from either side: an input-level one (the caller
+		// resuming a specific session) or a task-level one (a lens child built to
+		// fork from comprehension). The input wins when both are set.
+		const resume = input.resume ?? task.resume;
 		return this.run({
 			argv: buildTaskArgv({
 				jsonSchema: task.jsonSchema,
 				maxTurns: task.maxTurns,
 				systemContract: task.systemContract,
-				...(input.resume === undefined ? {} : { resume: input.resume }),
+				...(resume === undefined ? {} : { resume }),
+				...(task.effort === undefined ? {} : { effort: task.effort }),
+				...(task.maxBudgetUsd === undefined
+					? {}
+					: { maxBudgetUsd: task.maxBudgetUsd }),
 			}),
 			prompt: input.prompt,
 			workspaceDir: input.workspaceDir,

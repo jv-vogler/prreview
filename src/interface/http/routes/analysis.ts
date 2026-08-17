@@ -1,7 +1,14 @@
 import { Hono } from "hono";
 import type { RunManager } from "../../../application/ports/RunManager";
 import type { RunAnalysis } from "../../../application/runAnalysis";
+import type { RunReview } from "../../../application/runReview";
 import { AnalysisError } from "../../../domain/errors/AnalysisError";
+import type { ReviewDepth } from "../../../domain/review/ReviewDepth";
+import {
+	customDepth,
+	depthForPreset,
+} from "../../../domain/review/ReviewDepth";
+import type { ReviewDepthRequest } from "../dto/AnalysisRequest";
 import { analysisRequestSchema } from "../dto/AnalysisRequest";
 import type { RunAcceptedDto, RunConflictDto, RunDto } from "../dto/RunDto";
 import type { ReviewState } from "../reviewState";
@@ -15,6 +22,7 @@ const HTTP_NO_CONTENT = 204;
 export interface AnalysisRouteDeps {
 	state: ReviewState;
 	runAnalysis: RunAnalysis;
+	runReview: RunReview;
 	runManager: RunManager;
 }
 
@@ -30,21 +38,57 @@ export interface AnalysisRouteDeps {
  * the UI can offer "cancel and re-run" instead of quietly starting a second
  * pass on the user's own budget.
  */
+/**
+ * Turns a request's depth preference into a real depth.
+ *
+ * The lens locks live in `customDepth`, not here and not in the dialog: a
+ * checkbox the UI disables is still one line of curl away, and "review this but
+ * skip the security lens" must not be reachable from the wire.
+ */
+function resolveDepth(request: ReviewDepthRequest | undefined): ReviewDepth {
+	if (request === undefined) {
+		return depthForPreset("standard");
+	}
+	if (request.preset !== "custom") {
+		return depthForPreset(request.preset);
+	}
+	return customDepth({
+		lenses: request.lenses ?? [],
+		...(request.allowNitpick === undefined
+			? {}
+			: { allowNitpick: request.allowNitpick }),
+		...(request.maxFindings === undefined
+			? {}
+			: { maxFindings: request.maxFindings }),
+		effort: request.effort ?? null,
+		maxBudgetUsd: request.maxBudgetUsd ?? null,
+	});
+}
+
 export function analysisRoute(deps: AnalysisRouteDeps): Hono {
 	const route = new Hono();
 
 	route.post("/", async (context) => {
-		// the request body carries the task type; M2 has exactly one, and
-		// validating it now is what makes M3's second member a wire change
-		await validatedJson(context, analysisRequestSchema);
+		const request = await validatedJson(context, analysisRequestSchema);
 		const review = deps.state.current();
-		const enqueued = await deps.runAnalysis({
-			manifest: review.manifest,
-			roundId: review.roundId,
-			ref: review.ref,
-			files: review.files,
-			ticket: review.manifest.ticket ?? null,
-		});
+		const enqueued =
+			request.task === "review"
+				? await deps.runReview({
+						manifest: review.manifest,
+						roundId: review.roundId,
+						ref: review.ref,
+						files: review.files,
+						// depth is resolved here, where the locks are applied: the
+						// request is a preference, not an instruction
+						depth: resolveDepth(request.depth),
+					})
+				: await deps.runAnalysis({
+						manifest: review.manifest,
+						roundId: review.roundId,
+						ref: review.ref,
+						files: review.files,
+						ticket: review.manifest.ticket ?? null,
+					});
 
 		if (enqueued.kind === "conflict") {
 			const conflict: RunConflictDto = {

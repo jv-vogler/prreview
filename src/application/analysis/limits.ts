@@ -13,6 +13,15 @@
 /** stage A comprehension: 26 task turns + 3 validation retries + 1 ToolSearch */
 export const COMPREHENSION_MAX_TURNS = 30;
 
+/**
+ * one lens child: 16 task turns + 3 validation retries + 1 ToolSearch.
+ *
+ * Lower than comprehension's on purpose. A lens that has read for sixteen turns
+ * without finding anything is not about to; the budget is a ceiling on how long
+ * a fruitless search runs, and five of them run at once.
+ */
+export const REVIEW_MAX_TURNS = 20;
+
 /** a chat turn: 8 task turns + 3 validation retries + 1 ToolSearch */
 export const CHAT_MAX_TURNS = 12;
 

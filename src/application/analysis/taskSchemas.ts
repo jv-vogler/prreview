@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { representativeReviewOutSchema } from "../review/reviewSchemas";
 import { representativeTopicsOutSchema } from "./topicSchemas";
 import { representativeUnderstandingOutSchema } from "./understandingSchemas";
 
@@ -17,4 +18,5 @@ export const TASK_SCHEMAS: Readonly<Record<string, z.ZodType>> = {
 	// does not — so one representative instance covers every round
 	understanding: representativeUnderstandingOutSchema,
 	topics: representativeTopicsOutSchema,
+	review: representativeReviewOutSchema,
 };

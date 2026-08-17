@@ -143,6 +143,7 @@ export function createApp(deps: AppDeps): Hono {
 		analysisRoute({
 			state: deps.state,
 			runAnalysis: deps.container.runAnalysis,
+			runReview: deps.container.runReview,
 			runManager: deps.container.runManager,
 		}),
 	);

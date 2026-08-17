@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { AnalysisInvitation } from "../view/analysis/AnalysisInvitation";
 import { useAnnotations } from "../view/annotations/useAnnotations";
 import { FindingCard } from "../view/findings/FindingCard";
 import { useFindingSelection } from "../view/findings/FindingSelectionProvider";
@@ -106,18 +107,26 @@ export function CommentsPage() {
 	);
 }
 
+/**
+ * The invitation states its own cost and starts the findings pass — and only
+ * that pass. It deliberately refuses to silently chain a comprehension run: a
+ * reviewer who asked for comments asked for comments.
+ */
 function NoFindingsYet() {
 	return (
-		<div className={styles.empty}>
-			<h1 className={styles.heading}>No suggested comments yet</h1>
-			<p className={styles.hint}>
-				Reviewing for problems is its own pass, separate from understanding the
-				change, so that reading about a PR never quietly spends on a review you
-				did not ask for.
+		<>
+			<AnalysisInvitation
+				task="review"
+				title="Review this change for problems"
+				body="Several independent readings of the diff — correctness, security, edge cases, and more — merged into one list of comments worth making. Each one is checked against what the agent actually read before it is shown."
+				cost="Several passes running together, each reading files to ground its claims. The most expensive thing prreview does; minutes on a large change."
+				actionLabel="Review this change"
+			/>
+			<p className={styles.footnote}>
+				Separate from understanding the change on purpose, so reading about a PR
+				never quietly spends on a review you did not ask for.{" "}
+				<Link to="/understand">What does this change do? →</Link>
 			</p>
-			<p className={styles.hint}>
-				<Link to="/understand">Start with what the change does →</Link>
-			</p>
-		</div>
+		</>
 	);
 }

@@ -12,7 +12,10 @@ import type { SessionResume } from "../../application/ports/Engine";
  *   turns interleave into the parent session file (CON-004, spike 4).
  * - there is deliberately **no `--model`**: the user's configured default is
  *   their own cost decision, and the resolved model is read back off the
- *   result event.
+ *   result event. Depth buys intensity with `--effort` instead.
+ * - `--max-budget-usd` is a **stop-threshold, not a cap** (CON-015): the CLI
+ *   checks it between turns, so a run halts only once it has already spent past
+ *   the number. Never present it to a user as a guarantee.
  *
  * The prompt is never an argv member — it arrives on stdin (SEC-002,
  * promptDelivery.ts).
@@ -23,6 +26,10 @@ export interface TaskArgvOptions {
 	maxTurns: number;
 	systemContract: string;
 	resume?: SessionResume;
+	/** depth's intensity dial; never `--model` */
+	effort?: "low" | "high";
+	/** a stop-threshold, not a cap (CON-015); `--print` is always passed */
+	maxBudgetUsd?: number;
 }
 
 export interface ChatArgvOptions {
@@ -59,6 +66,10 @@ export function buildTaskArgv(options: TaskArgvOptions): string[] {
 		options.systemContract,
 		"--json-schema",
 		options.jsonSchema,
+		...(options.effort === undefined ? [] : ["--effort", options.effort]),
+		...(options.maxBudgetUsd === undefined
+			? []
+			: ["--max-budget-usd", String(options.maxBudgetUsd)]),
 		...resumeArgv(options.resume),
 	];
 }

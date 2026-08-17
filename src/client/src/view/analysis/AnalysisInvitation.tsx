@@ -17,6 +17,8 @@ export interface AnalysisInvitationProps {
 	/** honest units, never a dollar figure — see the note below */
 	cost: string;
 	actionLabel: string;
+	/** which pass this invitation triggers; they are never chained */
+	task?: "comprehension" | "review";
 }
 
 export function AnalysisInvitation({
@@ -24,6 +26,7 @@ export function AnalysisInvitation({
 	body,
 	cost,
 	actionLabel,
+	task = "comprehension",
 }: AnalysisInvitationProps) {
 	const analysis = useAnalysis();
 	const running = analysis.activeRun !== null || analysis.starting;
@@ -43,7 +46,9 @@ export function AnalysisInvitation({
 			<button
 				type="button"
 				className={styles.action}
-				onClick={() => analysis.startAnalysis()}
+				onClick={() =>
+					task === "review" ? analysis.startReview() : analysis.startAnalysis()
+				}
 				disabled={running}
 				data-analysis-start
 			>

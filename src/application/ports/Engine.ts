@@ -28,9 +28,9 @@ export interface AgentInfo {
 	version: string;
 }
 
-/** M2 runs only stage A; M3/M4 widen `stage` when B/C/D land */
 export interface TaskSpec {
-	stage: "comprehension";
+	/** `comprehension`, or `review:<lens>` for one lens child */
+	stage: string;
 	/** inline JSON Schema string handed to --json-schema (CON-005: < 85KB) */
 	jsonSchema: string;
 	maxTurns: number;
@@ -44,6 +44,21 @@ export interface TaskSpec {
 	 * validation-library dependency.
 	 */
 	outputSchema: OutputParser;
+	/** the session to fork from, for a lens child resuming comprehension */
+	resume?: SessionResume;
+	/**
+	 * `--effort`. Accepts low/medium/high/xhigh/max on 2.1.233; prreview uses
+	 * only the two ends, and never `--model` — the user's configured model is
+	 * their own cost decision.
+	 */
+	effort?: "low" | "high";
+	/**
+	 * `--max-budget-usd`. Measured (CON-015) to be a **stop-threshold, not a
+	 * cap**: the CLI checks it between turns, so a run halts only after it has
+	 * already spent past the number. Exhaustion is clean and typed
+	 * (`error_max_budget_usd` / `budget_exhausted`, exit 1).
+	 */
+	maxBudgetUsd?: number;
 }
 
 /** throws on invalid input, exactly like `ZodType.parse` */
