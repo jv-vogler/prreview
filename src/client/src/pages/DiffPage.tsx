@@ -17,6 +17,7 @@ import { AnalysisTray } from "../view/analysis/AnalysisTray";
 import { useAnnotations } from "../view/annotations/useAnnotations";
 import { AppShell } from "../view/app/AppShell";
 import { TopBar } from "../view/app/TopBar";
+import { ChatDock } from "../view/chat/ChatDock";
 import { ChatProvider } from "../view/chat/ChatProvider";
 import {
 	CoverageProvider,
@@ -37,7 +38,13 @@ import { useKeymap } from "../view/diff/useKeymap";
 import { LoadingScreen } from "../view/general/LoadingScreen";
 import { ChangesDetectedBanner } from "../view/session/ChangesDetectedBanner";
 import { useDriftBanner } from "../view/session/useDriftBanner";
+import { useFeatureFlags } from "../view/session/useFeatureFlags";
 import { ViewerOnlyNotice } from "../view/session/ViewerOnlyNotice";
+import { WalkthroughOverlay } from "../view/walkthrough/WalkthroughOverlay";
+import {
+	useWalkthroughMode,
+	WalkthroughProvider,
+} from "../view/walkthrough/WalkthroughProvider";
 import { cursorFromSearchParams, searchParamsForCursor } from "./diffUrl";
 
 /** `/diff` — the review workspace behind the suspense gate (TASK-049/051). */
@@ -77,7 +84,9 @@ function DiffPageContent() {
 						files={sortedFiles}
 						initialCursor={initialCursorRef.current}
 					>
-						<DiffPageBody initialCursor={initialCursorRef.current} />
+						<WalkthroughProvider>
+							<DiffPageBody initialCursor={initialCursorRef.current} />
+						</WalkthroughProvider>
 					</DiffNavigationProvider>
 				</ChatProvider>
 			</AnalysisProvider>
@@ -94,6 +103,9 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 	const { markReviewed } = useCoverageActions();
 	const [diffStyle, toggleDiffStyle] = useDiffStyle();
 	const [helpOpen, setHelpOpen] = useState(false);
+	const [chatOpen, setChatOpen] = useState(false);
+	const flags = useFeatureFlags();
+	const walkthrough = useWalkthroughMode();
 	const drift = useDriftBanner();
 	const navigate = useNavigate();
 	const annotations = useAnnotations();
@@ -142,9 +154,13 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 
 	const onKeyAction = useCallback(
 		(action: KeyAction) => {
-			// `w` (walkthrough) and `c` (chat) resolve already and are answered by
-			// the surfaces phase 9 builds; until then they do nothing
 			switch (action) {
+				case "toggle-walkthrough":
+					return walkthrough.toggle();
+				case "toggle-chat":
+					// absent, not disabled, without an agent (F12): the key belongs to
+					// the surface, and with no agent there is no surface
+					return flags.chat ? setChatOpen((open) => !open) : undefined;
 				case "next-annotation":
 					return jumpToStop("next");
 				case "prev-annotation":
@@ -176,6 +192,8 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 			toggleDiffStyle,
 			jumpToStop,
 			navigate,
+			walkthrough,
+			flags.chat,
 		],
 	);
 
@@ -188,6 +206,10 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 					<TopBar
 						diffStyle={diffStyle}
 						onToggleDiffStyle={toggleDiffStyle}
+						onToggleWalkthrough={
+							walkthrough.available ? walkthrough.toggle : undefined
+						}
+						walkthroughActive={walkthrough.flow.state === "at-step"}
 						onOpenHelp={() => setHelpOpen(true)}
 					/>
 				}
@@ -205,6 +227,12 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 				}
 				sidebar={<FileTreePanel />}
 				workspace={<DiffWorkspace diffStyle={diffStyle} />}
+				workspaceFooter={<WalkthroughOverlay />}
+				dock={
+					flags.chat && chatOpen ? (
+						<ChatDock onClose={() => setChatOpen(false)} />
+					) : undefined
+				}
 			/>
 			<HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 		</>

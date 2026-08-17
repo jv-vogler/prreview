@@ -1,6 +1,7 @@
 import {
 	ColumnsIcon,
 	FileDiffIcon,
+	MilestoneIcon,
 	MoonIcon,
 	QuestionIcon,
 	RowsIcon,
@@ -21,6 +22,12 @@ export interface TopBarProps {
 	/** absent on pages with no diff to lay out, like `/orient` */
 	diffStyle?: DiffStyle;
 	onToggleDiffStyle?(): void;
+	/**
+	 * absent unless this page has a walkthrough to enter — the guided order is a
+	 * mode over the diff, so only the diff page can offer it
+	 */
+	onToggleWalkthrough?(): void;
+	walkthroughActive?: boolean;
 	onOpenHelp(): void;
 }
 
@@ -36,6 +43,8 @@ const ORIENT_PATH = "/orient";
 export function TopBar({
 	diffStyle,
 	onToggleDiffStyle,
+	onToggleWalkthrough,
+	walkthroughActive = false,
 	onOpenHelp,
 }: TopBarProps) {
 	const session = useGuaranteedSession();
@@ -52,6 +61,18 @@ export function TopBar({
 			</div>
 			<div className={styles.controls}>
 				<OrientationLink />
+				{onToggleWalkthrough !== undefined && (
+					<button
+						type="button"
+						className={styles.pageLink}
+						onClick={onToggleWalkthrough}
+						aria-pressed={walkthroughActive}
+						title="Guided walkthrough (w)"
+					>
+						<MilestoneIcon size={16} />
+						Walkthrough
+					</button>
+				)}
 				<AnalyzeMenu />
 				<CoverageRing percent={session.coverage.total} />
 				{diffStyle !== undefined && onToggleDiffStyle !== undefined && (

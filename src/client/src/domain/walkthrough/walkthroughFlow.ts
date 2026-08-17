@@ -67,6 +67,16 @@ export function completeWalkthrough(flow: WalkthroughFlow): WalkthroughFlow {
 	return { state: "completed" };
 }
 
+/**
+ * Put the walkthrough away without claiming it was read. A detour and a
+ * finished walkthrough both leave something on screen offering the way back,
+ * and a reader who is done with the guided order needs to be able to say so
+ * without lying about having finished it (`completeWalkthrough` would).
+ */
+export function leaveWalkthrough(): WalkthroughFlow {
+	return notStartedWalkthrough;
+}
+
 /** The step the UI is (or would be) showing, if any. */
 export function walkthroughStepIndex(flow: WalkthroughFlow): number | null {
 	return flow.state === "at-step" ? flow.index : null;

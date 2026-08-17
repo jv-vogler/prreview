@@ -90,6 +90,10 @@ export interface RenderOptions {
 	 */
 	responses?: Record<string, unknown>;
 	initialPath?: string;
+	/** what `api.post` resolves to — a 202 body, since nothing posts for data */
+	postResponse?: unknown;
+	/** what `api.put` resolves to: coverage and walkthrough progress answer with a body */
+	putResponse?: unknown;
 }
 
 export function renderWithProviders(
@@ -108,8 +112,10 @@ export function renderWithProviders(
 		}
 		return answer;
 	});
-	const post = vi.fn().mockResolvedValue({ runId: "run-1" });
-	const put = vi.fn().mockResolvedValue({});
+	const post = vi
+		.fn()
+		.mockResolvedValue(options.postResponse ?? { runId: "run-1" });
+	const put = vi.fn().mockResolvedValue(options.putResponse ?? {});
 	const container: ClientContainer = { api: { get, post, put }, events };
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false }, mutations: { retry: false } },

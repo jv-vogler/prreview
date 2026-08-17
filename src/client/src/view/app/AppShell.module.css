@@ -18,7 +18,18 @@
 }
 
 .workspace {
+	display: flex;
+	flex-direction: column;
 	flex: 1;
 	min-width: 0;
+	min-height: 0;
+}
+
+/*
+ * The diff takes the height that is left after the footer strip, and the strip
+ * takes its own: a guided step never sits on top of the code it narrates.
+ */
+.workspaceMain {
+	flex: 1;
 	min-height: 0;
 }

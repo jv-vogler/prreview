@@ -7,6 +7,10 @@ export interface AppShellProps {
 	/** absent on pages that are one column, like `/orient` */
 	sidebar?: ReactNode;
 	workspace: ReactNode;
+	/** a strip under the workspace that never covers it: the walkthrough rail */
+	workspaceFooter?: ReactNode;
+	/** the right rail, when one is open: the chat dock */
+	dock?: ReactNode;
 }
 
 /** The app's frame (TASK-047): header, optional banner strip, file panel, diff. */
@@ -15,6 +19,8 @@ export function AppShell({
 	banner,
 	sidebar,
 	workspace,
+	workspaceFooter,
+	dock,
 }: AppShellProps) {
 	return (
 		<div className={styles.shell}>
@@ -24,7 +30,11 @@ export function AppShell({
 				{sidebar !== undefined && (
 					<aside className={styles.sidebar}>{sidebar}</aside>
 				)}
-				<main className={styles.workspace}>{workspace}</main>
+				<main className={styles.workspace}>
+					<div className={styles.workspaceMain}>{workspace}</div>
+					{workspaceFooter}
+				</main>
+				{dock}
 			</div>
 		</div>
 	);

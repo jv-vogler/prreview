@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	completeWalkthrough,
 	detour,
+	leaveWalkthrough,
 	nextStep,
 	notStartedWalkthrough,
 	previousStep,
@@ -75,6 +76,11 @@ describe("walkthroughFlow", () => {
 			index: 1,
 		});
 		expect(resumeWalkthrough(completed)).toBe(completed);
+	});
+
+	it("leaves without claiming the walkthrough was finished", () => {
+		expect(leaveWalkthrough()).toBe(notStartedWalkthrough);
+		expect(leaveWalkthrough()).not.toEqual({ state: "completed" });
 	});
 
 	it("names the step being shown, and only while one is", () => {

@@ -52,7 +52,10 @@ function createFakeServerEvents(): FakeServerEvents {
 	};
 }
 
-function session(agentKind: "claude" | "none"): SessionDto {
+function session(
+	agentKind: "claude" | "none",
+	walkthroughAvailable = false,
+): SessionDto {
 	return {
 		changesetId: "worktree",
 		source: { kind: "worktree" },
@@ -69,7 +72,7 @@ function session(agentKind: "claude" | "none"): SessionDto {
 		coverage: { total: 0, byFile: {} },
 		analysis: {
 			intentMapAvailable: false,
-			walkthroughAvailable: false,
+			walkthroughAvailable,
 			annotationCount: 0,
 		},
 	};
@@ -141,9 +144,12 @@ function Harness() {
 
 function renderHarness(agentKind: "claude" | "none") {
 	const events = createFakeServerEvents();
+	// what the server has produced so far; a run flips it, exactly as a real
+	// session's `analysis` block flips when the round gains an artifact
+	const produced = { walkthrough: false };
 	const get = vi.fn(async (path: string) => {
 		if (path === "/api/session") {
-			return session(agentKind);
+			return session(agentKind, produced.walkthrough);
 		}
 		if (path === "/api/annotations") {
 			return [annotation()];
@@ -183,7 +189,7 @@ function renderHarness(agentKind: "claude" | "none") {
 			</ClientContainerProvider>
 		</QueryClientProvider>,
 	);
-	return { events, get, post };
+	return { events, get, post, produced };
 }
 
 function callsTo(get: ReturnType<typeof vi.fn>, path: string): number {
@@ -255,11 +261,15 @@ describe("AnalysisProvider with an agent", () => {
 	});
 
 	it("refetches the artifacts exactly once when a comprehension run succeeds", async () => {
-		const { events, get } = renderHarness("claude");
+		const { events, get, produced } = renderHarness("claude");
 		await waitFor(() => {
 			expect(callsTo(get, "/api/intent-map")).toBe(1);
 		});
+		// a walkthrough that does not exist yet is never asked for: the endpoint
+		// would answer a designed 404 on every page load
+		expect(callsTo(get, "/api/walkthrough")).toBe(0);
 
+		produced.walkthrough = true;
 		act(() => {
 			events.emit({
 				type: "run.succeeded",
@@ -269,8 +279,9 @@ describe("AnalysisProvider with an agent", () => {
 
 		await waitFor(() => {
 			expect(callsTo(get, "/api/intent-map")).toBe(2);
-			expect(callsTo(get, "/api/walkthrough")).toBe(2);
 			expect(callsTo(get, "/api/session")).toBe(2);
+			// asked for the moment the refreshed session says it exists
+			expect(callsTo(get, "/api/walkthrough")).toBe(1);
 		});
 		expect(callsTo(get, "/api/annotations")).toBe(1);
 	});
