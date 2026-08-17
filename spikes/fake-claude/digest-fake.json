@@ -1,0 +1,42 @@
+{
+ "eventTypes": [
+  "system:init",
+  "assistant",
+  "assistant",
+  "user",
+  "assistant",
+  "assistant",
+  "result:success"
+ ],
+ "sessionIdConsistent": true,
+ "initSeen": true,
+ "assistantMessageShape": {
+  "outerKeys": [
+   "type",
+   "message",
+   "session_id"
+  ],
+  "role": "assistant",
+  "contentIsArray": true
+ },
+ "toolUses": [
+  {
+   "name": "Read",
+   "inputKeys": [
+    "file_path"
+   ]
+  }
+ ],
+ "toolResultsSeen": 1,
+ "result": {
+  "subtype": "success",
+  "is_error": false,
+  "hasResultText": true,
+  "structured_output": null,
+  "hasSessionId": true,
+  "hasCost": true,
+  "hasUsage": true,
+  "num_turns_is_number": true
+ },
+ "exitCode": 0
+}
