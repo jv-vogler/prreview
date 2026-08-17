@@ -6,3 +6,6 @@ dist/
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+# local planning artifacts — never in history (owner decision, 2026-08-16)
+plan/
