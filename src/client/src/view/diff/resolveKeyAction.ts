@@ -3,10 +3,19 @@ export type KeyAction =
 	| "prev-file"
 	| "next-hunk"
 	| "prev-hunk"
+	| "next-annotation"
+	| "prev-annotation"
 	| "mark-hunk-reviewed"
 	| "mark-file-reviewed"
+	| "toggle-walkthrough"
+	| "toggle-chat"
 	| "toggle-diff-style"
+	| "go-orient"
+	| "go-diff"
 	| "open-help";
+
+/** the only chord prefix in the keymap: `g` for "go to" */
+export const CHORD_PREFIX = "g";
 
 export interface KeyContext {
 	key: string;
@@ -17,31 +26,64 @@ export interface KeyContext {
 	targetIsEditable: boolean;
 	/** true while any dialog is open — the dialog owns the keyboard then */
 	dialogOpen: boolean;
+	/** the prefix already typed, when the reader is halfway through a chord */
+	pendingChord: string | null;
 }
 
-/** The M1 keymap (ARCHITECTURE §9), exactly TASK-050's table. */
+/**
+ * What one key press means: an action, the start of a two-key chord, or
+ * nothing. Told apart explicitly because a pending chord has to swallow the
+ * key press without doing anything yet.
+ */
+export type KeyResolution =
+	| { kind: "action"; action: KeyAction }
+	| { kind: "chord"; prefix: string }
+	| { kind: "none" };
+
+/** The keymap of ARCHITECTURE §9, minus the curation keys M3 adds. */
 const KEYMAP: Record<string, KeyAction> = {
 	j: "next-file",
 	k: "prev-file",
 	n: "next-hunk",
 	p: "prev-hunk",
+	"]": "next-annotation",
+	"[": "prev-annotation",
 	v: "mark-hunk-reviewed",
 	m: "mark-file-reviewed",
+	w: "toggle-walkthrough",
+	c: "toggle-chat",
 	s: "toggle-diff-style",
 	"?": "open-help",
 };
 
+/** the second half of a `g` chord */
+const CHORD_KEYMAP: Record<string, KeyAction> = {
+	o: "go-orient",
+	d: "go-diff",
+};
+
+const NOTHING: KeyResolution = { kind: "none" };
+
 /**
- * Pure keymap dispatch: a key event either names one review action or
- * nothing. Suppressed inside inputs and dialogs, and whenever a modifier is
- * held (shift excluded — `?` needs it).
+ * Pure keymap dispatch. Suppressed inside inputs (the chat textarea included)
+ * and dialogs, and whenever a modifier is held (shift excluded — `?` needs
+ * it). A key that follows `g` is only ever read as the chord's second half:
+ * `g` then `j` moves nothing, so a half-typed chord cannot fire a stray action.
  */
-export function resolveKeyAction(context: KeyContext): KeyAction | null {
+export function resolveKeyAction(context: KeyContext): KeyResolution {
 	if (context.ctrlKey || context.metaKey || context.altKey) {
-		return null;
+		return NOTHING;
 	}
 	if (context.targetIsEditable || context.dialogOpen) {
-		return null;
+		return NOTHING;
 	}
-	return KEYMAP[context.key] ?? null;
+	if (context.pendingChord === CHORD_PREFIX) {
+		const action = CHORD_KEYMAP[context.key];
+		return action === undefined ? NOTHING : { kind: "action", action };
+	}
+	if (context.key === CHORD_PREFIX) {
+		return { kind: "chord", prefix: CHORD_PREFIX };
+	}
+	const action = KEYMAP[context.key];
+	return action === undefined ? NOTHING : { kind: "action", action };
 }

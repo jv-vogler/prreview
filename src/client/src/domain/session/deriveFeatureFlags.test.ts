@@ -1,24 +1,56 @@
+import type { ToolchainDto } from "@dto/SessionDto";
 import { describe, expect, it } from "vitest";
 import { deriveFeatureFlags } from "./deriveFeatureFlags";
 
+const ROWS: ReadonlyArray<{
+	name: string;
+	toolchain: ToolchainDto;
+	expected: { analysis: boolean; chat: boolean; walkthrough: boolean };
+}> = [
+	{
+		name: "claude present, gh present",
+		toolchain: {
+			agent: { kind: "claude", version: "2.1.233" },
+			github: { kind: "gh" },
+		},
+		expected: { analysis: true, chat: true, walkthrough: true },
+	},
+	{
+		name: "claude present, no github at all",
+		toolchain: {
+			agent: { kind: "claude", version: "2.1.233" },
+			github: { kind: "none" },
+		},
+		expected: { analysis: true, chat: true, walkthrough: true },
+	},
+	{
+		name: "no agent, gh present",
+		toolchain: { agent: { kind: "none" }, github: { kind: "gh" } },
+		expected: { analysis: false, chat: false, walkthrough: false },
+	},
+	{
+		name: "no toolchain at all",
+		toolchain: { agent: { kind: "none" }, github: { kind: "none" } },
+		expected: { analysis: false, chat: false, walkthrough: false },
+	},
+];
+
 describe("deriveFeatureFlags", () => {
-	it("returns every AI flag false in M1 even with a full toolchain", () => {
-		const flags = deriveFeatureFlags({
-			agent: { kind: "claude", version: "2.0.0" },
+	for (const row of ROWS) {
+		it(`derives the flags for ${row.name}`, () => {
+			expect(deriveFeatureFlags(row.toolchain)).toEqual(row.expected);
+		});
+	}
+
+	it("keys every flag on the agent alone, never on github", () => {
+		const withGh = deriveFeatureFlags({
+			agent: { kind: "claude", version: "2.1.233" },
 			github: { kind: "gh" },
 		});
-		expect(flags).toEqual({
-			analysis: false,
-			chat: false,
-			walkthrough: false,
+		const withGitRemote = deriveFeatureFlags({
+			agent: { kind: "claude", version: "2.1.233" },
+			github: { kind: "git-remote" },
 		});
-	});
-
-	it("returns every AI flag false with no toolchain at all", () => {
-		const flags = deriveFeatureFlags({
-			agent: { kind: "none" },
-			github: { kind: "none" },
-		});
-		expect(Object.values(flags).every((flag) => flag === false)).toBe(true);
+		expect(withGitRemote).toEqual(withGh);
 	});
 });

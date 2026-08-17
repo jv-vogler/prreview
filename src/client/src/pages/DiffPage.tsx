@@ -8,8 +8,10 @@ import {
 } from "react";
 import { useSearchParams } from "react-router";
 import { sortFilesByAttention } from "../domain/changeset/sortFilesByAttention";
+import { AnalysisProvider } from "../view/analysis/AnalysisProvider";
 import { AppShell } from "../view/app/AppShell";
 import { TopBar } from "../view/app/TopBar";
+import { ChatProvider } from "../view/chat/ChatProvider";
 import {
 	CoverageProvider,
 	useCoverageActions,
@@ -62,12 +64,16 @@ function DiffPageContent() {
 
 	return (
 		<CoverageProvider>
-			<DiffNavigationProvider
-				files={sortedFiles}
-				initialCursor={initialCursorRef.current}
-			>
-				<DiffPageBody initialCursor={initialCursorRef.current} />
-			</DiffNavigationProvider>
+			<AnalysisProvider>
+				<ChatProvider>
+					<DiffNavigationProvider
+						files={sortedFiles}
+						initialCursor={initialCursorRef.current}
+					>
+						<DiffPageBody initialCursor={initialCursorRef.current} />
+					</DiffNavigationProvider>
+				</ChatProvider>
+			</AnalysisProvider>
 		</CoverageProvider>
 	);
 }
@@ -113,6 +119,9 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 
 	const onKeyAction = useCallback(
 		(action: KeyAction) => {
+			// the AI surfaces' keys (]/[ notes, w walkthrough, c chat, g o / g d)
+			// resolve already and are answered by the surfaces that own them, in
+			// the phases that build them; until then they do nothing
 			switch (action) {
 				case "next-file":
 					return navigation.nextFile();
