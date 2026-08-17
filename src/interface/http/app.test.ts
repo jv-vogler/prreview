@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	analyze,
 	createAnalysisApp,
+	seedFindings,
 } from "../../../test/helpers/createAnalysisApp";
 import {
 	createTestApp,
@@ -31,8 +32,8 @@ describe("GET /api/session", () => {
 		expect(session.announce.overrideHint).not.toBe("");
 		expect(session.coverage.total).toBe(0);
 		expect(session.analysis).toEqual({
-			intentMapAvailable: false,
-			walkthroughAvailable: false,
+			understandingAvailable: false,
+			findingsAvailable: false,
 			annotationCount: 0,
 		});
 	});
@@ -44,10 +45,17 @@ describe("GET /api/session", () => {
 		const session = sessionDtoSchema.parse(
 			await (await app.app.request("/api/session")).json(),
 		);
-		expect(session.analysis.intentMapAvailable).toBe(true);
-		expect(session.analysis.walkthroughAvailable).toBe(true);
-		expect(session.analysis.annotationCount).toBe(2);
-		expect(session.analysis.walkthroughProgress).toBeUndefined();
+		expect(session.analysis.understandingAvailable).toBe(true);
+		// the comprehension pass writes nothing to the margin
+		expect(session.analysis.annotationCount).toBe(0);
+		expect(session.analysis.findingsAvailable).toBe(false);
+
+		await seedFindings(app);
+		const withFindings = sessionDtoSchema.parse(
+			await (await app.app.request("/api/session")).json(),
+		);
+		expect(withFindings.analysis.annotationCount).toBe(2);
+		expect(withFindings.analysis.findingsAvailable).toBe(true);
 	});
 
 	it("carries the security headers and no-store on /api", async () => {
@@ -173,9 +181,10 @@ describe("POST /api/changeset/refresh", () => {
 		expect(changeset.roundId).toBe("r2");
 	});
 
-	it("re-anchors the round's explanations and announces the carry (REQ-006)", async () => {
+	it("re-anchors the round's findings and announces the carry (REQ-006)", async () => {
 		const app = await createAnalysisApp();
 		await analyze(app);
+		await seedFindings(app);
 		const before = app.events.length;
 
 		const response = await app.app.request("/api/changeset/refresh", {
@@ -199,8 +208,8 @@ describe("POST /api/changeset/refresh", () => {
 		]);
 
 		// the new round has no analysis of its own until the user asks again
-		const intentMap = await app.app.request("/api/intent-map");
-		expect(intentMap.status).toBe(404);
+		const understanding = await app.app.request("/api/understanding");
+		expect(understanding.status).toBe(404);
 	});
 });
 

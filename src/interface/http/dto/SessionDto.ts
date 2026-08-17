@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { changesetSourceDtoSchema } from "./ChangesetDto";
 import { coverageSummaryDtoSchema } from "./CoverageSummaryDto";
-import { walkthroughProgressDtoSchema } from "./WalkthroughDto";
 
 export const toolchainDtoSchema = z.object({
 	agent: z.discriminatedUnion("kind", [
@@ -25,10 +24,9 @@ export const announceDtoSchema = z.object({
  * from their own endpoints.
  */
 export const sessionAnalysisDtoSchema = z.object({
-	intentMapAvailable: z.boolean(),
-	walkthroughAvailable: z.boolean(),
+	understandingAvailable: z.boolean(),
+	findingsAvailable: z.boolean(),
 	annotationCount: z.int().min(0),
-	walkthroughProgress: walkthroughProgressDtoSchema.optional(),
 });
 
 export type SessionAnalysisDto = z.infer<typeof sessionAnalysisDtoSchema>;

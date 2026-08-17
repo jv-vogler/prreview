@@ -47,7 +47,7 @@ The CON-003 trap: nonexistent model → result event with **`subtype:"success"` 
 
 ## Capture log (appended by `scripts/capture-claude-fixtures.mjs`)
 
-### comprehension.jsonl
+### understanding.jsonl
 
 Captured 2026-08-17 against 2.1.233 (Claude Code). stage A shape: a real --json-schema run against the ComprehensionOut schema (hand-embedded in scripts/capture-claude-fixtures.mjs from ARCHITECTURE §7; Phase 3's zod schema must stay compatible), with Read/Grep/Glob tool use, exit 0.
 Prompt delivered on stdin (1246 bytes, TASK-005's primary path).

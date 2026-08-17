@@ -15,7 +15,6 @@ import { makeRefreshChangeset } from "./application/refreshChangeset";
 import { makeResolveChangeset } from "./application/resolveChangeset";
 import { makeRunAnalysis } from "./application/runAnalysis";
 import { makeUpdateCoverage } from "./application/updateCoverage";
-import { makeUpdateWalkthroughProgress } from "./application/updateWalkthroughProgress";
 import type { Toolchain } from "./domain/session/Toolchain";
 import { ClaudeEngine } from "./infrastructure/engine/ClaudeEngine";
 import { createRunManager } from "./infrastructure/engine/runManager";
@@ -148,10 +147,6 @@ export function buildContainer(
 			store,
 			publish,
 		}),
-		updateWalkthroughProgress: makeUpdateWalkthroughProgress({
-			store,
-			updateCoverage,
-		}),
 	};
 }
 
@@ -177,7 +172,6 @@ export interface Container {
 	detectDrift: ReturnType<typeof makeDetectDrift>;
 	runAnalysis: ReturnType<typeof makeRunAnalysis>;
 	chatTurn: ReturnType<typeof makeChatTurn>;
-	updateWalkthroughProgress: ReturnType<typeof makeUpdateWalkthroughProgress>;
 }
 
 /**

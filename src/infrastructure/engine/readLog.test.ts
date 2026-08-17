@@ -46,7 +46,7 @@ describe("createReadLogRecorder", () => {
 	});
 
 	it("harvests Grep and Glob hits from tool_result content, cwd-joined", async () => {
-		const recorder = await recordFixture("comprehension.jsonl");
+		const recorder = await recordFixture("understanding.jsonl");
 		const { reads, searchHits } = recorder.result();
 		expect(reads).toEqual([
 			"/tmp/prreview-capture-33zpuC/miniweb/src/greeting.ts",

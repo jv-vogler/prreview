@@ -1,6 +1,6 @@
 import gitDiffParser from "gitdiff-parser";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { buildComprehensionTask } from "../src/application/analysis/comprehensionTask";
+import { buildUnderstandingTask } from "../src/application/analysis/understandingTask";
 import type { EngineEvent } from "../src/application/ports/Engine";
 import type { ChangesetRef } from "../src/domain/changeset/ChangesetRef";
 import type { FileDiff } from "../src/domain/changeset/FileDiff";
@@ -83,7 +83,7 @@ describe.skipIf(!OPTED_IN)("the real claude CLI", () => {
 		"answers a comprehension task with structured output whose anchors resolve",
 		async () => {
 			const engine = new ClaudeEngine();
-			const built = buildComprehensionTask({
+			const built = buildUnderstandingTask({
 				ref: workingRef(),
 				files,
 				roundId: "r1",

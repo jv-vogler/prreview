@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { UnderstandingOut } from "./analysis/understandingSchemas";
 import type { EngineEvent } from "../../src/application/ports/Engine";
 import type { Run } from "../../src/application/ports/RunManager";
 import { buildTestContainer } from "../../test/helpers/buildTestContainer";
@@ -8,7 +9,6 @@ import {
 	fakeSession,
 } from "../../test/helpers/FakeEngine";
 import { EngineError } from "../domain/errors/EngineError";
-import type { ComprehensionOut } from "./analysis/schemas";
 
 const OLD_OID = "1".repeat(40);
 const NEW_OID = "2".repeat(40);
@@ -33,41 +33,22 @@ index ${OLD_OID}..${NEW_OID} 100644
  }
 `;
 
-const COMPREHENSION: ComprehensionOut = {
-	intentMap: {
-		summary: "greet() gains an optional excited flag",
-		clusters: [
-			{
-				name: "Excited greeting",
-				kind: "core",
-				description: "adds the flag and threads it through",
-				members: [{ path: "src/greeting.ts" }],
-			},
-		],
-		suggestedEntryPoint: "src/greeting.ts",
-	},
-	walkthrough: {
-		steps: [
-			{
-				title: "The new signature",
-				narration: "the optional parameter keeps old callers working",
-				focus: [{ path: "src/greeting.ts", hunkIds: [] }],
-			},
-		],
-	},
-	explanations: [
+const UNDERSTANDING: UnderstandingOut = {
+	summary: "greet() gains an optional excited flag",
+	topics: [
 		{
-			anchor: {
-				path: "src/greeting.ts",
-				side: "new",
-				startLine: 1,
-				endLine: 1,
-			},
-			kind: "intent",
-			body: "the flag defaults to false, so the change is backward compatible",
+			title: "Add an excited greeting mode",
+			summary:
+				"greet() takes an optional flag and appends an exclamation mark when it is set; existing callers are unaffected.",
+			kind: "core",
+			refs: [{ path: "src/greeting.ts", hunkIds: [] }],
 		},
 	],
-	risk: { hunkRisks: [] },
+	suggestedEntryPoint: "src/greeting.ts",
+	goalMatch: {
+		verdict: "matches",
+		rationale: "the signature change and the body change serve one purpose",
+	},
 };
 
 interface Harness {
@@ -90,6 +71,7 @@ function harness(taskEvents: EngineEvent[]): Harness {
 	return { setup, engine };
 }
 
+
 async function opened(harnessed: Harness) {
 	const opened = await harnessed.setup.container.openReview({
 		target: "working",
@@ -99,6 +81,7 @@ async function opened(harnessed: Harness) {
 		roundId: opened.roundId,
 		ref: opened.ref,
 		files: opened.files,
+		ticket: null,
 	};
 }
 
@@ -141,7 +124,7 @@ function runIdOf(result: { kind: string } & Record<string, unknown>): string {
 
 const SUCCESSFUL_RUN: EngineEvent[] = [
 	fakeSession("session-A"),
-	fakeResult({ structuredOutput: COMPREHENSION, sessionId: "session-A" }),
+	fakeResult({ structuredOutput: UNDERSTANDING, sessionId: "session-A" }),
 ];
 
 describe("runAnalysis without an agent", () => {
@@ -158,6 +141,7 @@ describe("runAnalysis without an agent", () => {
 				roundId: review.roundId,
 				ref: review.ref,
 				files: review.files,
+				ticket: null,
 			}),
 		).rejects.toThrow(EngineError);
 		expect(setup.container.engine).toBeNull();
@@ -166,7 +150,7 @@ describe("runAnalysis without an agent", () => {
 });
 
 describe("runAnalysis on a successful comprehension run", () => {
-	it("persists the raw stage output, the annotations, and the run metadata", async () => {
+	it("persists what the pass understood, plus the run metadata", async () => {
 		const harnessed = harness(SUCCESSFUL_RUN);
 		const { setup } = harnessed;
 		const review = await opened(harnessed);
@@ -175,136 +159,113 @@ describe("runAnalysis on a successful comprehension run", () => {
 		const run = await settled(setup, runIdOf(enqueued));
 
 		expect(run.status).toBe("succeeded");
-		expect(run.skippedAnchors).toBe(0);
 
 		const analysis = await setup.store.loadRoundAnalysis(
 			review.manifest.changesetId,
 			review.roundId,
 		);
-		expect(analysis?.comprehension.intentMap.summary).toBe(
+		expect(analysis?.understanding.summary).toBe(
 			"greet() gains an optional excited flag",
 		);
-		expect(analysis?.comprehension.walkthrough.steps).toHaveLength(1);
+		expect(analysis?.understanding.topics).toHaveLength(1);
+		expect(analysis?.understanding.topics[0]?.id).toBe("t1");
 		expect(analysis?.engineSessionId).toBe("session-A");
 		expect(analysis?.runId).toBe(run.id);
-
-		const annotations = await setup.store.loadAnnotations(
-			review.manifest.changesetId,
-		);
-		expect(annotations).toHaveLength(1);
-		expect(annotations[0].anchor.path).toBe("src/greeting.ts");
-		expect(annotations[0].provenance).toEqual({
-			roundId: review.roundId,
-			stage: "comprehension",
-			engineSessionId: "session-A",
-		});
-
-		const manifest = await setup.store.loadSessionManifest(
-			review.manifest.changesetId,
-		);
-		expect(manifest?.engine.analysisSessionId).toBe("session-A");
-		const runs = manifest?.rounds.find(
-			(round) => round.id === review.roundId,
-		)?.runs;
-		expect(runs).toHaveLength(1);
-		expect(runs?.[0]).toMatchObject({
-			stage: "comprehension",
-			status: "succeeded",
-			engineSessionId: "session-A",
-			numTurns: 3,
-		});
 	});
 
-	it("publishes run events and one annotation.upserted per explanation", async () => {
-		const harnessed = harness(SUCCESSFUL_RUN);
-		const { setup } = harnessed;
-		const review = await opened(harnessed);
-		const enqueued = await setup.container.runAnalysis(review);
-		await settled(setup, runIdOf(enqueued));
-
-		expect(setup.events.map((event) => event.type)).toEqual([
-			"run.queued",
-			"run.started",
-			"annotation.upserted",
-			"run.succeeded",
-		]);
-	});
-
-	it("hands the engine the reviewed-revision workspace and the numbered diff", async () => {
+	/**
+	 * The margin belongs to findings — things you might say to the author.
+	 * Explanations are narration attached to a topic and render on the
+	 * Understanding tab, beside the code they describe.
+	 */
+	it("produces no annotations: comprehension never writes to the diff margin", async () => {
 		const harnessed = harness(SUCCESSFUL_RUN);
 		const review = await opened(harnessed);
+
 		const enqueued = await harnessed.setup.container.runAnalysis(review);
 		await settled(harnessed.setup, runIdOf(enqueued));
 
-		const [call] = harnessed.engine.calls;
-		expect(call.kind).toBe("task");
-		// a worktree changeset's reviewed code IS the repo itself (§7)
-		expect(call.workspaceDir).toBe("/repo");
-		expect(call.prompt).toContain("=== FILE");
-		expect(call.prompt).toContain("src/greeting.ts");
-		// stage A always starts a fresh session
-		expect(call.resume).toBeUndefined();
-		expect(call.task?.stage).toBe("comprehension");
-	});
-
-	it("replaces the previous round's explanations on a re-run instead of stacking them", async () => {
-		const harnessed = harness(SUCCESSFUL_RUN);
-		const { setup } = harnessed;
-		const review = await opened(harnessed);
-		const first = await setup.container.runAnalysis(review);
-		await settled(setup, runIdOf(first));
-		const firstIds = (
-			await setup.store.loadAnnotations(review.manifest.changesetId)
-		).map((annotation) => annotation.id);
-
-		harnessed.engine.options = { task: { events: SUCCESSFUL_RUN } };
-		const second = await setup.container.runAnalysis(review);
-		await settled(setup, runIdOf(second));
-
-		const annotations = await setup.store.loadAnnotations(
-			review.manifest.changesetId,
-		);
-		expect(annotations).toHaveLength(1);
-		expect(firstIds).not.toContain(annotations[0].id);
 		expect(
-			setup.events.filter((event) => event.type === "annotation.removed"),
-		).toEqual([{ type: "annotation.removed", id: firstIds[0] }]);
+			await harnessed.setup.store.loadAnnotations(review.manifest.changesetId),
+		).toEqual([]);
+		expect(
+			harnessed.setup.events.filter((event) =>
+				event.type.startsWith("annotation."),
+			),
+		).toEqual([]);
 	});
 
-	it("counts anchors it could not place as skippedAnchors on the run", async () => {
+	it("announces the artifact so open clients can refetch it", async () => {
+		const harnessed = harness(SUCCESSFUL_RUN);
+		const review = await opened(harnessed);
+
+		const enqueued = await harnessed.setup.container.runAnalysis(review);
+		await settled(harnessed.setup, runIdOf(enqueued));
+
+		expect(
+			harnessed.setup.events.filter(
+				(event) => event.type === "understanding.updated",
+			),
+		).toEqual([{ type: "understanding.updated", roundId: review.roundId }]);
+	});
+
+	/**
+	 * `basis` is a program property, not a claim the agent gets to make: it is
+	 * stamped from whether prreview actually discovered a ticket.
+	 */
+	it("stamps the goal-match basis from discovery, not from the agent", async () => {
+		const withoutTicket = harness(SUCCESSFUL_RUN);
+		const reviewA = await opened(withoutTicket);
+		await settled(
+			withoutTicket.setup,
+			runIdOf(await withoutTicket.setup.container.runAnalysis(reviewA)),
+		);
+		const inferred = await withoutTicket.setup.store.loadRoundAnalysis(
+			reviewA.manifest.changesetId,
+			reviewA.roundId,
+		);
+		expect(inferred?.understanding.goalMatch.basis).toBe("inferred");
+		expect(inferred?.understanding.goalMatch.ticket).toBeNull();
+
+		const withTicket = harness(SUCCESSFUL_RUN);
+		const reviewB = {
+			...(await opened(withTicket)),
+			ticket: { key: "ENG-7", source: "branch" as const },
+		};
+		await settled(
+			withTicket.setup,
+			runIdOf(await withTicket.setup.container.runAnalysis(reviewB)),
+		);
+		const grounded = await withTicket.setup.store.loadRoundAnalysis(
+			reviewB.manifest.changesetId,
+			reviewB.roundId,
+		);
+		expect(grounded?.understanding.goalMatch.basis).toBe("ticket");
+		expect(grounded?.understanding.goalMatch.ticket?.key).toBe("ENG-7");
+	});
+
+	it("reports the hunks no topic accounted for", async () => {
 		const harnessed = harness([
 			fakeSession("session-A"),
 			fakeResult({
 				sessionId: "session-A",
-				structuredOutput: {
-					...COMPREHENSION,
-					explanations: [
-						...COMPREHENSION.explanations,
-						{
-							anchor: {
-								path: "src/gone.ts",
-								side: "new",
-								startLine: 1,
-								endLine: 1,
-							},
-							kind: "mechanism",
-							body: "about a file this changeset never touched",
-						},
-					],
-				},
+				structuredOutput: { ...UNDERSTANDING, topics: [] },
 			}),
 		]);
 		const review = await opened(harnessed);
-		const enqueued = await harnessed.setup.container.runAnalysis(review);
-		const run = await settled(harnessed.setup, runIdOf(enqueued));
+		await settled(
+			harnessed.setup,
+			runIdOf(await harnessed.setup.container.runAnalysis(review)),
+		);
 
-		expect(run.status).toBe("succeeded");
-		expect(run.skippedAnchors).toBe(1);
-		expect(
-			await harnessed.setup.store.loadAnnotations(review.manifest.changesetId),
-		).toHaveLength(1);
+		const analysis = await harnessed.setup.store.loadRoundAnalysis(
+			review.manifest.changesetId,
+			review.roundId,
+		);
+		expect(analysis?.understanding.uncoveredHunks.length).toBeGreaterThan(0);
 	});
 });
+
 
 describe("runAnalysis when the run fails", () => {
 	it("turns unusable structured output into a schema-violation failure and applies nothing", async () => {
@@ -393,6 +354,7 @@ describe("runAnalysis when the run fails", () => {
 			roundId: review.roundId,
 			ref: review.ref,
 			files: review.files,
+			ticket: null,
 		});
 		const run = await settled(setup, runIdOf(enqueued));
 
@@ -455,6 +417,7 @@ describe("runAnalysis conflict and cancellation", () => {
 			roundId: review.roundId,
 			ref: review.ref,
 			files: review.files,
+			ticket: null,
 		});
 		await engine.started;
 

@@ -8,7 +8,6 @@ import {
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { RoundAnalysis } from "../../application/analysis/RoundAnalysis";
-import type { WalkthroughProgress } from "../../domain/analysis/Walkthrough";
 import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
@@ -284,37 +283,6 @@ export class SessionStore {
 		);
 	}
 
-	// ── walkthrough progress ──────────────────────────────────────────────
-
-	/**
-	 * Progress rides in the manifest (CON-012), so both sides go through it:
-	 * one file, one debounce window, and a session that resumes the walkthrough
-	 * exactly where the reader left it.
-	 */
-	async loadWalkthroughProgress(
-		changesetId: ChangesetId,
-	): Promise<WalkthroughProgress | null> {
-		const manifest = await this.loadSessionManifest(changesetId);
-		return manifest?.walkthroughProgress ?? null;
-	}
-
-	async saveWalkthroughProgress(
-		changesetId: ChangesetId,
-		progress: WalkthroughProgress,
-	): Promise<void> {
-		const manifest = await this.loadSessionManifest(changesetId);
-		if (manifest === null) {
-			throw new StoreError(
-				"corrupt",
-				`Cannot record walkthrough progress: session ${changesetId} has no manifest on disk.`,
-			);
-		}
-		await this.saveSessionManifest({
-			...manifest,
-			walkthroughProgress: progress,
-		});
-	}
-
 	// ── blobs ─────────────────────────────────────────────────────────────
 
 	/**
@@ -447,7 +415,7 @@ export class SessionStore {
 
 	private async readJsonFile(absolutePath: string): Promise<unknown> {
 		// A read that ignored the debounce window would see the previous
-		// contents and a read-modify-write (walkthrough progress lands in the
+		// contents and a read-modify-write (the ticket hint lands in the
 		// manifest) would silently drop whatever is still pending.
 		const pending = this.pendingWrites.get(absolutePath);
 		const text =

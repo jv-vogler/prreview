@@ -16,7 +16,7 @@ import { createPathShim, type PathShim } from "./helpers/shimPath";
  */
 
 const FIXTURE = fileURLToPath(
-	new URL("./fixtures/claude/comprehension.jsonl", import.meta.url),
+	new URL("./fixtures/claude/understanding.jsonl", import.meta.url),
 );
 
 const GREETING_OLD_OID = "1".repeat(40);
@@ -127,7 +127,7 @@ async function settled(
 }
 
 describe("analysis over the real claude adapter", () => {
-	it("turns a recorded comprehension stream into stored annotations, analysis, and run metadata", async () => {
+	it("turns a recorded comprehension stream into a stored understanding and run metadata", async () => {
 		const setup = containerOverFakeClaude();
 		const review = await setup.container.openReview({ target: "working" });
 
@@ -136,6 +136,7 @@ describe("analysis over the real claude adapter", () => {
 			roundId: review.roundId,
 			ref: review.ref,
 			files: review.files,
+			ticket: null,
 		});
 		if (enqueued.kind !== "accepted") {
 			throw new Error(`expected an accepted run, got ${enqueued.kind}`);
@@ -149,39 +150,21 @@ describe("analysis over the real claude adapter", () => {
 			review.manifest.changesetId,
 			review.roundId,
 		);
-		expect(analysis?.comprehension.intentMap.summary).toContain("excited");
-		expect(analysis?.comprehension.intentMap.clusters.length).toBeGreaterThan(
-			0,
-		);
-		expect(analysis?.comprehension.walkthrough.steps).toHaveLength(3);
-		// risk is captured and persisted, and nothing in M2 renders it (ALT-008)
-		expect(analysis?.comprehension.risk.hunkRisks.length).toBeGreaterThan(0);
+		expect(analysis?.understanding.summary).toContain("excited");
+		expect(analysis?.understanding.topics.length).toBeGreaterThan(0);
+		expect(analysis?.understanding.topics[0]?.id).toBe("t1");
+		// no ticket was discovered for a worktree review, so the verdict can only
+		// be about internal coherence — and the server, not the agent, says so
+		expect(analysis?.understanding.goalMatch.basis).toBe("inferred");
 		// the read log records what the agent actually looked at (CON-007)
 		expect(analysis?.readLog.reads.length).toBeGreaterThan(0);
 
-		const annotations = await setup.store.loadAnnotations(
-			review.manifest.changesetId,
-		);
-		expect(annotations).toHaveLength(3);
-		expect(annotations.map((annotation) => annotation.anchor.path)).toEqual([
-			"src/greeting.ts",
-			"src/greeting.ts",
-			"src/main.ts",
-		]);
+		// the comprehension pass writes nothing to the diff margin: narration
+		// belongs beside its code on the Understanding tab, and the margin is
+		// reserved for findings
 		expect(
-			annotations.every((annotation) => annotation.species === "explanation"),
-		).toBe(true);
-		expect(
-			annotations.every((annotation) => annotation.anchorStatus === "anchored"),
-		).toBe(true);
-		expect(
-			annotations.every(
-				(annotation) => annotation.anchor.snapshot.targetLines.length === 1,
-			),
-		).toBe(true);
-		expect(annotations.map((annotation) => annotation.category).sort()).toEqual(
-			["implication", "intent", "mechanism"],
-		);
+			await setup.store.loadAnnotations(review.manifest.changesetId),
+		).toEqual([]);
 
 		const manifest = await setup.store.loadSessionManifest(
 			review.manifest.changesetId,
@@ -198,9 +181,7 @@ describe("analysis over the real claude adapter", () => {
 		expect(setup.events.map((event) => event.type)).toEqual([
 			"run.queued",
 			"run.started",
-			"annotation.upserted",
-			"annotation.upserted",
-			"annotation.upserted",
+			"understanding.updated",
 			"run.succeeded",
 		]);
 	});

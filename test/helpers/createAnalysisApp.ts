@@ -1,5 +1,6 @@
 import { expect } from "vitest";
-import type { ComprehensionOut } from "../../src/application/analysis/schemas";
+import { materializeAnnotations } from "../../src/application/materializeAnnotations";
+import type { UnderstandingOut } from "../../src/application/analysis/understandingSchemas";
 import type { FileDiff } from "../../src/domain/changeset/FileDiff";
 import {
 	createTestApp,
@@ -31,9 +32,9 @@ export interface AnalysisApp extends TestApp {
 }
 
 /**
- * The M2 server harness: the M1 test app plus an agent that answers. The engine
- * is scripted after the review is open, because a believable comprehension
- * result has to name the round's real hunkIds — the walkthrough marks coverage
+ * The server harness: the test app plus an agent that answers. The engine is
+ * scripted after the review is open, because a believable understanding has to
+ * name the round's real hunkIds — coverage and topic sizing both resolve
  * through them, so made-up ids would prove nothing.
  */
 export async function createAnalysisApp(
@@ -57,7 +58,7 @@ export async function createAnalysisApp(
 		task: {
 			events: [
 				fakeSession(),
-				fakeResult({ structuredOutput: comprehensionFor(app.review.files) }),
+				fakeResult({ structuredOutput: understandingFor(app.review.files) }),
 			],
 		},
 		chat: {
@@ -73,59 +74,92 @@ export async function createAnalysisApp(
 	return { ...app, engine };
 }
 
-/** two explanations, two walkthrough steps, one cluster per file */
-export function comprehensionFor(files: readonly FileDiff[]): ComprehensionOut {
+/**
+ * Two topics over the two-file worktree diff, with the second topic
+ * deliberately re-using the first file's hunks so every consumer is exercised
+ * against the many-to-many case rather than a tidy partition.
+ */
+export function understandingFor(
+	files: readonly FileDiff[],
+): UnderstandingOut {
 	const [greeting, todo] = files;
 	if (greeting === undefined || todo === undefined) {
 		throw new Error("the harness expects the two-file worktree diff");
 	}
 	return {
-		intentMap: {
-			summary: "the greeting now names the reviewer, and a todo list appears",
-			clusters: [
-				{
-					name: "Greeting copy",
-					kind: "core",
-					description: "the returned string gains the reviewer",
-					members: [{ path: greeting.path, hunkIds: hunkIdsOf(greeting) }],
-				},
-				{
-					name: "Notes",
-					kind: "docs",
-					description: "a scratch list of what is left",
-					members: [{ path: todo.path }],
-				},
-			],
-			suggestedEntryPoint: greeting.path,
-		},
-		walkthrough: {
-			steps: [
-				{
-					title: "Start with the greeting",
-					narration: "one string changes, and every caller keeps working",
-					focus: [{ path: greeting.path, hunkIds: hunkIdsOf(greeting) }],
-				},
-				{
-					title: "Then the notes",
-					narration: "the todo list records what the change leaves undone",
-					focus: [{ path: todo.path, hunkIds: hunkIdsOf(todo) }],
-				},
-			],
-		},
-		explanations: [
+		summary: "the greeting now names the reviewer, and a todo list appears",
+		topics: [
 			{
-				anchor: { path: greeting.path, side: "new", startLine: 2, endLine: 2 },
-				kind: "intent",
-				body: "the message is addressed to whoever is reviewing",
+				title: "Greet the reviewer by name",
+				summary: "The returned string now addresses whoever is reviewing.",
+				kind: "core",
+				refs: [{ path: greeting.path, hunkIds: hunkIdsOf(greeting) }],
 			},
 			{
-				anchor: { path: todo.path, side: "new", startLine: 1, endLine: 1 },
-				kind: "mechanism",
-				body: "the list is plain markdown and ships with the change",
+				title: "Record what is left undone",
+				summary: "A scratch list ships alongside the change.",
+				kind: "docs",
+				refs: [
+					{ path: todo.path, hunkIds: hunkIdsOf(todo) },
+					// the overlap: this hunk belongs to both topics on purpose
+					{ path: greeting.path, hunkIds: hunkIdsOf(greeting) },
+				],
 			},
 		],
-		risk: { hunkRisks: [] },
+		suggestedEntryPoint: greeting.path,
+		goalMatch: {
+			verdict: "matches",
+			rationale: "the copy change and the note are consistent with one another",
+		},
 	};
+}
+
+/**
+ * Seeds anchored findings on the current round without going through an agent.
+ *
+ * The comprehension pass deliberately produces no annotations — narration lives
+ * on the Understanding tab, and the diff margin is reserved for findings. Tests
+ * about *anchoring* still need annotations to exist, and how they were born is
+ * irrelevant to whether they survive the tree moving, so they are written
+ * directly here rather than through a scripted run that could fail for
+ * unrelated reasons.
+ */
+export async function seedFindings(app: AnalysisApp): Promise<void> {
+	const [greeting, todo] = app.review.files;
+	if (greeting === undefined || todo === undefined) {
+		throw new Error("the harness expects the two-file worktree diff");
+	}
+	const { annotations } = await materializeAnnotations(
+		{ git: app.container.git, store: app.container.store },
+		{
+			drafts: [
+				{
+					anchor: { path: greeting.path, side: "new", startLine: 2, endLine: 2 },
+					body: "the message is addressed to whoever is reviewing",
+					species: "finding",
+					category: "correctness",
+				},
+				{
+					anchor: { path: todo.path, side: "new", startLine: 1, endLine: 1 },
+					body: "the list ships with the change",
+					species: "finding",
+					category: "design",
+				},
+			],
+			files: app.review.files,
+			provenance: {
+				roundId: app.review.roundId,
+				stage: "findings",
+				engineSessionId: "session-seed",
+			},
+			createdAt: "2026-08-17T10:00:00.000Z",
+		},
+	);
+	await app.container.store.saveAnnotations(
+		app.review.manifest.changesetId,
+		annotations,
+	);
+	app.state.applyAnnotations(null);
 }
 
 export function hunkIdsOf(file: FileDiff): string[] {

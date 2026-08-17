@@ -386,6 +386,7 @@ describe("chatTurn", () => {
 			roundId: review.roundId,
 			ref: review.ref,
 			files: review.files,
+			ticket: null,
 		});
 		await engine.started;
 

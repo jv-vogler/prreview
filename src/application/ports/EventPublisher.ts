@@ -13,9 +13,22 @@ import type { RunEvent } from "./RunManager";
  * nobody is listening — so the callback returns void and a container with no
  * interface layer attached gets a no-op sink.
  */
-export type AppEvent = RunEvent | AnnotationEvent | ChatEvent;
+export type AppEvent =
+	| RunEvent
+	| AnnotationEvent
+	| ChatEvent
+	| ArtifactEvent;
 
 export type PublishEvent = (event: AppEvent) => void;
+
+/**
+ * A large artifact landed. Carries only the round id: the payload is big and
+ * most connected clients are not looking at it, so they refetch when they care
+ * rather than every client paying for every producer.
+ */
+export type ArtifactEvent =
+	| { type: "understanding.updated"; roundId: string }
+	| { type: "findings.updated"; roundId: string };
 
 export type AnnotationEvent =
 	| { type: "annotation.upserted"; annotation: StoredAnnotation }

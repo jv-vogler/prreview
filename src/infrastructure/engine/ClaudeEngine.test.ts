@@ -194,7 +194,7 @@ describe("ClaudeEngine.probe", () => {
 
 describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 	it("invokes the §7 baseline exactly, with the schema inline and no --model", async () => {
-		const logPath = useFixture("comprehension.jsonl");
+		const logPath = useFixture("understanding.jsonl");
 		await drain(engine.runTask(taskSpec(), taskInput()));
 
 		const [invocation] = await readInvocations(logPath);
@@ -223,7 +223,7 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 	});
 
 	it("keeps the inline schema under the argv budget (CON-005)", async () => {
-		const logPath = useFixture("comprehension.jsonl");
+		const logPath = useFixture("understanding.jsonl");
 		const jsonSchema = JSON.stringify({
 			type: "object",
 			description: "x".repeat(80_000),
@@ -237,7 +237,7 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 	});
 
 	it("delivers the prompt on stdin, byte-for-byte, and never in argv (SEC-002)", async () => {
-		const logPath = useFixture("comprehension.jsonl");
+		const logPath = useFixture("understanding.jsonl");
 		const prompt = `${"line of numbered diff\n".repeat(500)}anchor on the new side`;
 		await drain(engine.runTask(taskSpec(), taskInput({ prompt })));
 
@@ -250,14 +250,14 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 	});
 
 	it("runs the child in the engine workspace (REQ-005)", async () => {
-		const logPath = useFixture("comprehension.jsonl");
+		const logPath = useFixture("understanding.jsonl");
 		await drain(engine.runTask(taskSpec(), taskInput()));
 		const [invocation] = await readInvocations(logPath);
 		expect(invocation?.cwd).toBe(scratchDir);
 	});
 
 	it("forks a resumed session when asked, and only then (CON-004)", async () => {
-		const forkLog = useFixture("comprehension.jsonl");
+		const forkLog = useFixture("understanding.jsonl");
 		await drain(
 			engine.runTask(
 				taskSpec(),
@@ -270,7 +270,7 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 			"--fork-session",
 		]);
 
-		const plainLog = useFixture("comprehension.jsonl");
+		const plainLog = useFixture("understanding.jsonl");
 		await drain(
 			engine.runTask(
 				taskSpec(),
@@ -285,7 +285,7 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 
 describe("ClaudeEngine.runTask results", () => {
 	it("succeeds on a real comprehension capture, with structured output and a read log", async () => {
-		useFixture("comprehension.jsonl");
+		useFixture("understanding.jsonl");
 		const events = await drain(engine.runTask(taskSpec(), taskInput()));
 
 		const session = events[0];
@@ -301,10 +301,10 @@ describe("ClaudeEngine.runTask results", () => {
 			throw new Error("expected a successful run");
 		}
 		expect(Object.keys(result.structuredOutput as object).sort()).toEqual([
-			"explanations",
-			"intentMap",
-			"risk",
-			"walkthrough",
+			"goalMatch",
+			"suggestedEntryPoint",
+			"summary",
+			"topics",
 		]);
 		expect(result.model).toBe("claude-haiku-4-5-20251001");
 		expect(result.numTurns).toBe(8);
@@ -323,7 +323,7 @@ describe("ClaudeEngine.runTask results", () => {
 	});
 
 	it("reports every tool call as a tool event, including the schema self-retries (CON-006)", async () => {
-		useFixture("comprehension.jsonl");
+		useFixture("understanding.jsonl");
 		const events = await drain(engine.runTask(taskSpec(), taskInput()));
 		const tools = events.filter((event) => event.type === "tool");
 		expect(tools.map((tool) => (tool as { name: string }).name)).toEqual([
@@ -374,7 +374,7 @@ describe("ClaudeEngine.runTask results", () => {
 	});
 
 	it("re-validates structured output on receipt and rejects it (REQ-007)", async () => {
-		useFixture("comprehension.jsonl");
+		useFixture("understanding.jsonl");
 		const rejecting = {
 			parse: () => {
 				throw new Error("intentMap.summary: expected string");
@@ -479,7 +479,7 @@ describe("ClaudeEngine.chatTurn", () => {
 
 describe("ClaudeEngine cancellation and timeouts (SEC-002)", () => {
 	it("fails a run that outlives its budget with timed-out", async () => {
-		useFixture("comprehension.jsonl", { FAKE_CLAUDE_DELAY_MS: "50" });
+		useFixture("understanding.jsonl", { FAKE_CLAUDE_DELAY_MS: "50" });
 		const events = await drain(
 			engine.runTask(taskSpec({ timeoutMs: 120 }), taskInput()),
 		);

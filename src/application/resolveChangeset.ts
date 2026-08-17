@@ -5,6 +5,8 @@ import { ChangesetError } from "../domain/errors/ChangesetError";
 import { GithubError } from "../domain/errors/GithubError";
 import type { Toolchain } from "../domain/session/Toolchain";
 import type { Git } from "./ports/Git";
+import type { TicketHint } from "../domain/analysis/discoverTicket";
+import { discoverTicket } from "../domain/analysis/discoverTicket";
 import type { GithubService, PrInfo } from "./ports/GithubService";
 
 const PR_NUMBER_PATTERN = /^\d+$/;
@@ -42,6 +44,15 @@ export interface ChangesetAnnounce {
 export interface ResolvedChangeset {
 	ref: ChangesetRef;
 	announce: ChangesetAnnounce;
+	/**
+	 * What the change says it is for, when a reference was cheap to find.
+	 *
+	 * Discovered here because this is the one place PR metadata is already in
+	 * hand — resolving a PR fetches title, body, and head branch anyway, so
+	 * discovery costs nothing. Doing it later would mean a second `gh` call for
+	 * data we already had.
+	 */
+	ticket: TicketHint | null;
 }
 
 export type ResolveChangeset = (
@@ -66,8 +77,53 @@ export function makeResolveChangeset(
 				? await autoDetectSource(deps)
 				: await disambiguateTarget(deps, input.target, input.base);
 		const ref = await resolveSourceRef(deps, source, input.target);
-		return { ref, announce: announceFor(source, input.target) };
+		return {
+			ref,
+			announce: announceFor(source, input.target),
+			ticket: await discoverTicketFor(deps, source),
+		};
 	};
+}
+
+/**
+ * Opportunistic ticket discovery from whatever the source already exposes.
+ *
+ * A PR gives the richest signal — head branch, title, body — and the metadata
+ * is already fetched to resolve the ref, so this is free. A branch gives its
+ * own name. A range or the working tree gives nothing, which is a fine answer:
+ * the Overview tab then judges internal coherence and says so.
+ *
+ * Failures here are swallowed on purpose. A ticket is a nicety; a review that
+ * refuses to open because a `gh` call hiccuped while looking for one would be
+ * a bad trade.
+ */
+async function discoverTicketFor(
+	deps: ResolveChangesetDeps,
+	source: ChangesetSource,
+): Promise<TicketHint | null> {
+	if (source.kind === "branch") {
+		return discoverTicket({ branch: source.branch });
+	}
+	if (source.kind !== "pr" || deps.githubService === null) {
+		return null;
+	}
+	try {
+		const info = await prInfoIfBackendHasMetadata(
+			deps.githubService,
+			source.number,
+		);
+		if (info === null) {
+			return null;
+		}
+		return discoverTicket({
+			branch: info.headRefName,
+			title: info.title,
+			body: info.body,
+			selfIssueNumber: source.number,
+		});
+	} catch {
+		return null;
+	}
 }
 
 // ── positional disambiguation ───────────────────────────────────────────────

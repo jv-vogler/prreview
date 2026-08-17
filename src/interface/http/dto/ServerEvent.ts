@@ -33,6 +33,17 @@ export const serverEventSchema = z.discriminatedUnion("type", [
 		annotation: annotationDtoSchema,
 	}),
 	z.object({ type: z.literal("annotation.removed"), id: z.string() }),
+	/**
+	 * The comprehension pass landed. Carries only the round id: the artifact is
+	 * large and the client refetches it, rather than the server pushing a
+	 * payload most clients are not looking at.
+	 */
+	z.object({
+		type: z.literal("understanding.updated"),
+		roundId: z.string(),
+	}),
+	/** a findings pass landed, same reasoning */
+	z.object({ type: z.literal("findings.updated"), roundId: z.string() }),
 	z.object({ type: z.literal("chat.turn.started"), turnId: z.string() }),
 	z.object({
 		type: z.literal("chat.turn.delta"),

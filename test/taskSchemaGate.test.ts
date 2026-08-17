@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
-import { buildComprehensionTask } from "../src/application/analysis/comprehensionTask";
+import { buildUnderstandingTask } from "../src/application/analysis/understandingTask";
 import { TASK_SCHEMAS } from "../src/application/analysis/taskSchemas";
 import { toJsonSchema } from "../src/application/analysis/toJsonSchema";
 import type { EngineEvent } from "../src/application/ports/Engine";
@@ -53,11 +53,11 @@ afterEach(() => {
 describe("every task schema survives the CLI's own --json-schema gate", () => {
 	it("stage A's real task spec runs to a result instead of failing at spawn", async () => {
 		process.env.PATH = shim.withFakes;
-		process.env.FAKE_CLAUDE_FIXTURE = join(FIXTURES_DIR, "comprehension.jsonl");
+		process.env.FAKE_CLAUDE_FIXTURE = join(FIXTURES_DIR, "understanding.jsonl");
 		const logPath = join(scratchDir, "stage-a.jsonl");
 		process.env.FAKE_CLAUDE_LOG = logPath;
 
-		const { task, input } = buildComprehensionTask({
+		const { task, input } = buildUnderstandingTask({
 			ref: {
 				source: { kind: "worktree" },
 				baseSha: "a".repeat(40),

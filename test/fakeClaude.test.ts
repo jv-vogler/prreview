@@ -25,7 +25,7 @@ const FIXTURE_NAMES = [
 	"schema",
 	"tooluse",
 	"badmodel",
-	"comprehension",
+	"understanding",
 	"chat-stream",
 	"hooknoise",
 	"maxturns",

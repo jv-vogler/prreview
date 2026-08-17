@@ -40,17 +40,17 @@ export function sessionRoute(deps: SessionRouteDeps): Hono {
 async function analysisSummary(
 	deps: SessionRouteDeps,
 ): Promise<SessionAnalysisDto> {
-	const review = deps.state.current();
-	const [analysis, annotations, progress] = await Promise.all([
+	const [analysis, annotations] = await Promise.all([
 		deps.state.analysis(),
 		deps.state.annotations(),
-		deps.store.loadWalkthroughProgress(review.manifest.changesetId),
 	]);
 	return {
-		intentMapAvailable: analysis !== null,
-		walkthroughAvailable:
-			analysis !== null && analysis.comprehension.walkthrough.steps.length > 0,
+		understandingAvailable: analysis !== null,
+		// findings are their own pass, deliberately not chained off the
+		// comprehension one: each AI capability is triggered separately
+		findingsAvailable: annotations.some(
+			(annotation) => annotation.species === "finding",
+		),
 		annotationCount: annotations.length,
-		...(progress === null ? {} : { walkthroughProgress: progress }),
 	};
 }

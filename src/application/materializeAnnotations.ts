@@ -9,7 +9,6 @@ import { newAnnotationId } from "../domain/annotation/newAnnotationId";
 import type { BlobRef } from "../domain/changeset/BlobRef";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import { buildLineIndex } from "../domain/changeset/LineIndex";
-import type { ComprehensionOut } from "./analysis/schemas";
 import { type BlobLines, type BlobReaders, readBlobLines } from "./blobContent";
 import type { SessionStore } from "./ports/SessionStore";
 
@@ -22,8 +21,27 @@ export interface MaterializeAnnotationsDeps extends BlobReaders {
 	store: Pick<SessionStore, "readBlob" | "writeBlob">;
 }
 
+/**
+ * What the agent emitted, before the server turns it into a stored annotation:
+ * an anchor in printed line numbers plus the text. Declared here rather than
+ * imported from a task schema so this use-case serves every producer —
+ * findings are the next one — instead of being tied to one pass's contract.
+ */
+export interface AnnotationDraft {
+	anchor: {
+		path: string;
+		side: "old" | "new";
+		startLine: number;
+		endLine: number;
+	};
+	body: string;
+	/** the producer's own classification, stored verbatim on the annotation */
+	category?: string;
+	species?: "explanation" | "finding" | "related-finding";
+}
+
 export interface MaterializeAnnotationsInput {
-	explanations: ComprehensionOut["explanations"];
+	drafts: readonly AnnotationDraft[];
 	/** the round the agent was shown — the universe of paths and hunkIds */
 	files: readonly FileDiff[];
 	provenance: AnnotationProvenance;
@@ -56,7 +74,7 @@ export async function materializeAnnotations(
 	let skippedAnchors = 0;
 	const sideCache = new Map<string, BlobLines | null>();
 
-	for (const explanation of input.explanations) {
+	for (const explanation of input.drafts) {
 		const { anchor: agentAnchor } = explanation;
 		const file = findFile(input.files, agentAnchor.path, agentAnchor.side);
 		if (file === undefined) {
@@ -100,11 +118,13 @@ export async function materializeAnnotations(
 		};
 		annotations.push({
 			id: newAnnotationId(),
-			species: "explanation",
+			species: explanation.species ?? "finding",
 			anchor,
 			anchorStatus: "anchored",
 			body: explanation.body,
-			category: explanation.kind,
+			...(explanation.category === undefined
+				? {}
+				: { category: explanation.category }),
 			provenance: input.provenance,
 			createdAt: input.createdAt,
 		});

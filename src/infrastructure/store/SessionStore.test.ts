@@ -319,48 +319,28 @@ describe("annotations", () => {
 });
 
 describe("round analysis", () => {
-	it("round-trips the raw stage output under rounds/rN/analysis.json", async () => {
+	it("round-trips the comprehension output under rounds/rN/analysis.json", async () => {
 		const { store, dataDir } = await makeStore();
 		const analysis = {
-			comprehension: {
-				intentMap: {
-					summary: "adds a flag",
-					clusters: [
-						{
-							name: "core",
-							kind: "core" as const,
-							description: "the change",
-							members: [{ path: "a.ts", hunkIds: ["F1h1"] }],
-						},
-					],
-					suggestedEntryPoint: "a.ts",
-				},
-				walkthrough: {
-					steps: [
-						{
-							title: "start here",
-							narration: "read this first",
-							focus: [{ path: "a.ts", hunkIds: ["F1h1"] }],
-						},
-					],
-				},
-				explanations: [
+			understanding: {
+				summary: "adds a flag",
+				topics: [
 					{
-						anchor: {
-							path: "a.ts",
-							side: "new" as const,
-							startLine: 1,
-							endLine: 2,
-						},
-						kind: "intent" as const,
-						body: "because",
+						id: "t1",
+						title: "Add the flag",
+						summary: "the change",
+						kind: "core" as const,
+						refs: [{ path: "a.ts", hunkIds: ["F1h1"] }],
 					},
 				],
-				risk: {
-					hunkRisks: [
-						{ hunkId: "F1h1", score: 3 as const, reason: "touches parsing" },
-					],
+				suggestedEntryPoint: "a.ts",
+				goalMatch: {
+					verdict: "matches" as const,
+					rationale: "it does",
+					basis: "inferred" as const,
+					ticket: null,
 				},
+				uncoveredHunks: [{ path: "b.ts", hunkId: "F2h1" }],
 			},
 			readLog: { reads: ["/repo/a.ts"], searchHits: [] },
 			runId: "run-1",
@@ -380,7 +360,9 @@ describe("round analysis", () => {
 			"r1",
 			"analysis.json",
 		);
-		await expect(readFile(stored, "utf8")).resolves.toContain('"hunkRisks"');
+		await expect(readFile(stored, "utf8")).resolves.toContain(
+			'"uncoveredHunks"',
+		);
 	});
 
 	it("returns null for a round that was never analyzed", async () => {
@@ -435,59 +417,6 @@ describe("chat threads", () => {
 	});
 });
 
-describe("walkthrough progress", () => {
-	it("rides in the manifest and survives a reload", async () => {
-		const { store } = await makeStore();
-		const write = store.saveSessionManifest(manifest());
-		await store.flush();
-		await write;
-
-		await store.saveWalkthroughProgress("worktree", {
-			position: 2,
-			completed: false,
-		});
-		await store.flush();
-
-		expect(await store.loadWalkthroughProgress("worktree")).toEqual({
-			position: 2,
-			completed: false,
-		});
-		expect(
-			(await store.loadSessionManifest("worktree"))?.walkthroughProgress,
-		).toEqual({ position: 2, completed: false });
-	});
-
-	it("keeps the rest of the manifest untouched, including a save still in flight", async () => {
-		const { store } = await makeStore();
-		// not flushed: the manifest is still inside the debounce window
-		void store.saveSessionManifest({
-			...manifest(),
-			engine: {
-				adapter: "claude",
-				analysisSessionId: "session-A",
-				chatThreads: [],
-			},
-		});
-
-		await store.saveWalkthroughProgress("worktree", {
-			position: 1,
-			completed: true,
-		});
-		await store.flush();
-
-		const reloaded = await store.loadSessionManifest("worktree");
-		expect(reloaded?.engine.analysisSessionId).toBe("session-A");
-		expect(reloaded?.walkthroughProgress).toEqual({
-			position: 1,
-			completed: true,
-		});
-	});
-
-	it("is null before the walkthrough was ever entered", async () => {
-		const { store } = await makeStore();
-		expect(await store.loadWalkthroughProgress("worktree")).toBeNull();
-	});
-});
 
 describe("lock pidfile: one server per session", () => {
 	it("second acquire against a live holder → StoreError('locked')", async () => {

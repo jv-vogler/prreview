@@ -1,6 +1,5 @@
 import type { RoundAnalysis } from "../../src/application/analysis/RoundAnalysis";
 import type { SessionStore } from "../../src/application/ports/SessionStore";
-import type { WalkthroughProgress } from "../../src/domain/analysis/Walkthrough";
 import type { StoredAnnotation } from "../../src/domain/annotation/Annotation";
 import type { ChangesetId } from "../../src/domain/changeset/ChangesetId";
 import type { FileDiff } from "../../src/domain/changeset/FileDiff";
@@ -130,29 +129,6 @@ export class InMemorySessionStore implements SessionStore {
 		this.chatThreads.set(scopedKey(changesetId, threadId), thread);
 	}
 
-	async loadWalkthroughProgress(
-		changesetId: ChangesetId,
-	): Promise<WalkthroughProgress | null> {
-		return this.manifests.get(changesetId)?.walkthroughProgress ?? null;
-	}
-
-	async saveWalkthroughProgress(
-		changesetId: ChangesetId,
-		progress: WalkthroughProgress,
-	): Promise<void> {
-		this.throwIfFailing();
-		const manifest = this.manifests.get(changesetId);
-		if (manifest === undefined) {
-			throw new StoreError(
-				"corrupt",
-				`Cannot record walkthrough progress: session ${changesetId} has no manifest.`,
-			);
-		}
-		this.manifests.set(changesetId, {
-			...manifest,
-			walkthroughProgress: progress,
-		});
-	}
 
 	async writeBlob(oid: string, content: Buffer): Promise<void> {
 		this.throwIfFailing();

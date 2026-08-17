@@ -43,8 +43,8 @@ describe("with no agent CLI", () => {
 
 		expect(session.toolchain.agent).toEqual({ kind: "none" });
 		expect(session.analysis).toEqual({
-			intentMapAvailable: false,
-			walkthroughAvailable: false,
+			understandingAvailable: false,
+			findingsAvailable: false,
 			annotationCount: 0,
 		});
 	});
@@ -76,7 +76,7 @@ describe("with no agent CLI", () => {
 	it("404s the artifacts stage A would have produced", async () => {
 		const { app } = await viewerOnlyApp();
 
-		for (const path of ["/api/intent-map", "/api/walkthrough"]) {
+		for (const path of ["/api/understanding"]) {
 			const response = await app.request(path);
 			expect(response.status, path).toBe(404);
 			expect(await response.json()).toMatchObject({ reason: "not-produced" });

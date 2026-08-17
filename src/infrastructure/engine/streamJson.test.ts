@@ -93,17 +93,17 @@ describe("parseStreamJson", () => {
 	});
 
 	it("carries structured output through on a successful schema run", async () => {
-		const records = await collect(fixtureStream("comprehension.jsonl"));
+		const records = await collect(fixtureStream("understanding.jsonl"));
 		const result = records.at(-1) as {
 			isError: boolean;
 			structuredOutput: Record<string, unknown>;
 		};
 		expect(result.isError).toBe(false);
 		expect(Object.keys(result.structuredOutput).sort()).toEqual([
-			"explanations",
-			"intentMap",
-			"risk",
-			"walkthrough",
+			"goalMatch",
+			"suggestedEntryPoint",
+			"summary",
+			"topics",
 		]);
 	});
 

@@ -158,22 +158,23 @@ describe("triageAnnotations", () => {
 		expect(triage.retired).toEqual(["01G"]);
 	});
 
-	it("throws on any non-explanation species so M3 has to opt in deliberately", () => {
-		const species: AnnotationSpecies[] = ["finding", "related-finding"];
-		for (const nonExplanation of species) {
-			const annotation = makeExplanation("01H", { species: nonExplanation });
-			expect(() =>
-				triageAnnotations(
-					[
-						{
-							annotation,
-							reanchor: makeResult("anchored", false),
-							targetHunkIds: [],
-						},
-					],
-					makeDelta(),
-				),
-			).toThrow(/only explanations/);
-		}
+	it("triages a finding the same way, since its anchor is the point of it", () => {
+		const finding = {
+			...makeExplanation("a1"),
+			species: "finding" as const,
+		};
+		const triaged = triageAnnotations(
+			[
+				{
+					annotation: finding,
+					reanchor: { status: "moved", anchor: finding.anchor, touchedByDelta: false },
+					targetHunkIds: [],
+				},
+			],
+			makeDelta(),
+		);
+		expect(triaged.carried).toHaveLength(1);
+		expect(triaged.carried[0]?.species).toBe("finding");
+		expect(triaged.retired).toEqual([]);
 	});
 });

@@ -18,9 +18,8 @@ import { changesetRoute } from "./routes/changeset";
 import { chatRoute } from "./routes/chat";
 import { coverageRoute } from "./routes/coverage";
 import { goodbyeRoute } from "./routes/goodbye";
-import { intentMapRoute } from "./routes/intentMap";
 import { sessionRoute } from "./routes/session";
-import { walkthroughRoute } from "./routes/walkthrough";
+import { understandingRoute } from "./routes/understanding";
 import { registerStatic } from "./static";
 
 /** The Vite dev server's port — allowlisted only under --dev (ARCHITECTURE §15, §16). */
@@ -148,15 +147,7 @@ export function createApp(deps: AppDeps): Hono {
 		}),
 	);
 	app.route("/api/annotations", annotationsRoute({ state: deps.state }));
-	app.route("/api/intent-map", intentMapRoute({ state: deps.state }));
-	app.route(
-		"/api/walkthrough",
-		walkthroughRoute({
-			state: deps.state,
-			updateWalkthroughProgress: deps.container.updateWalkthroughProgress,
-			hub: deps.hub,
-		}),
-	);
+	app.route("/api/understanding", understandingRoute({ state: deps.state }));
 	app.route(
 		"/api/chat",
 		chatRoute({

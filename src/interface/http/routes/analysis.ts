@@ -43,6 +43,7 @@ export function analysisRoute(deps: AnalysisRouteDeps): Hono {
 			roundId: review.roundId,
 			ref: review.ref,
 			files: review.files,
+			ticket: review.manifest.ticket ?? null,
 		});
 
 		if (enqueued.kind === "conflict") {

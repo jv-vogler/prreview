@@ -1,6 +1,11 @@
 {
 	"simple": {
-		"eventTypes": ["system:init", "assistant", "assistant", "result:success"],
+		"eventTypes": [
+			"system:init",
+			"assistant",
+			"assistant",
+			"result:success"
+		],
 		"sessionIdConsistent": true,
 		"initSeen": true,
 		"toolUses": [],
@@ -34,7 +39,9 @@
 		"toolUses": [
 			{
 				"name": "StructuredOutput",
-				"inputKeys": ["status"]
+				"inputKeys": [
+					"status"
+				]
 			}
 		],
 		"toolResultsSeen": 1,
@@ -66,7 +73,9 @@
 		"toolUses": [
 			{
 				"name": "Read",
-				"inputKeys": ["file_path"]
+				"inputKeys": [
+					"file_path"
+				]
 			}
 		],
 		"toolResultsSeen": 1,
@@ -84,7 +93,11 @@
 		"exitCode": 0
 	},
 	"badmodel": {
-		"eventTypes": ["system:init", "assistant", "result:success"],
+		"eventTypes": [
+			"system:init",
+			"assistant",
+			"result:success"
+		],
 		"sessionIdConsistent": true,
 		"initSeen": true,
 		"toolUses": [],
@@ -102,7 +115,7 @@
 		},
 		"exitCode": 1
 	},
-	"comprehension": {
+	"understanding": {
 		"eventTypes": [
 			"system:init",
 			"assistant",
@@ -131,31 +144,49 @@
 		"toolUses": [
 			{
 				"name": "Read",
-				"inputKeys": ["file_path"]
+				"inputKeys": [
+					"file_path"
+				]
 			},
 			{
 				"name": "Read",
-				"inputKeys": ["file_path"]
+				"inputKeys": [
+					"file_path"
+				]
 			},
 			{
 				"name": "Glob",
-				"inputKeys": ["pattern"]
+				"inputKeys": [
+					"pattern"
+				]
 			},
 			{
 				"name": "Grep",
-				"inputKeys": ["glob", "pattern"]
+				"inputKeys": [
+					"glob",
+					"pattern"
+				]
 			},
 			{
 				"name": "StructuredOutput",
-				"inputKeys": ["intentMap"]
+				"inputKeys": [
+					"intentMap"
+				]
 			},
 			{
 				"name": "StructuredOutput",
-				"inputKeys": ["__unparsedToolInput"]
+				"inputKeys": [
+					"__unparsedToolInput"
+				]
 			},
 			{
 				"name": "StructuredOutput",
-				"inputKeys": ["explanations", "intentMap", "risk", "walkthrough"]
+				"inputKeys": [
+					"explanations",
+					"intentMap",
+					"risk",
+					"walkthrough"
+				]
 			}
 		],
 		"toolResultsSeen": 7,
@@ -215,7 +246,12 @@
 		"exitCode": 0
 	},
 	"hooknoise": {
-		"eventTypes": ["system:init", "assistant", "assistant", "result:success"],
+		"eventTypes": [
+			"system:init",
+			"assistant",
+			"assistant",
+			"result:success"
+		],
 		"sessionIdConsistent": true,
 		"initSeen": true,
 		"toolUses": [],
@@ -246,7 +282,9 @@
 		"toolUses": [
 			{
 				"name": "Read",
-				"inputKeys": ["file_path"]
+				"inputKeys": [
+					"file_path"
+				]
 			}
 		],
 		"toolResultsSeen": 1,
@@ -264,7 +302,11 @@
 		"exitCode": 1
 	},
 	"crash": {
-		"eventTypes": ["system:init", "assistant", "assistant"],
+		"eventTypes": [
+			"system:init",
+			"assistant",
+			"assistant"
+		],
 		"sessionIdConsistent": true,
 		"initSeen": true,
 		"toolUses": [],

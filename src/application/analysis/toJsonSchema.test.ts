@@ -1,6 +1,6 @@
 import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
-import { comprehensionOutSchema } from "./schemas";
+import { representativeUnderstandingOutSchema } from "./understandingSchemas";
 import { TASK_SCHEMAS } from "./taskSchemas";
 import { assertSchemaFitsArgv, toJsonSchema } from "./toJsonSchema";
 
@@ -19,22 +19,25 @@ function validateAsTheCliDoes(json: string): boolean {
 
 describe("toJsonSchema", () => {
 	it("emits no $schema at all, so no meta-schema has to resolve (CON-014)", () => {
-		const parsed = JSON.parse(toJsonSchema(comprehensionOutSchema));
+		const parsed = JSON.parse(toJsonSchema(representativeUnderstandingOutSchema));
 		expect(parsed.$schema).toBeUndefined();
 		expect(parsed.type).toBe("object");
 	});
 
 	it("carries the contract's constraints through the conversion", () => {
-		const parsed = JSON.parse(toJsonSchema(comprehensionOutSchema));
-		expect(parsed.properties.explanations.maxItems).toBe(60);
-		expect(
-			parsed.properties.risk.properties.hunkRisks.items.properties.score.enum,
-		).toEqual([2, 3, 4, 5]);
+		const parsed = JSON.parse(
+			toJsonSchema(representativeUnderstandingOutSchema),
+		);
+		expect(parsed.properties.topics.maxItems).toBe(10);
+		expect(parsed.properties.topics.items.properties.title.maxLength).toBe(60);
+		expect(parsed.properties.topics.items.properties.summary.maxLength).toBe(
+			280,
+		);
 		expect(parsed.required).toEqual([
-			"intentMap",
-			"walkthrough",
-			"explanations",
-			"risk",
+			"summary",
+			"topics",
+			"suggestedEntryPoint",
+			"goalMatch",
 		]);
 		expect(parsed.additionalProperties).toBe(false);
 	});
@@ -61,7 +64,7 @@ describe("the Ajv draft-07 gate over every task schema (CON-014)", () => {
 
 	it("still rejects the draft-2020-12 shape that caused the outage", () => {
 		const withMeta = {
-			...JSON.parse(toJsonSchema(comprehensionOutSchema)),
+			...JSON.parse(toJsonSchema(representativeUnderstandingOutSchema)),
 			$schema: "https://json-schema.org/draft/2020-12/schema",
 		};
 		expect(() => new Ajv({ strict: false }).validateSchema(withMeta)).toThrow(

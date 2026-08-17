@@ -2,6 +2,7 @@ import {
 	type ChangesetId,
 	changesetIdFor,
 } from "../domain/changeset/ChangesetId";
+import type { TicketHint } from "../domain/analysis/discoverTicket";
 import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import type { HunkCoverage } from "../domain/coverage/HunkCoverage";
@@ -58,7 +59,7 @@ export type OpenReview = (
  */
 export function makeOpenReview(deps: OpenReviewDeps): OpenReview {
 	return async (input) => {
-		const { ref, announce } = await deps.resolveChangeset(input);
+		const { ref, announce, ticket } = await deps.resolveChangeset(input);
 		const changesetId = changesetIdFor(ref.source);
 
 		try {
@@ -70,9 +71,9 @@ export function makeOpenReview(deps: OpenReviewDeps): OpenReview {
 
 		const existing = await deps.store.loadSessionManifest(changesetId);
 		if (existing !== null) {
-			return resumeSession(deps, existing, announce);
+			return resumeSession(deps, existing, announce, ticket);
 		}
-		return createSession(deps, changesetId, ref, announce);
+		return createSession(deps, changesetId, ref, announce, ticket);
 	};
 }
 
@@ -98,6 +99,7 @@ async function resumeSession(
 	deps: OpenReviewDeps,
 	manifest: SessionManifest,
 	announce: ChangesetAnnounce,
+	ticket: TicketHint | null,
 ): Promise<OpenedReview> {
 	const roundId = manifest.currentRound;
 	const currentRound = manifest.rounds.find((round) => round.id === roundId);
@@ -115,7 +117,14 @@ async function resumeSession(
 
 	// this boot's probe governs the session from here on: a gh that appeared
 	// or vanished since the last run must not be reported stale to the UI
-	const updated: SessionManifest = { ...manifest, toolchain: deps.toolchain };
+	// Same reasoning for the ticket: it is re-discovered every boot from the
+	// live branch and PR, so a retitled PR or a renamed branch is picked up
+	// rather than frozen at whatever the first run happened to see.
+	const updated: SessionManifest = {
+		...manifest,
+		toolchain: deps.toolchain,
+		...(ticket === null ? {} : { ticket }),
+	};
 	void deps.store.saveSessionManifest(updated);
 
 	return {
@@ -134,6 +143,7 @@ async function createSession(
 	changesetId: ChangesetId,
 	ref: ChangesetRef,
 	announce: ChangesetAnnounce,
+	ticket: TicketHint | null,
 ): Promise<OpenedReview> {
 	const files = await readChangesetFiles(deps, ref);
 	const manifest: SessionManifest = {
@@ -144,6 +154,7 @@ async function createSession(
 		rounds: [{ id: FIRST_ROUND_ID, ref, runs: [] }],
 		currentRound: FIRST_ROUND_ID,
 		engine: { adapter: deps.toolchain.agent.kind, chatThreads: [] },
+		...(ticket === null ? {} : { ticket }),
 	};
 	void deps.store.saveSessionManifest(manifest);
 	void deps.store.saveRoundChangeset(changesetId, FIRST_ROUND_ID, files);
