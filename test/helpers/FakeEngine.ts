@@ -58,6 +58,13 @@ export class FakeEngine implements Engine {
 	/** set when shutdown asked the adapter to end its children (SEC-002) */
 	stopped = false;
 
+	/** every task stage this engine was asked to run, in call order */
+	get taskStages(): string[] {
+		return this.calls
+			.filter((call) => call.kind === "task")
+			.map((call) => call.task?.stage ?? "");
+	}
+
 	constructor(options: FakeEngineOptions = {}) {
 		this.options = options;
 		this.started = new Promise((resolve) => {
