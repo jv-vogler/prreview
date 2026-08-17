@@ -1,36 +1,24 @@
-import { type ChildProcess, spawn } from "node:child_process";
-import { once } from "node:events";
 import { readdir, readFile } from "node:fs/promises";
-import { devNull } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
-import getPort from "get-port";
 import {
 	createFixtureRepo,
 	type FixtureRepo,
 } from "../test/helpers/createFixtureRepo";
 import { createPathShim, type PathShim } from "../test/helpers/shimPath";
-
-const CLI_PATH = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
+import {
+	fetchApi,
+	launchPrreview,
+	type RunningServer,
+	stopServer,
+} from "./helpers/prreviewServer";
 
 /** two server launches, a browser render, and disk polling live in one test */
 const SMOKE_TEST_TIMEOUT_MS = 120_000;
-const SERVER_START_TIMEOUT_MS = 30_000;
 const RING_UPDATE_TIMEOUT_MS = 30_000;
 /** covers the store's ~500ms write debounce with a wide margin */
 const DISK_PERSIST_TIMEOUT_MS = 15_000;
 const FULLY_COVERED = 100;
-
-const SERVING_URL_PATTERN = /serving at (http:\/\/127\.0\.0\.1:\d+\/)/;
-
-interface RunningServer {
-	readonly child: ChildProcess;
-	readonly url: string;
-	stdout(): string;
-	/** settles when the process is gone — captured at spawn, so no exit race */
-	readonly exited: Promise<unknown>;
-}
 
 test.describe("smoke: built artifact end to end", () => {
 	test.setTimeout(SMOKE_TEST_TIMEOUT_MS);
@@ -110,24 +98,10 @@ test.describe("smoke: built artifact end to end", () => {
 
 	/** `dist/cli.js working --no-open` in the fixture repo, fakes-only PATH */
 	async function launchServer(): Promise<RunningServer> {
-		const port = await getPort();
-		const child = spawn(
-			process.execPath,
-			[CLI_PATH, "working", "--no-open", "--port", String(port)],
-			{
-				cwd: repo.root,
-				env: {
-					PATH: shim.withFakes,
-					// the machine's git config must not shape what the server sees
-					GIT_CONFIG_GLOBAL: devNull,
-					GIT_CONFIG_SYSTEM: devNull,
-					GIT_TERMINAL_PROMPT: "0",
-				},
-				stdio: ["ignore", "pipe", "pipe"],
-			},
-		);
-		const exited = once(child, "exit");
-		const server = await waitForServing(child, exited);
+		const server = await launchPrreview({
+			cwd: repo.root,
+			pathValue: shim.withFakes,
+		});
 		servers.push(server);
 		return server;
 	}
@@ -188,71 +162,11 @@ const DIRTY_TABLE = [
 	"",
 ].join("\n");
 
-function waitForServing(
-	child: ChildProcess,
-	exited: Promise<unknown>,
-): Promise<RunningServer> {
-	let stdout = "";
-	let stderr = "";
-	child.stdout?.on("data", (chunk: Buffer) => {
-		stdout += chunk.toString();
-	});
-	child.stderr?.on("data", (chunk: Buffer) => {
-		stderr += chunk.toString();
-	});
-
-	return new Promise((resolveServing, rejectServing) => {
-		const timer = setTimeout(() => {
-			child.kill("SIGKILL");
-			rejectServing(
-				new Error(
-					`server did not announce within ${SERVER_START_TIMEOUT_MS}ms\nstdout: ${stdout}\nstderr: ${stderr}`,
-				),
-			);
-		}, SERVER_START_TIMEOUT_MS);
-
-		const checkForUrl = () => {
-			const match = SERVING_URL_PATTERN.exec(stdout);
-			if (match?.[1] === undefined) {
-				return;
-			}
-			clearTimeout(timer);
-			resolveServing({ child, url: match[1], stdout: () => stdout, exited });
-		};
-
-		child.stdout?.on("data", checkForUrl);
-		child.on("exit", (code) => {
-			clearTimeout(timer);
-			rejectServing(
-				new Error(
-					`server exited early (code ${code})\nstdout: ${stdout}\nstderr: ${stderr}`,
-				),
-			);
-		});
-	});
-}
-
-/**
- * SIGKILL and wait for the process to be gone. Safe to call twice: a child
- * killed by signal has `exitCode === null`, so the check covers `signalCode`
- * too, and `exited` was captured at spawn so it has already settled.
- */
-async function stopServer(server: RunningServer): Promise<void> {
-	const alreadyGone =
-		server.child.exitCode !== null || server.child.signalCode !== null;
-	if (!alreadyGone) {
-		server.child.kill("SIGKILL");
-	}
-	await server.exited;
-}
-
 interface SessionSnapshot {
 	readonly resumed: boolean;
 	readonly coverage: { readonly total: number };
 }
 
-async function fetchSession(baseUrl: string): Promise<SessionSnapshot> {
-	const response = await fetch(new URL("api/session", baseUrl));
-	expect(response.status).toBe(200);
-	return (await response.json()) as SessionSnapshot;
+function fetchSession(baseUrl: string): Promise<SessionSnapshot> {
+	return fetchApi<SessionSnapshot>(baseUrl, "api/session");
 }
