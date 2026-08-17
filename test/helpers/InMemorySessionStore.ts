@@ -1,6 +1,10 @@
+import type { RoundAnalysis } from "../../src/application/analysis/RoundAnalysis";
 import type { SessionStore } from "../../src/application/ports/SessionStore";
+import type { WalkthroughProgress } from "../../src/domain/analysis/Walkthrough";
+import type { StoredAnnotation } from "../../src/domain/annotation/Annotation";
 import type { ChangesetId } from "../../src/domain/changeset/ChangesetId";
 import type { FileDiff } from "../../src/domain/changeset/FileDiff";
+import type { ChatThread } from "../../src/domain/chat/ChatThread";
 import type { HunkCoverage } from "../../src/domain/coverage/HunkCoverage";
 import { StoreError } from "../../src/domain/errors/StoreError";
 import type { SessionManifest } from "../../src/domain/session/SessionManifest";
@@ -17,6 +21,9 @@ export class InMemorySessionStore implements SessionStore {
 		ChangesetId,
 		Record<string, HunkCoverage>
 	>();
+	readonly annotationRecords = new Map<ChangesetId, StoredAnnotation[]>();
+	readonly roundAnalyses = new Map<string, RoundAnalysis>();
+	readonly chatThreads = new Map<string, ChatThread>();
 	readonly blobs = new Map<string, Buffer>();
 	readonly locks = new Set<ChangesetId>();
 	readonly excludedGitCommonDirs: string[] = [];
@@ -53,7 +60,7 @@ export class InMemorySessionStore implements SessionStore {
 		changesetId: ChangesetId,
 		roundId: string,
 	): Promise<FileDiff[] | null> {
-		return this.rounds.get(roundKey(changesetId, roundId)) ?? null;
+		return this.rounds.get(scopedKey(changesetId, roundId)) ?? null;
 	}
 
 	async saveRoundChangeset(
@@ -62,7 +69,7 @@ export class InMemorySessionStore implements SessionStore {
 		files: readonly FileDiff[],
 	): Promise<void> {
 		this.throwIfFailing();
-		this.rounds.set(roundKey(changesetId, roundId), [...files]);
+		this.rounds.set(scopedKey(changesetId, roundId), [...files]);
 	}
 
 	async loadCoverage(
@@ -77,6 +84,74 @@ export class InMemorySessionStore implements SessionStore {
 	): Promise<void> {
 		this.throwIfFailing();
 		this.coverageRecords.set(changesetId, { ...coverage });
+	}
+
+	async loadAnnotations(changesetId: ChangesetId): Promise<StoredAnnotation[]> {
+		return this.annotationRecords.get(changesetId) ?? [];
+	}
+
+	async saveAnnotations(
+		changesetId: ChangesetId,
+		annotations: readonly StoredAnnotation[],
+	): Promise<void> {
+		this.throwIfFailing();
+		this.annotationRecords.set(changesetId, [...annotations]);
+	}
+
+	async loadRoundAnalysis(
+		changesetId: ChangesetId,
+		roundId: string,
+	): Promise<RoundAnalysis | null> {
+		return this.roundAnalyses.get(scopedKey(changesetId, roundId)) ?? null;
+	}
+
+	async saveRoundAnalysis(
+		changesetId: ChangesetId,
+		roundId: string,
+		analysis: RoundAnalysis,
+	): Promise<void> {
+		this.throwIfFailing();
+		this.roundAnalyses.set(scopedKey(changesetId, roundId), analysis);
+	}
+
+	async loadChatThread(
+		changesetId: ChangesetId,
+		threadId: string,
+	): Promise<ChatThread | null> {
+		return this.chatThreads.get(scopedKey(changesetId, threadId)) ?? null;
+	}
+
+	async saveChatThread(
+		changesetId: ChangesetId,
+		threadId: string,
+		thread: ChatThread,
+	): Promise<void> {
+		this.throwIfFailing();
+		this.chatThreads.set(scopedKey(changesetId, threadId), thread);
+	}
+
+	async loadWalkthroughProgress(
+		changesetId: ChangesetId,
+	): Promise<WalkthroughProgress | null> {
+		return this.manifests.get(changesetId)?.walkthroughProgress ?? null;
+	}
+
+	async saveWalkthroughProgress(
+		changesetId: ChangesetId,
+		progress: WalkthroughProgress,
+	): Promise<void> {
+		this.throwIfFailing();
+		const manifest = this.manifests.get(changesetId);
+		if (manifest === undefined) {
+			throw new StoreError(
+				"corrupt",
+				`Cannot record walkthrough progress: session ${changesetId} has no manifest.`,
+			);
+		}
+		this.manifests.set(changesetId, {
+			...manifest,
+			walkthroughProgress: progress,
+		});
 	}
 
 	async writeBlob(oid: string, content: Buffer): Promise<void> {
@@ -108,6 +183,7 @@ export class InMemorySessionStore implements SessionStore {
 	}
 }
 
-function roundKey(changesetId: ChangesetId, roundId: string): string {
-	return `${changesetId} ${roundId}`;
+/** one key space for the per-round and per-thread records */
+function scopedKey(changesetId: ChangesetId, recordId: string): string {
+	return `${changesetId} ${recordId}`;
 }

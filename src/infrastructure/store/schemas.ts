@@ -1,10 +1,24 @@
 import { z } from "zod";
+import type { RoundAnalysis } from "../../application/analysis/RoundAnalysis";
+import { comprehensionOutSchema } from "../../application/analysis/schemas";
+import type { ReadLog } from "../../application/ports/Engine";
+import type { WalkthroughProgress } from "../../domain/analysis/Walkthrough";
+import type { Anchor, AnchorStatus } from "../../domain/anchor/Anchor";
+import type {
+	Citation,
+	StoredAnnotation,
+} from "../../domain/annotation/Annotation";
 import type { BlobRef } from "../../domain/changeset/BlobRef";
 import type { ChangesetRef } from "../../domain/changeset/ChangesetRef";
 import type { ChangesetSource } from "../../domain/changeset/ChangesetSource";
 import type { DiffLine } from "../../domain/changeset/DiffLine";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { Hunk } from "../../domain/changeset/Hunk";
+import type {
+	ChatMessage,
+	ChatMessageContext,
+	ChatThread,
+} from "../../domain/chat/ChatThread";
 import type { HunkCoverage } from "../../domain/coverage/HunkCoverage";
 import type { RunMeta } from "../../domain/session/RunMeta";
 import type { SessionManifest } from "../../domain/session/SessionManifest";
@@ -64,6 +78,12 @@ const runMetaSchema: z.ZodType<RunMeta> = z.object({
 	costUsd: z.number().optional(),
 	numTurns: z.number().optional(),
 	status: z.string(),
+	reason: z.string().optional(),
+});
+
+const walkthroughProgressSchema: z.ZodType<WalkthroughProgress> = z.object({
+	position: z.number(),
+	completed: z.boolean(),
 });
 
 export const sessionManifestSchema: z.ZodType<SessionManifest> = z.object({
@@ -87,6 +107,7 @@ export const sessionManifestSchema: z.ZodType<SessionManifest> = z.object({
 		),
 	}),
 	ticket: z.object({ key: z.string(), source: z.string() }).optional(),
+	walkthroughProgress: walkthroughProgressSchema.optional(),
 });
 
 const blobRefSchema: z.ZodType<BlobRef> = z.discriminatedUnion("kind", [
@@ -144,3 +165,113 @@ export const coverageSchema: z.ZodType<Record<string, HunkCoverage>> = z.record(
 	z.string(),
 	z.enum(["unseen", "viewed", "reviewed"]),
 );
+
+const anchorStatusSchema: z.ZodType<AnchorStatus> = z.enum([
+	"anchored",
+	"moved",
+	"fuzzy",
+	"orphaned",
+]);
+
+const anchorSchema: z.ZodType<Anchor> = z.object({
+	fileId: z.string(),
+	path: z.string(),
+	side: z.enum(["old", "new"]),
+	startLine: z.number(),
+	endLine: z.number(),
+	placement: z.enum(["in-diff", "in-file", "file-level"]),
+	snapshot: z.object({
+		blobOid: z.string(),
+		targetLines: z.array(z.string()),
+		lineHash: z.string(),
+		contextBefore: z.array(z.string()),
+		contextAfter: z.array(z.string()),
+	}),
+});
+
+const citationSchema: z.ZodType<Citation> = z.object({
+	path: z.string(),
+	startLine: z.number().optional(),
+	endLine: z.number().optional(),
+});
+
+const storedAnnotationSchema: z.ZodType<StoredAnnotation> = z.object({
+	id: z.string(),
+	species: z.enum(["explanation", "finding", "related-finding"]),
+	anchor: anchorSchema,
+	anchorStatus: anchorStatusSchema,
+	body: z.string(),
+	provenance: z.object({
+		roundId: z.string(),
+		stage: z.string(),
+		engineSessionId: z.string(),
+	}),
+	createdAt: z.string(),
+	touchedByDelta: z.boolean().optional(),
+	title: z.string().optional(),
+	originalBody: z.string().optional(),
+	category: z.string().optional(),
+	confidence: z.enum(["high", "medium", "low"]).optional(),
+	citations: z.array(citationSchema).optional(),
+	groundingVerified: z.boolean().optional(),
+	suggestedFix: z.string().optional(),
+	curation: z
+		.object({
+			state: z.enum(["proposed", "accepted", "edited", "dismissed"]),
+			dismissReason: z.string().optional(),
+			updatedAt: z.string(),
+		})
+		.optional(),
+	resolution: z
+		.object({ addressedInRound: z.string(), evidence: z.string() })
+		.optional(),
+	publish: z
+		.object({
+			githubThreadId: z.string().optional(),
+			publishedAt: z.string().optional(),
+			downgradedToFileLevel: z.boolean().optional(),
+		})
+		.optional(),
+});
+
+/** annotations.json — every annotation of the session, all rounds. */
+export const annotationsSchema: z.ZodType<StoredAnnotation[]> = z.array(
+	storedAnnotationSchema,
+);
+
+const readLogSchema: z.ZodType<ReadLog> = z.object({
+	reads: z.array(z.string()),
+	searchHits: z.array(z.string()),
+});
+
+/**
+ * rounds/<roundId>/analysis.json — the raw stage output. `comprehension` is
+ * validated by the very schema the agent was handed (application/analysis), so
+ * a stored analysis and a fresh one answer to the same contract.
+ */
+export const roundAnalysisSchema: z.ZodType<RoundAnalysis> = z.object({
+	comprehension: comprehensionOutSchema,
+	readLog: readLogSchema,
+	runId: z.string(),
+	engineSessionId: z.string(),
+});
+
+const chatMessageContextSchema: z.ZodType<ChatMessageContext> = z.object({
+	file: z.string().optional(),
+	hunkId: z.string().optional(),
+	annotationId: z.string().optional(),
+});
+
+const chatMessageSchema: z.ZodType<ChatMessage> = z.object({
+	role: z.enum(["user", "assistant"]),
+	text: z.string(),
+	context: chatMessageContextSchema.optional(),
+	at: z.string(),
+});
+
+/** chat/<threadId>.json — one thread per session in M2. */
+export const chatThreadSchema: z.ZodType<ChatThread> = z.object({
+	id: z.string(),
+	engineSessionId: z.string().optional(),
+	messages: z.array(chatMessageSchema),
+});

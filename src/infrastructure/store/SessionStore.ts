@@ -7,14 +7,21 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import type { RoundAnalysis } from "../../application/analysis/RoundAnalysis";
+import type { WalkthroughProgress } from "../../domain/analysis/Walkthrough";
+import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
+import type { ChatThread } from "../../domain/chat/ChatThread";
 import type { HunkCoverage } from "../../domain/coverage/HunkCoverage";
 import { StoreError } from "../../domain/errors/StoreError";
 import { migrate } from "../../domain/session/migrate";
 import type { SessionManifest } from "../../domain/session/SessionManifest";
 import {
+	annotationsSchema,
+	chatThreadSchema,
 	coverageSchema,
+	roundAnalysisSchema,
 	roundChangesetSchema,
 	sessionManifestSchema,
 } from "./schemas";
@@ -33,6 +40,10 @@ const GIT_EXCLUDE_ENTRY = ".prreview/";
 // Blob oids come from `git hash-object` (sha1 or sha256 hex); anything else
 // must never become a filename under blobs/.
 const OID_PATTERN = /^[0-9a-f]{40,64}$/;
+
+// Thread ids are server-generated (`t1` in M2) and become a filename; keeping
+// them alphanumeric means a future client-supplied id can never traverse.
+const THREAD_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 export interface SessionStoreOptions {
 	/** absolute path to the `.prreview/` directory */
@@ -192,6 +203,118 @@ export class SessionStore {
 		return this.scheduleWrite(this.coveragePath(changesetId), coverage);
 	}
 
+	// ── annotations ───────────────────────────────────────────────────────
+
+	/** Absent file means no annotation exists yet — an empty list, not an error. */
+	async loadAnnotations(changesetId: ChangesetId): Promise<StoredAnnotation[]> {
+		const path = this.annotationsPath(changesetId);
+		const raw = await this.readJsonFile(path);
+		if (raw === undefined) {
+			return [];
+		}
+		const parsed = annotationsSchema.safeParse(raw);
+		if (!parsed.success) {
+			throw corrupt(path, "it does not match the annotation schema");
+		}
+		return parsed.data;
+	}
+
+	saveAnnotations(
+		changesetId: ChangesetId,
+		annotations: readonly StoredAnnotation[],
+	): Promise<void> {
+		return this.scheduleWrite(this.annotationsPath(changesetId), annotations);
+	}
+
+	// ── round analysis ────────────────────────────────────────────────────
+
+	async loadRoundAnalysis(
+		changesetId: ChangesetId,
+		roundId: string,
+	): Promise<RoundAnalysis | null> {
+		const path = this.roundAnalysisPath(changesetId, roundId);
+		const raw = await this.readJsonFile(path);
+		if (raw === undefined) {
+			return null;
+		}
+		const parsed = roundAnalysisSchema.safeParse(raw);
+		if (!parsed.success) {
+			throw corrupt(path, "it does not match the analysis schema");
+		}
+		return parsed.data;
+	}
+
+	saveRoundAnalysis(
+		changesetId: ChangesetId,
+		roundId: string,
+		analysis: RoundAnalysis,
+	): Promise<void> {
+		return this.scheduleWrite(
+			this.roundAnalysisPath(changesetId, roundId),
+			analysis,
+		);
+	}
+
+	// ── chat threads ──────────────────────────────────────────────────────
+
+	async loadChatThread(
+		changesetId: ChangesetId,
+		threadId: string,
+	): Promise<ChatThread | null> {
+		const path = this.chatThreadPath(changesetId, threadId);
+		const raw = await this.readJsonFile(path);
+		if (raw === undefined) {
+			return null;
+		}
+		const parsed = chatThreadSchema.safeParse(raw);
+		if (!parsed.success) {
+			throw corrupt(path, "it does not match the chat thread schema");
+		}
+		return parsed.data;
+	}
+
+	saveChatThread(
+		changesetId: ChangesetId,
+		threadId: string,
+		thread: ChatThread,
+	): Promise<void> {
+		return this.scheduleWrite(
+			this.chatThreadPath(changesetId, threadId),
+			thread,
+		);
+	}
+
+	// ── walkthrough progress ──────────────────────────────────────────────
+
+	/**
+	 * Progress rides in the manifest (CON-012), so both sides go through it:
+	 * one file, one debounce window, and a session that resumes the walkthrough
+	 * exactly where the reader left it.
+	 */
+	async loadWalkthroughProgress(
+		changesetId: ChangesetId,
+	): Promise<WalkthroughProgress | null> {
+		const manifest = await this.loadSessionManifest(changesetId);
+		return manifest?.walkthroughProgress ?? null;
+	}
+
+	async saveWalkthroughProgress(
+		changesetId: ChangesetId,
+		progress: WalkthroughProgress,
+	): Promise<void> {
+		const manifest = await this.loadSessionManifest(changesetId);
+		if (manifest === null) {
+			throw new StoreError(
+				"corrupt",
+				`Cannot record walkthrough progress: session ${changesetId} has no manifest on disk.`,
+			);
+		}
+		await this.saveSessionManifest({
+			...manifest,
+			walkthroughProgress: progress,
+		});
+	}
+
 	// ── blobs ─────────────────────────────────────────────────────────────
 
 	/**
@@ -323,7 +446,14 @@ export class SessionStore {
 	}
 
 	private async readJsonFile(absolutePath: string): Promise<unknown> {
-		const text = await readTextFileIfPresent(absolutePath);
+		// A read that ignored the debounce window would see the previous
+		// contents and a read-modify-write (walkthrough progress lands in the
+		// manifest) would silently drop whatever is still pending.
+		const pending = this.pendingWrites.get(absolutePath);
+		const text =
+			pending === undefined
+				? await readTextFileIfPresent(absolutePath)
+				: pending.data;
 		if (text === undefined) {
 			return undefined;
 		}
@@ -379,8 +509,28 @@ export class SessionStore {
 		);
 	}
 
+	private roundAnalysisPath(changesetId: ChangesetId, roundId: string): string {
+		return join(
+			this.sessionDir(changesetId),
+			"rounds",
+			roundId,
+			"analysis.json",
+		);
+	}
+
 	private coveragePath(changesetId: ChangesetId): string {
 		return join(this.sessionDir(changesetId), "coverage.json");
+	}
+
+	private annotationsPath(changesetId: ChangesetId): string {
+		return join(this.sessionDir(changesetId), "annotations.json");
+	}
+
+	private chatThreadPath(changesetId: ChangesetId, threadId: string): string {
+		if (!THREAD_ID_PATTERN.test(threadId)) {
+			throw new Error(`not a thread id: ${JSON.stringify(threadId)}`);
+		}
+		return join(this.sessionDir(changesetId), "chat", `${threadId}.json`);
 	}
 
 	private blobPath(oid: string): string {

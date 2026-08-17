@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { loadDiffFixture } from "../../../test/helpers/loadDiffFixture";
+import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import { parseDiff } from "../../domain/changeset/parseDiff";
 import { StoreError } from "../../domain/errors/StoreError";
 import { SCHEMA_VERSION } from "../../domain/session/SCHEMA_VERSION";
@@ -248,6 +249,243 @@ describe("coverage", () => {
 	it("defaults to an empty record when nothing was saved", async () => {
 		const { store } = await makeStore();
 		expect(await store.loadCoverage("worktree")).toEqual({});
+	});
+});
+
+describe("annotations", () => {
+	function storedAnnotation(): StoredAnnotation {
+		return {
+			id: "01ANNOTATION",
+			species: "explanation",
+			anchor: {
+				fileId: "F1",
+				path: "a.ts",
+				side: "new",
+				startLine: 3,
+				endLine: 3,
+				placement: "in-diff",
+				snapshot: {
+					blobOid: "b".repeat(40),
+					targetLines: ["const b = 3;"],
+					lineHash: "c".repeat(64),
+					contextBefore: ["const a = 1;"],
+					contextAfter: [],
+				},
+			},
+			anchorStatus: "anchored",
+			body: "the constant moved to 3 so the caller sees the new default",
+			category: "mechanism",
+			provenance: {
+				roundId: "r1",
+				stage: "comprehension",
+				engineSessionId: "session-A",
+			},
+			createdAt: "2026-08-17T10:00:00.000Z",
+		};
+	}
+
+	async function writeAnnotationsFile(dataDir: string, content: string) {
+		const sessionDir = join(dataDir, "sessions", "worktree");
+		await mkdir(sessionDir, { recursive: true });
+		await writeFile(join(sessionDir, "annotations.json"), content);
+	}
+
+	it("round-trips stored annotations under annotations.json", async () => {
+		const { store, dataDir } = await makeStore();
+		const annotations = [storedAnnotation()];
+
+		const write = store.saveAnnotations("worktree", annotations);
+		await store.flush();
+		await write;
+
+		expect(await store.loadAnnotations("worktree")).toEqual(annotations);
+		const stored = join(dataDir, "sessions", "worktree", "annotations.json");
+		await expect(readFile(stored, "utf8")).resolves.toContain('"explanation"');
+	});
+
+	it("defaults to an empty list when nothing was saved", async () => {
+		const { store } = await makeStore();
+		expect(await store.loadAnnotations("worktree")).toEqual([]);
+	});
+
+	it("refuses an annotations file that does not match the schema", async () => {
+		const { store, dataDir } = await makeStore();
+		await writeAnnotationsFile(dataDir, '[{"id":"x"}]');
+
+		const error = await rejectionOf(store.loadAnnotations("worktree"));
+		expect(error).toBeInstanceOf(StoreError);
+		expect((error as StoreError).reason).toBe("corrupt");
+	});
+});
+
+describe("round analysis", () => {
+	it("round-trips the raw stage output under rounds/rN/analysis.json", async () => {
+		const { store, dataDir } = await makeStore();
+		const analysis = {
+			comprehension: {
+				intentMap: {
+					summary: "adds a flag",
+					clusters: [
+						{
+							name: "core",
+							kind: "core" as const,
+							description: "the change",
+							members: [{ path: "a.ts", hunkIds: ["F1h1"] }],
+						},
+					],
+					suggestedEntryPoint: "a.ts",
+				},
+				walkthrough: {
+					steps: [
+						{
+							title: "start here",
+							narration: "read this first",
+							focus: [{ path: "a.ts", hunkIds: ["F1h1"] }],
+						},
+					],
+				},
+				explanations: [
+					{
+						anchor: {
+							path: "a.ts",
+							side: "new" as const,
+							startLine: 1,
+							endLine: 2,
+						},
+						kind: "intent" as const,
+						body: "because",
+					},
+				],
+				risk: {
+					hunkRisks: [
+						{ hunkId: "F1h1", score: 3 as const, reason: "touches parsing" },
+					],
+				},
+			},
+			readLog: { reads: ["/repo/a.ts"], searchHits: [] },
+			runId: "run-1",
+			engineSessionId: "session-A",
+		};
+
+		const write = store.saveRoundAnalysis("worktree", "r1", analysis);
+		await store.flush();
+		await write;
+
+		expect(await store.loadRoundAnalysis("worktree", "r1")).toEqual(analysis);
+		const stored = join(
+			dataDir,
+			"sessions",
+			"worktree",
+			"rounds",
+			"r1",
+			"analysis.json",
+		);
+		await expect(readFile(stored, "utf8")).resolves.toContain('"hunkRisks"');
+	});
+
+	it("returns null for a round that was never analyzed", async () => {
+		const { store } = await makeStore();
+		expect(await store.loadRoundAnalysis("worktree", "r1")).toBeNull();
+	});
+});
+
+describe("chat threads", () => {
+	it("round-trips a thread under chat/<threadId>.json", async () => {
+		const { store, dataDir } = await makeStore();
+		const thread = {
+			id: "t1",
+			engineSessionId: "chat-session-1",
+			messages: [
+				{
+					role: "user" as const,
+					text: "why?",
+					context: { file: "a.ts" },
+					at: "2026-08-17T10:00:00.000Z",
+				},
+				{
+					role: "assistant" as const,
+					text: "because",
+					at: "2026-08-17T10:00:01.000Z",
+				},
+			],
+		};
+
+		const write = store.saveChatThread("worktree", "t1", thread);
+		await store.flush();
+		await write;
+
+		expect(await store.loadChatThread("worktree", "t1")).toEqual(thread);
+		const stored = join(dataDir, "sessions", "worktree", "chat", "t1.json");
+		await expect(readFile(stored, "utf8")).resolves.toContain('"assistant"');
+	});
+
+	it("returns null for a thread with no history", async () => {
+		const { store } = await makeStore();
+		expect(await store.loadChatThread("worktree", "t1")).toBeNull();
+	});
+
+	it("refuses a thread id that could escape the session directory", async () => {
+		const { store } = await makeStore();
+		expect(() =>
+			store.saveChatThread("worktree", "../../etc/passwd", {
+				id: "x",
+				messages: [],
+			}),
+		).toThrow(/thread id/);
+	});
+});
+
+describe("walkthrough progress", () => {
+	it("rides in the manifest and survives a reload", async () => {
+		const { store } = await makeStore();
+		const write = store.saveSessionManifest(manifest());
+		await store.flush();
+		await write;
+
+		await store.saveWalkthroughProgress("worktree", {
+			position: 2,
+			completed: false,
+		});
+		await store.flush();
+
+		expect(await store.loadWalkthroughProgress("worktree")).toEqual({
+			position: 2,
+			completed: false,
+		});
+		expect(
+			(await store.loadSessionManifest("worktree"))?.walkthroughProgress,
+		).toEqual({ position: 2, completed: false });
+	});
+
+	it("keeps the rest of the manifest untouched, including a save still in flight", async () => {
+		const { store } = await makeStore();
+		// not flushed: the manifest is still inside the debounce window
+		void store.saveSessionManifest({
+			...manifest(),
+			engine: {
+				adapter: "claude",
+				analysisSessionId: "session-A",
+				chatThreads: [],
+			},
+		});
+
+		await store.saveWalkthroughProgress("worktree", {
+			position: 1,
+			completed: true,
+		});
+		await store.flush();
+
+		const reloaded = await store.loadSessionManifest("worktree");
+		expect(reloaded?.engine.analysisSessionId).toBe("session-A");
+		expect(reloaded?.walkthroughProgress).toEqual({
+			position: 1,
+			completed: true,
+		});
+	});
+
+	it("is null before the walkthrough was ever entered", async () => {
+		const { store } = await makeStore();
+		expect(await store.loadWalkthroughProgress("worktree")).toBeNull();
 	});
 });
 

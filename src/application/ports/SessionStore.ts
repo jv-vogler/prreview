@@ -1,7 +1,11 @@
+import type { WalkthroughProgress } from "../../domain/analysis/Walkthrough";
+import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
+import type { ChatThread } from "../../domain/chat/ChatThread";
 import type { HunkCoverage } from "../../domain/coverage/HunkCoverage";
 import type { SessionManifest } from "../../domain/session/SessionManifest";
+import type { RoundAnalysis } from "../analysis/RoundAnalysis";
 
 /**
  * The `.prreview/` persistence port (ARCHITECTURE §11), implemented by
@@ -32,6 +36,44 @@ export interface SessionStore {
 	saveCoverage(
 		changesetId: ChangesetId,
 		coverage: Readonly<Record<string, HunkCoverage>>,
+	): Promise<void>;
+	/** absent file means no annotation exists yet — an empty list, not an error */
+	loadAnnotations(changesetId: ChangesetId): Promise<StoredAnnotation[]>;
+	saveAnnotations(
+		changesetId: ChangesetId,
+		annotations: readonly StoredAnnotation[],
+	): Promise<void>;
+	/** null means this round has not been analyzed */
+	loadRoundAnalysis(
+		changesetId: ChangesetId,
+		roundId: string,
+	): Promise<RoundAnalysis | null>;
+	saveRoundAnalysis(
+		changesetId: ChangesetId,
+		roundId: string,
+		analysis: RoundAnalysis,
+	): Promise<void>;
+	/** null means the thread has no history yet */
+	loadChatThread(
+		changesetId: ChangesetId,
+		threadId: string,
+	): Promise<ChatThread | null>;
+	saveChatThread(
+		changesetId: ChangesetId,
+		threadId: string,
+		thread: ChatThread,
+	): Promise<void>;
+	/**
+	 * Walkthrough position lives in the manifest as an optional field, not in a
+	 * file of its own (CON-012: additive optional fields never bump the schema
+	 * version). Null means the walkthrough was never entered.
+	 */
+	loadWalkthroughProgress(
+		changesetId: ChangesetId,
+	): Promise<WalkthroughProgress | null>;
+	saveWalkthroughProgress(
+		changesetId: ChangesetId,
+		progress: WalkthroughProgress,
 	): Promise<void>;
 	writeBlob(oid: string, content: Buffer): Promise<void>;
 	readBlob(oid: string): Promise<Buffer | null>;
