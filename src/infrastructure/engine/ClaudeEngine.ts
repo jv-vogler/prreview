@@ -358,7 +358,12 @@ function terminalEvent(input: TerminalInput): EngineEvent {
 		return failure("agent-missing", null, input);
 	}
 	if (input.timedOut) {
-		return failure("timed-out", input.result?.terminalReason ?? null, input);
+		return failure(
+			"timed-out",
+			input.result?.terminalReason ?? null,
+			input,
+			input.result ?? undefined,
+		);
 	}
 	if (input.result === null) {
 		// the stream ended without a result event: the child died mid-run
@@ -369,6 +374,7 @@ function terminalEvent(input: TerminalInput): EngineEvent {
 			failureReason(input.result, input),
 			input.result.terminalReason,
 			input,
+			input.result,
 		);
 	}
 	return successOrSchemaViolation(input.result, input);
@@ -398,7 +404,12 @@ function successOrSchemaViolation(
 		result.structuredOutput === null ||
 		result.structuredOutput === undefined
 	) {
-		return failure("schema-violation", result.terminalReason, input);
+		return failure(
+			failureReason(result, input),
+			result.terminalReason,
+			input,
+			result,
+		);
 	}
 	try {
 		const structuredOutput = input.outputSchema.parse(result.structuredOutput);
@@ -414,7 +425,7 @@ function successOrSchemaViolation(
 			readLog: input.readLog,
 		};
 	} catch {
-		return failure("schema-violation", result.terminalReason, input);
+		return failure("schema-violation", result.terminalReason, input, result);
 	}
 }
 
@@ -422,6 +433,12 @@ function failureReason(
 	result: StreamResultRecord,
 	input: TerminalInput,
 ): EngineErrorReason {
+	// Checked FIRST: an API failure also leaves a schema task with no structured
+	// output, and reporting that as a schema violation blames the model for a
+	// call that never happened.
+	if (result.terminalReason === "api_error") {
+		return "api-error";
+	}
 	const schemaTaskProducedNothing =
 		input.outputSchema !== undefined &&
 		(result.structuredOutput === null || result.structuredOutput === undefined);
@@ -437,16 +454,32 @@ function failureReason(
 	return "crashed";
 }
 
+/**
+ * The CLI's own explanation is the most useful thing in the envelope on an API
+ * failure — it says which model, or that the prompt is too long — so it is put
+ * where the UI already looks rather than discarded in favour of stderr, which
+ * on these runs is usually empty.
+ */
 function failure(
 	reason: EngineErrorReason,
 	terminalReason: string | null,
 	input: TerminalInput,
+	result?: StreamResultRecord,
 ): EngineEvent {
+	const explanation =
+		result?.text !== undefined && result?.text !== null && result.text !== ""
+			? result.text
+			: null;
+	const status =
+		result?.apiErrorStatus === undefined || result?.apiErrorStatus === null
+			? ""
+			: `HTTP ${result.apiErrorStatus}: `;
 	return {
 		type: "result",
 		ok: false,
 		reason,
 		terminalReason,
-		stderrTail: input.stderrTail,
+		stderrTail:
+			explanation === null ? input.stderrTail : `${status}${explanation}`,
 	};
 }

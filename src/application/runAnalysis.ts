@@ -285,8 +285,19 @@ function parseUnderstanding(
 	});
 }
 
+/**
+ * The most useful sentence available, not the most machine-shaped one.
+ *
+ * `terminalReason` used to win here, which meant a run that failed with a
+ * perfectly clear explanation ("There's an issue with the selected model…")
+ * reported the bare token `api_error` instead and threw the sentence away. The
+ * explanation comes first now; the token is the fallback when there is nothing
+ * better.
+ */
 function failureMessage(result: EngineRunFailure): string {
-	const detail = result.terminalReason ?? lastLine(result.stderrTail);
+	const explanation = lastLine(result.stderrTail);
+	const detail =
+		explanation === "" ? (result.terminalReason ?? "") : explanation;
 	return detail === ""
 		? `The analysis run failed (${result.reason}).`
 		: `The analysis run failed (${result.reason}): ${detail}`;

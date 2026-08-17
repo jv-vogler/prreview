@@ -10,6 +10,8 @@ export const runFailureReasonDtoSchema = z.enum([
 	"timed-out",
 	"crashed",
 	"schema-violation",
+	// the API call failed; the agent never got to answer
+	"api-error",
 	/** the lane's own work threw — a prreview bug, not the agent's */
 	"internal",
 ]);

@@ -17,6 +17,8 @@ export const CHAT_FAILURE_COPY: Record<RunFailureReasonDto, string> = {
 	crashed: "The agent stopped before answering. Asking again is safe.",
 	"schema-violation":
 		"The agent's answer did not fit what prreview asked for, so it was discarded rather than shown half-read. Ask again.",
+	"api-error":
+		"The agent could not reach the model, so the question went unanswered. The CLI's own reason is in the terminal running prreview.",
 	internal:
 		"prreview itself failed while asking. Nothing was lost; the terminal running prreview has the details.",
 };

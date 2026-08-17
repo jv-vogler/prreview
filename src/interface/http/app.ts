@@ -54,6 +54,8 @@ const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	"gh-unauthenticated": 403,
 	"agent-missing": 503,
 	"schema-violation": 502,
+	// also a gateway failure: the upstream API refused, not prreview
+	"api-error": 502,
 	"timed-out": 504,
 	crashed: 500,
 };

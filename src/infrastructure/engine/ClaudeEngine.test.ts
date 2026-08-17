@@ -351,16 +351,33 @@ describe("ClaudeEngine.runTask results", () => {
 		expect(result).toMatchObject({ ok: true });
 	});
 
-	it("fails a run whose result says subtype success but is_error true (CON-003)", async () => {
+	/**
+	 * An API failure and a malformed answer both leave a schema task with no
+	 * structured output, but they mean opposite things: one is the agent
+	 * answering badly, the other is the agent never being reached. Reporting the
+	 * first as `schema-violation` told users their model produced bad output
+	 * when the truth was a 404 on the model name.
+	 */
+	it("reports an API failure as api-error, not as a schema violation (CON-003)", async () => {
 		useFixture("badmodel.jsonl");
 		const events = await drain(engine.runTask(taskSpec(), taskInput()));
 		expect(terminalOf(events)).toMatchObject({
 			ok: false,
-			// no structured output on a schema task is a schema violation, and
-			// the api_error terminal reason rides along for the UI
-			reason: "schema-violation",
+			reason: "api-error",
 			terminalReason: "api_error",
 		});
+	});
+
+	/** the CLI's own explanation is what a user can act on, so it is kept */
+	it("carries the API status and the CLI's explanation through", async () => {
+		useFixture("badmodel.jsonl");
+		const events = await drain(engine.runTask(taskSpec(), taskInput()));
+		const result = terminalOf(events);
+		if ("ok" in result && result.ok) {
+			throw new Error("expected a failure");
+		}
+		expect(result.stderrTail).toContain("HTTP 404");
+		expect(result.stderrTail).toContain("selected model");
 	});
 
 	it("maps an exhausted turn budget to schema-violation (CON-006, no retry loop)", async () => {

@@ -300,7 +300,13 @@ describe("runAnalysis when the run fails", () => {
 		expect(manifest?.engine.analysisSessionId).toBeUndefined();
 	});
 
-	it("carries the engine's failure reason and detail onto the run", async () => {
+	/**
+	 * The explanation wins over the terminal token. This used to be the other
+	 * way round, which meant a run that failed with a perfectly clear sentence
+	 * reported the bare word `api_error` and threw the sentence away — the
+	 * single least useful thing a failed run can say.
+	 */
+	it("carries the engine's failure reason and its explanation onto the run", async () => {
 		const harnessed = harness([
 			fakeSession("session-A"),
 			{
@@ -318,7 +324,7 @@ describe("runAnalysis when the run fails", () => {
 		expect(run.status).toBe("failed");
 		expect(run.error).toEqual({
 			reason: "crashed",
-			message: "The analysis run failed (crashed): api_error",
+			message: "The analysis run failed (crashed): claude: upstream is unhappy",
 		});
 	});
 
