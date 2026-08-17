@@ -30,12 +30,21 @@ const DIFF_FLAGS = [
 	"--no-color",
 	"--no-ext-diff",
 	"--no-textconv",
+	// full oids on the index lines, so the IR's BlobRefs can be read back by
+	// oid (anchoring, §6) and can name a file under `.prreview/blobs/` (§11);
+	// git's default abbreviation is neither
+	"--full-index",
 ];
 
 const DEFAULT_BRANCH_CANDIDATES = ["main", "master"];
 
-/** sha1 (40) through sha256 (64) hex — everything git can hand out as an oid */
-const OBJECT_ID = /^[0-9a-f]{40,64}$/;
+/**
+ * Hex oid, abbreviated or full: our own diffs print full oids (--full-index),
+ * but a PR diff fetched from GitHub carries git's abbreviations, and git
+ * resolves those itself. The pattern exists to keep anything that is not an
+ * oid out of argv (SEC-002), and 7 hex characters are as safe as 40.
+ */
+const OBJECT_ID = /^[0-9a-f]{7,64}$/;
 
 /**
  * Local git adapter (the concrete side of the `Git` port, declared in Phase
