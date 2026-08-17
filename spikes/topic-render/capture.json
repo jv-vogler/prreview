@@ -1,0 +1,22 @@
+{
+	"topics": 8,
+	"blocks": 48,
+	"overlappingHunks": 20,
+	"collapsedFirstPaintMs": 98,
+	"collapsedDomNodes": 51,
+	"collapsedInstances": 0,
+	"expandAllMs": 113,
+	"instancesInDom": 48,
+	"instancesMaterializedAtRest": 2,
+	"domNodesExpanded": 147,
+	"heapCollapsedMb": 9.5,
+	"heapExpandedMb": 9.5,
+	"scrollSweepMs": 5838,
+	"longTasksDuringSweep": 0,
+	"longestTaskMs": 0,
+	"distinctBlocksMaterialized": 48,
+	"scrollHeightPx": 56988,
+	"cspViolations": [],
+	"pageErrors": [],
+	"omittedHunksExpandable": false
+}
