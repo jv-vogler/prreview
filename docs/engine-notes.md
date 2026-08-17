@@ -36,6 +36,33 @@ Corollaries baked into the adapter: the prompt is never an argv member (SEC-002 
 user-sized or user-authored is interpolated into argv), and `--json-schema` stays the only
 large argv value, capped at 85KB by a build-time assertion (CON-005).
 
+## What `--max-budget-usd` actually does (CON-015)
+
+In plain terms: the spend limit is a stopping rule, not a ceiling. The run halts once it has
+already gone over.
+
+Measured 2026-08-17 against `claude` 2.1.233 with `--model haiku`
+(`spikes/depth-and-fanout/VERDICT.md`). The budget is evaluated **between turns**, so the first
+turn always runs and always bills:
+
+| `--max-budget-usd` | actual `total_cost_usd` | turns |
+|---|---|---|
+| `0.0001` | 0.0125 (**125× over**) | 1 |
+| `0.01` | 0.0132 | 4 |
+
+Exhaustion is at least a clean typed failure, parallel to `error_max_turns`:
+`subtype: "error_max_budget_usd"`, `terminal_reason: "budget_exhausted"`, `is_error: true`,
+`structured_output: null`, **exit 1**.
+
+Consequences: never render the number as a cap ("stops once it has spent about $X", not "will not
+exceed"); budget N concurrent children as `N × (ceiling + one turn)`; and enforce a floor in the
+dialog, since a ceiling below one turn's cost does not prevent the run, only makes it fail after
+paying. The flag also `only works with --print`, which prreview always passes.
+
+`--effort` takes `low, medium, high, xhigh, max` and is accepted alongside prreview's full flag
+set, but showed no measurable turn/cost/duration difference on a trivial one-turn prompt — so no
+depth preset should claim it buys "more thinking" until that is shown on a real review task.
+
 ## What JSON Schema dialect `--json-schema` accepts (CON-014)
 
 In plain terms: the CLI checks the schema you hand it before it does anything, and it only
