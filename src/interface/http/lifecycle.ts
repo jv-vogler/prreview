@@ -1,10 +1,18 @@
 /**
  * Shutdown lifecycle (ARCHITECTURE §3): the SSE connection count is the
  * liveness signal. When it reaches zero an 8s grace timer starts — cancelled
- * by any reconnect — and on expiry the store is flushed and the process exits
- * 0. The `goodbye` beacon (pagehide) is a fast-path decrement: it counts the
- * tab as gone before its EventSource socket actually tears down, and the
+ * by any reconnect — and on expiry the shutdown sequence runs and the process
+ * exits 0. The `goodbye` beacon (pagehide) is a fast-path decrement: it counts
+ * the tab as gone before its EventSource socket actually tears down, and the
  * eventual close redeems the credit instead of double-counting.
+ *
+ * The sequence, in order, and the order matters: stop the agent's children
+ * first (SEC-002 — an `npx` tool must never leave a `claude` process running
+ * after the tab closed), then release the engine worktrees this process created
+ * (RISK-005 — otherwise the cache grows a checkout per session), then flush the
+ * store, then exit. Each step is contained: a step that fails is logged and the
+ * next one still runs, because a shutdown that gets stuck is worse than an
+ * untidy one.
  */
 
 const DEFAULT_GRACE_MS = 8_000;
@@ -12,6 +20,10 @@ const DEFAULT_GRACE_MS = 8_000;
 export interface LifecycleOptions {
 	/** flush-on-shutdown: the store's debounced writes land before exit */
 	flush: () => Promise<void>;
+	/** SEC-002: cancel every run and kill every child the agent still has */
+	stopRuns?: () => Promise<void>;
+	/** removes the detached worktrees this process materialized */
+	releaseWorktrees?: () => Promise<void>;
 	graceMs?: number;
 	/** test seam; defaults to process.exit */
 	exit?: (code: number) => void;
@@ -60,14 +72,27 @@ export function createLifecycle(options: LifecycleOptions): Lifecycle {
 		}, graceMs);
 	}
 
-	async function shutdown(): Promise<void> {
+	async function contained(
+		step: (() => Promise<void>) | undefined,
+	): Promise<void> {
+		if (step === undefined) {
+			return;
+		}
 		try {
-			await options.flush();
+			await step();
 		} catch (error) {
-			// an unflushable store must not block exit: the debounced
-			// write-through already put everything but the last ~500ms on disk
+			// no step may block exit: an unflushable store has already
+			// write-through'd everything but the last ~500ms, a worktree that will
+			// not go is cleaned by the next boot's prune, and a child that will not
+			// die has already had SIGKILL
 			logError(error);
 		}
+	}
+
+	async function shutdown(): Promise<void> {
+		await contained(options.stopRuns);
+		await contained(options.releaseWorktrees);
+		await contained(options.flush);
 		exit(0);
 	}
 

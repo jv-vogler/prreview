@@ -13,6 +13,14 @@ export interface Engine {
 	runTask(task: TaskSpec, input: TaskInput): AsyncIterable<EngineEvent>;
 	/** chat-lane turn: token streaming, no output schema (§7) */
 	chatTurn(input: ChatTurnInput): AsyncIterable<EngineEvent>;
+	/**
+	 * Shutdown: end every child this adapter still has running and resolve once
+	 * they are gone (SEC-002 — SIGTERM, SIGKILL after the grace period).
+	 * Cancelling a run stops its stream, but stopping a stream only kills the
+	 * child when the generator gets a turn to run its cleanup; on the way out
+	 * there is no such turn, so the adapter is asked directly.
+	 */
+	stop(): Promise<void>;
 }
 
 export interface AgentInfo {

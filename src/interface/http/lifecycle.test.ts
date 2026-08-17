@@ -105,3 +105,55 @@ describe("createLifecycle", () => {
 		expect(loggedErrors).toHaveLength(1);
 	});
 });
+
+describe("the shutdown sequence (TASK-044, SEC-002)", () => {
+	it("stops the runs, releases the worktrees, then flushes — in that order", async () => {
+		const order: string[] = [];
+		const { lifecycle, exitCodes } = harness({
+			stopRuns: async () => {
+				order.push("stopRuns");
+			},
+			releaseWorktrees: async () => {
+				order.push("releaseWorktrees");
+			},
+			flush: async () => {
+				order.push("flush");
+			},
+		});
+		lifecycle.connectionOpened();
+		lifecycle.connectionClosed();
+
+		await sleep(PAST_GRACE_MS);
+		expect(order).toEqual(["stopRuns", "releaseWorktrees", "flush"]);
+		expect(exitCodes).toEqual([0]);
+	});
+
+	it("exits even when a step fails, and logs what failed", async () => {
+		const failure = new Error("the worktree is locked");
+		const { lifecycle, exitCodes, flushCount, loggedErrors } = harness({
+			stopRuns: async () => {
+				throw new Error("a child would not die");
+			},
+			releaseWorktrees: async () => {
+				throw failure;
+			},
+		});
+		lifecycle.connectionOpened();
+		lifecycle.connectionClosed();
+
+		await sleep(PAST_GRACE_MS);
+		expect(flushCount()).toBe(1);
+		expect(exitCodes).toEqual([0]);
+		expect(loggedErrors).toContain(failure);
+	});
+
+	it("skips the steps a caller did not wire", async () => {
+		const { lifecycle, exitCodes, flushCount } = harness();
+		lifecycle.connectionOpened();
+		lifecycle.connectionClosed();
+
+		await sleep(PAST_GRACE_MS);
+		expect(flushCount()).toBe(1);
+		expect(exitCodes).toEqual([0]);
+	});
+});

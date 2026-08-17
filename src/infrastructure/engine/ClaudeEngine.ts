@@ -51,6 +51,8 @@ export interface ClaudeEngineOptions {
  */
 export class ClaudeEngine implements Engine {
 	private readonly killGraceMs: number;
+	/** every child spawned and not yet reaped — the shutdown kill list (SEC-002) */
+	private readonly liveChildren = new Set<ChildProcessWithoutNullStreams>();
 
 	constructor(options: ClaudeEngineOptions = {}) {
 		this.killGraceMs = options.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
@@ -97,12 +99,46 @@ export class ClaudeEngine implements Engine {
 		});
 	}
 
+	/**
+	 * Ends every child still running, now, and resolves when they are gone. The
+	 * one thing shutdown cannot delegate to a generator's cleanup: a process on
+	 * its way out never gives the generator another turn.
+	 */
+	async stop(): Promise<void> {
+		await Promise.all(
+			[...this.liveChildren].map((child) => this.terminateAndWait(child)),
+		);
+	}
+
+	private terminateAndWait(
+		child: ChildProcessWithoutNullStreams,
+	): Promise<void> {
+		if (child.exitCode !== null || child.signalCode !== null) {
+			return Promise.resolve();
+		}
+		return new Promise((resolveExit) => {
+			const killTimer = setTimeout(
+				() => child.kill("SIGKILL"),
+				this.killGraceMs,
+			);
+			killTimer.unref();
+			child.once("close", () => {
+				clearTimeout(killTimer);
+				resolveExit();
+			});
+			child.kill("SIGTERM");
+		});
+	}
+
 	private async *run(options: RunOptions): AsyncGenerator<EngineEvent> {
 		const child = spawn(AGENT_COMMAND, options.argv, {
 			cwd: options.workspaceDir,
 			shell: false,
 			stdio: ["pipe", "pipe", "pipe"],
 		});
+		this.liveChildren.add(child);
+		child.once("close", () => this.liveChildren.delete(child));
+		child.once("error", () => this.liveChildren.delete(child));
 
 		const stderr = collectStderrTail(child);
 		const exited = waitForExit(child);

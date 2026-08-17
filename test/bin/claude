@@ -12,7 +12,8 @@
 //   FAKE_CLAUDE_FIXTURE_BY_TASK  JSON map {promptSubstring: fixturePath} — one
 //                                PATH serves the analysis and chat lanes at once
 //   FAKE_CLAUDE_LOG              append one JSON line per invocation:
-//                                {argv, cwd, stdinBytes, stdinSha256}
+//                                {pid, argv, cwd, stdinBytes, stdinSha256} —
+//                                the pid is how a test proves the child is gone
 //   FAKE_CLAUDE_DELAY_MS         sleep between emitted lines (cancel/timeout tests)
 //   FAKE_CLAUDE_TRAP_SIGTERM     survive SIGTERM and log {event} lifecycle records
 //                                ({"event":"sigterm"} on the signal,
@@ -181,6 +182,7 @@ function appendInvocationLog(stdinContent) {
 		return;
 	}
 	const record = {
+		pid: process.pid,
 		argv,
 		cwd: process.cwd(),
 		stdinBytes: Buffer.byteLength(stdinContent),

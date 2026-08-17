@@ -55,6 +55,8 @@ export class FakeEngine implements Engine {
 	private releaseCredits = 0;
 	/** set when a run's iterator was closed by the consumer (cancellation) */
 	aborted = false;
+	/** set when shutdown asked the adapter to end its children (SEC-002) */
+	stopped = false;
 
 	constructor(options: FakeEngineOptions = {}) {
 		this.options = options;
@@ -86,6 +88,10 @@ export class FakeEngine implements Engine {
 			...(input.resume === undefined ? {} : { resume: input.resume }),
 		});
 		return this.play(this.options.chat);
+	}
+
+	async stop(): Promise<void> {
+		this.stopped = true;
 	}
 
 	/**

@@ -90,6 +90,7 @@ describe("Engine selection by toolchain (REQ-004, F12)", () => {
 			probe: async () => ({ kind: "claude", version: "fake" }),
 			runTask: () => emptyEvents(),
 			chatTurn: () => emptyEvents(),
+			stop: async () => {},
 		};
 		const container = buildContainer(
 			config,
