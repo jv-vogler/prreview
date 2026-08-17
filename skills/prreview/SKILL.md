@@ -1,6 +1,6 @@
 ---
 name: prreview
-description: Open prreview, a local GitHub-style diff viewer, so a human can review code changes in their browser. Use whenever the user wants to review a PR, a branch, a commit range, or their working-tree changes in a browser — "review this PR in a browser", "let me look at my changes", "open prreview", "self-review before pushing", "show me the diff for branch X" — or when handing off your own commits for a human to inspect. It serves the diff on localhost with review-coverage tracking; it does not post anything to GitHub.
+description: Open prreview, a local GitHub-style diff viewer that can also explain a change, so a human can review code in their browser. Use whenever the user wants to review a PR, a branch, a commit range, or their working-tree changes in a browser — "review this PR in a browser", "let me look at my changes", "open prreview", "self-review before pushing", "show me the diff for branch X", "explain this change to me" — or when handing off your own commits for a human to inspect. It serves the diff on localhost with review-coverage tracking, and on request explains the change using the reviewer's own claude CLI; it does not post anything to GitHub.
 ---
 
 # prreview
@@ -9,6 +9,11 @@ prreview is a CLI (`npx prreview`) that resolves a changeset from git or GitHub,
 GitHub-accurate diff viewer on `127.0.0.1` for a human to review. It tracks which hunks the
 reviewer has seen, and that coverage survives restarts. It is read-only toward GitHub: nothing
 is posted, commented, or approved.
+
+When the reviewer's machine has an authenticated `claude` CLI, prreview can also explain the
+change — but only when the reviewer clicks **Explain this change** in the browser. Nothing is
+analyzed at startup and prreview adds no flag for it, so this is never something you trigger from
+the command line.
 
 ## Pick the invocation
 
@@ -50,26 +55,46 @@ launch it as a background process.
 Don't kill the process when your task ends if the user is expected to review — it exits on its
 own once the tab closes. Kill it only if the review is abandoned.
 
+## What the reviewer gets in the browser
+
+Always: the diff, a file list ordered by how much attention each file needs, keyboard
+navigation, and a coverage ring.
+
+With an authenticated `claude` CLI, after the reviewer clicks **Explain this change** (one pass,
+billed to their own account):
+
+- an orientation page naming what the change is for, its parts sized against each other, and a
+  suggested entry point
+- explanations anchored to specific lines in the margin — intent, mechanism, or implication, not
+  review comments
+- a guided walkthrough that narrates the change in reading order and counts each step as reviewed
+- a chat dock that answers questions about the code at the reviewed revision
+
+Describe these as available, never as done: whether they exist for a given session depends on the
+reviewer's machine and on their clicking the button.
+
 ## Where state lives
 
-Review progress (which hunks were seen) persists in `.prreview/` at the repository root.
-prreview excludes it from git via `.git/info/exclude`, so it never touches the user's
-`.gitignore` and never shows up in `git status`. Rerunning the same invocation resumes the
-session; deleting `.prreview/` resets it.
+Progress persists in `.prreview/` at the repository root: which hunks were seen, plus any
+explanations, orientation, walkthrough position, and chat history an analysis produced. prreview
+excludes it from git via `.git/info/exclude`, so it never touches the user's `.gitignore` and
+never shows up in `git status`. Rerunning the same invocation resumes all of it; deleting
+`.prreview/` resets it.
 
 ## Not yet shipped
 
-The current release is the viewer milestone (M1). These are planned but absent — do not look
-for them or promise them:
+These are planned but absent — do not look for them or promise them:
 
-- AI explanations and annotations (M2)
-- Comment curation and the `.prreview/review-*.md` export (M3)
-- The fix brief and publishing a pending GitHub review (M4)
+- review findings, comment curation, and the `.prreview/review-*.md` export
+- checking the change against its ticket, the fix brief, and publishing a pending GitHub review
 
-If the user asks for one of these, say it isn't in the installed version yet and offer the
-viewer workflow instead.
+prreview explains a change; it does not yet write review comments or publish anything. If the user
+asks for one of these, say it isn't in the installed version yet and offer the review workflow that
+is.
 
 ## Requirements
 
-git on PATH and Node.js >= 20.19. Reviewing PRs works best with an authenticated GitHub CLI
-(`gh`); without it, prreview falls back to fetching the PR head over the `origin` remote.
+git on PATH and Node.js >= 20.19. The explanation features need `claude` on PATH and
+authenticated; without it prreview is the viewer alone, and says so in the browser. Reviewing PRs
+works best with an authenticated GitHub CLI (`gh`); without it, prreview falls back to fetching the
+PR head over the `origin` remote.
