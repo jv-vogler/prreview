@@ -24,3 +24,17 @@ button {
 	font: inherit;
 	color: inherit;
 }
+
+/*
+ * The parts we did not draw still belong to the design: without these, the
+ * keyboard ring and the selection come from the browser's own palette and go
+ * off-theme in dark mode.
+ */
+:focus-visible {
+	outline: var(--borderWidth-thick) solid var(--focus-outlineColor);
+	outline-offset: var(--base-size-2);
+}
+
+::selection {
+	background: var(--bgColor-accent-muted);
+}
