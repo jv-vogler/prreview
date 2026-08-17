@@ -28,12 +28,25 @@ export interface FakeGitState {
 	blobs?: Record<string, string | Buffer>;
 	/** path → staged blob content (readIndexBlob's lookup table) */
 	indexBlobs?: Record<string, string | Buffer>;
+	/** oid → blob content (readObject's lookup table) */
+	objectContents?: Record<string, string | Buffer>;
+	/** repo-relative path → working-tree content (readWorkingFile's table) */
+	workingFiles?: Record<string, string | Buffer>;
 }
 
 const DEFAULT_HEAD_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
+/** One recorded `git worktree` call, so tests can assert the lifecycle. */
+export interface FakeWorktreeCall {
+	action: "add" | "remove" | "prune";
+	dir?: string;
+	sha?: string;
+}
+
 export class FakeGit implements Git {
 	state: FakeGitState;
+	/** every worktree call in order — the §7 workspace lifecycle under test */
+	readonly worktrees: FakeWorktreeCall[] = [];
 
 	constructor(state: FakeGitState = {}) {
 		this.state = { ...state };
@@ -114,6 +127,34 @@ export class FakeGit implements Git {
 			throw new Error(`fake git: no staged blob at ${path}`);
 		}
 		return Buffer.from(content);
+	}
+
+	async readObject(oid: string): Promise<Buffer> {
+		const content = this.state.objectContents?.[oid];
+		if (content === undefined) {
+			throw new Error(`fake git: no object ${oid}`);
+		}
+		return Buffer.from(content);
+	}
+
+	async readWorkingFile(path: string): Promise<Buffer> {
+		const content = this.state.workingFiles?.[path];
+		if (content === undefined) {
+			throw new Error(`fake git: no working file at ${path}`);
+		}
+		return Buffer.from(content);
+	}
+
+	async addWorktree(dir: string, sha: string): Promise<void> {
+		this.worktrees.push({ action: "add", dir, sha });
+	}
+
+	async removeWorktree(dir: string): Promise<void> {
+		this.worktrees.push({ action: "remove", dir });
+	}
+
+	async pruneWorktrees(): Promise<void> {
+		this.worktrees.push({ action: "prune" });
 	}
 
 	async hashObject(_path: string): Promise<string> {

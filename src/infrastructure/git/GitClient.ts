@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readFile, realpath } from "node:fs/promises";
+import { join, sep } from "node:path";
 import { exec, execBuffer } from "./exec";
 
 /**
@@ -31,6 +33,9 @@ const DIFF_FLAGS = [
 ];
 
 const DEFAULT_BRANCH_CANDIDATES = ["main", "master"];
+
+/** sha1 (40) through sha256 (64) hex — everything git can hand out as an oid */
+const OBJECT_ID = /^[0-9a-f]{40,64}$/;
 
 /**
  * Local git adapter (the concrete side of the `Git` port, declared in Phase
@@ -160,6 +165,34 @@ export class GitClient {
 		return this.gitBuffer(["show", `:${path}`]);
 	}
 
+	/**
+	 * Blob content by object id. The oid is checked against the hex-sha shape
+	 * before it reaches argv (SEC-002): ids arrive from stored anchors, and
+	 * `cat-file` would happily interpret `HEAD:../../secret` as a revision.
+	 */
+	async readObject(oid: string): Promise<Buffer> {
+		if (!OBJECT_ID.test(oid)) {
+			throw new Error(`not an object id: ${oid}`);
+		}
+		return this.gitBuffer(["cat-file", "blob", oid]);
+	}
+
+	/**
+	 * Working-tree content for one repo-relative path, contained to the repo
+	 * root through its realpath — the same check the blob route performs
+	 * inline (SEC-002), so a symlink out of the tree cannot be read.
+	 */
+	async readWorkingFile(path: string): Promise<Buffer> {
+		const realRoot = await realpath(this.cwd);
+		const realFile = await realpath(join(this.cwd, path));
+		const isContained =
+			realFile === realRoot || realFile.startsWith(realRoot + sep);
+		if (!isContained) {
+			throw new Error(`path escapes the repository: ${path}`);
+		}
+		return readFile(realFile);
+	}
+
 	/** The oid the worktree file would have as a blob — the staleness check for BlobRef. */
 	async hashObject(path: string): Promise<string> {
 		return (await this.git(["hash-object", "--", path])).trim();
@@ -214,6 +247,25 @@ export class GitClient {
 			`+refs/pull/${prNumber}/head:${localRef}`,
 		]);
 		return this.verifyRef(localRef);
+	}
+
+	/**
+	 * A detached checkout of one commit at `dir`, which lives outside the repo
+	 * (the engine workspace of ARCHITECTURE §7). Detached on purpose: no
+	 * branch is created, so nothing about the user's branches changes.
+	 */
+	async addWorktree(dir: string, sha: string): Promise<void> {
+		await this.git(["worktree", "add", "--detach", dir, sha]);
+	}
+
+	/** `--force` because the agent may have left the checkout non-pristine. */
+	async removeWorktree(dir: string): Promise<void> {
+		await this.git(["worktree", "remove", "--force", dir]);
+	}
+
+	/** Drops registrations whose directories are gone — crash leftovers. */
+	async pruneWorktrees(): Promise<void> {
+		await this.git(["worktree", "prune"]);
 	}
 
 	private async refExists(ref: string): Promise<boolean> {

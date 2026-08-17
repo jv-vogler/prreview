@@ -31,8 +31,20 @@ export interface Git {
 	diffWorktree(): Promise<string>;
 	readBlob(ref: string, path: string): Promise<Buffer>;
 	readIndexBlob(path: string): Promise<Buffer>;
+	/**
+	 * Blob content by object id — how re-anchoring re-reads the side it
+	 * captured a snapshot from (ARCHITECTURE §6), with no path involved.
+	 */
+	readObject(oid: string): Promise<Buffer>;
+	/** working-tree content, contained to the repo root (SEC-002) */
+	readWorkingFile(path: string): Promise<Buffer>;
 	hashObject(path: string): Promise<string>;
 	worktreeFingerprint(): Promise<string>;
 	/** makes the PR head commit available locally; resolves with its sha */
 	fetchPrHead(prNumber: number): Promise<string>;
+	/** detached checkout of one commit, outside the repo (REQ-005, §7) */
+	addWorktree(dir: string, sha: string): Promise<void>;
+	removeWorktree(dir: string): Promise<void>;
+	/** clears registrations whose directories are gone (crash leftovers) */
+	pruneWorktrees(): Promise<void>;
 }

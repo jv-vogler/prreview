@@ -1,4 +1,5 @@
-import { realpath, utimes } from "node:fs/promises";
+import { readFile, realpath, stat, utimes } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import gitDiffParser from "gitdiff-parser";
 import { afterAll, describe, expect, it } from "vitest";
@@ -225,6 +226,81 @@ describe("blob reads", () => {
 		const repo = await fixtureRepo();
 		const client = new GitClient(repo.root);
 		await expect(client.readBlob("HEAD", "missing.txt")).rejects.toThrow();
+	});
+
+	it("readObject returns the blob bytes for an object id", async () => {
+		const repo = await fixtureRepo();
+		const bytes = Buffer.from([0, 1, 2, 250, 0]);
+		await repo.write("blob.bin", bytes);
+		await repo.write("note.txt", "by oid\n");
+		await repo.commitAll("content");
+
+		const client = new GitClient(repo.root);
+		const textOid = (await repo.git(["rev-parse", "HEAD:note.txt"])).trim();
+		const binaryOid = (await repo.git(["rev-parse", "HEAD:blob.bin"])).trim();
+		expect((await client.readObject(textOid)).toString()).toBe("by oid\n");
+		expect((await client.readObject(binaryOid)).equals(bytes)).toBe(true);
+	});
+
+	it("readObject rejects anything that is not an object id before it reaches argv (SEC-002)", async () => {
+		const repo = await fixtureRepo();
+		const client = new GitClient(repo.root);
+		for (const notAnOid of [
+			"HEAD:../../etc/passwd",
+			"HEAD",
+			"main",
+			"--help",
+			"",
+			"ZZZZ".repeat(10),
+		]) {
+			await expect(client.readObject(notAnOid)).rejects.toThrow(
+				/not an object id/,
+			);
+		}
+	});
+
+	it("readWorkingFile returns the tree's current bytes", async () => {
+		const repo = await fixtureRepo();
+		await repo.write("nested/file.txt", "working copy\n");
+		expect(
+			(
+				await new GitClient(repo.root).readWorkingFile("nested/file.txt")
+			).toString(),
+		).toBe("working copy\n");
+	});
+
+	it("readWorkingFile refuses a path escaping the repo root (SEC-002)", async () => {
+		const repo = await fixtureRepo();
+		const client = new GitClient(repo.root);
+		await expect(client.readWorkingFile("../outside.txt")).rejects.toThrow();
+	});
+});
+
+describe("worktree management", () => {
+	it("adds a detached checkout outside the repo, then removes it", async () => {
+		const repo = await fixtureRepo();
+		await repo.write("file.txt", "first\n");
+		const firstSha = await repo.commitAll("first");
+		await repo.write("file.txt", "second\n");
+		await repo.commitAll("second");
+
+		const client = new GitClient(repo.root);
+		const dir = join(await realpath(tmpdir()), `prreview-wt-${Date.now()}`);
+		await client.addWorktree(dir, firstSha);
+
+		expect(await readFile(join(dir, "file.txt"), "utf8")).toBe("first\n");
+		// detached: the user's branch set is untouched
+		expect(await client.localBranches()).toEqual(["main"]);
+
+		await client.removeWorktree(dir);
+		await expect(stat(dir)).rejects.toThrow();
+	});
+
+	it("prune succeeds on a repo with no worktrees at all", async () => {
+		const repo = await fixtureRepo();
+		await expect(
+			new GitClient(repo.root).pruneWorktrees(),
+		).resolves.toBeUndefined();
 	});
 });
 
