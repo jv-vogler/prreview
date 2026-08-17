@@ -9,6 +9,7 @@ import { buildContainer } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
 import { ChangesetError } from "../../domain/errors/ChangesetError";
 import type { Toolchain } from "../../domain/session/Toolchain";
+import { defaultEngineCacheDir } from "../../infrastructure/engine/workspace";
 import { GitClient } from "../../infrastructure/git/GitClient";
 import { probeToolchain } from "../../infrastructure/toolchain/probe";
 import { createApp } from "../http/app";
@@ -33,7 +34,11 @@ async function main(): Promise<void> {
 	const repoRoot = await detectRepoRoot(process.cwd());
 	const toolchain = await probeToolchain(repoRoot);
 	const container = buildContainer(
-		{ repoRoot, dataDir: join(repoRoot, DATA_DIR_NAME) },
+		{
+			repoRoot,
+			dataDir: join(repoRoot, DATA_DIR_NAME),
+			cacheDir: defaultEngineCacheDir(),
+		},
 		toolchain,
 	);
 

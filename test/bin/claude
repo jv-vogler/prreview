@@ -14,6 +14,10 @@
 //   FAKE_CLAUDE_LOG              append one JSON line per invocation:
 //                                {argv, cwd, stdinBytes, stdinSha256}
 //   FAKE_CLAUDE_DELAY_MS         sleep between emitted lines (cancel/timeout tests)
+//   FAKE_CLAUDE_TRAP_SIGTERM     survive SIGTERM and log {event} lifecycle records
+//                                ({"event":"sigterm"} on the signal,
+//                                {"event":"completed"} if the replay ever ends) —
+//                                the only way to observe SEC-002's SIGKILL escalation
 
 const { appendFileSync, existsSync, readFileSync } = require("node:fs");
 const { createHash } = require("node:crypto");
@@ -87,6 +91,8 @@ async function main() {
 		process.exit(MISSING_FIXTURE_EXIT_CODE);
 	}
 
+	trapSigtermWhenAsked();
+
 	const delayMs = Number(process.env.FAKE_CLAUDE_DELAY_MS ?? 0);
 	const lines = readFileSync(fixturePath, "utf8").split("\n").filter(Boolean);
 	let exitCode = 0;
@@ -100,7 +106,29 @@ async function main() {
 		}
 		process.stdout.write(`${line}\n`);
 	}
+	appendLifecycleEvent("completed");
 	process.exit(exitCode);
+}
+
+/**
+ * Only a child that refuses to die on SIGTERM can prove the adapter escalates
+ * to SIGKILL, so this behavior is opt-in and off by default.
+ */
+function trapSigtermWhenAsked() {
+	if (!process.env.FAKE_CLAUDE_TRAP_SIGTERM) {
+		return;
+	}
+	process.on("SIGTERM", () => {
+		appendLifecycleEvent("sigterm");
+	});
+}
+
+function appendLifecycleEvent(event) {
+	const logPath = process.env.FAKE_CLAUDE_LOG;
+	if (!process.env.FAKE_CLAUDE_TRAP_SIGTERM || !logPath) {
+		return;
+	}
+	appendFileSync(logPath, `${JSON.stringify({ event })}\n`);
 }
 
 /** stdin is how the prompt arrives (TASK-005's primary path); EOF-blocking read */

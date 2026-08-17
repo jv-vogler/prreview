@@ -22,6 +22,8 @@ export interface TestContainer {
 const TEST_BOOT_CONFIG = {
 	repoRoot: "/repo",
 	dataDir: "/repo/.prreview",
+	// engine workspaces are never materialized in a fake-git container
+	cacheDir: "/cache/prreview",
 };
 
 /**

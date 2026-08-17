@@ -28,6 +28,19 @@ export interface TaskSpec {
 	maxTurns: number;
 	timeoutMs: number;
 	systemContract: string;
+	/**
+	 * The same schema that produced `jsonSchema`, used to re-validate
+	 * `structured_output` on receipt (REQ-007, the third validation boundary):
+	 * engine output is never trusted just because the CLI accepted it. Shaped
+	 * structurally — zod's `.parse` satisfies it — so the port stays free of a
+	 * validation-library dependency.
+	 */
+	outputSchema: OutputParser;
+}
+
+/** throws on invalid input, exactly like `ZodType.parse` */
+export interface OutputParser {
+	parse(value: unknown): unknown;
 }
 
 export interface TaskInput {

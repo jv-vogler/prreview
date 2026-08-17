@@ -47,6 +47,8 @@ export function buildComprehensionTask(
 			maxTurns: COMPREHENSION_MAX_TURNS,
 			timeoutMs: ANALYSIS_TIMEOUT_MS,
 			systemContract: comprehensionContract(),
+			// the JSON Schema's own source, re-checked on receipt (REQ-007)
+			outputSchema: comprehensionOutSchema,
 		},
 		input: { prompt, workspaceDir: input.workspaceDir },
 	};

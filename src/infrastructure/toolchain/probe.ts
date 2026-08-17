@@ -3,11 +3,10 @@ import { exec } from "../git/exec";
 import { GitClient } from "../git/GitClient";
 import { GhCliGithubService } from "../github/GhCliGithubService";
 import { GitRemoteGithubService } from "../github/GitRemoteGithubService";
+import { parseAgentVersion } from "./agentVersion";
 
 /** Probes must answer fast and never touch the network (ARCHITECTURE §3). */
 const PROBE_TIMEOUT_MS = 2000;
-
-const VERSION_TOKEN = /\d+\.\d+[^\s]*/;
 
 /**
  * The boot-time probe (ARCHITECTURE §3): all local, all parallel, run once
@@ -38,7 +37,7 @@ async function probeAgent(): Promise<Toolchain["agent"]> {
 		const output = await exec("claude", ["--version"], {
 			timeoutMs: PROBE_TIMEOUT_MS,
 		});
-		const version = output.match(VERSION_TOKEN)?.[0] ?? output.trim();
+		const version = parseAgentVersion(output);
 		if (version === "") {
 			return { kind: "none" };
 		}
