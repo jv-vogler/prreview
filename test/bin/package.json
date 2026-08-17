@@ -1,0 +1,4 @@
+{
+	"//": "Pins test/bin fakes to CJS: node >= 23 otherwise applies the root \"type\": \"module\" to the extensionless `claude` script and its require() calls throw.",
+	"type": "commonjs"
+}

@@ -40,7 +40,7 @@ describe("probeToolchain", () => {
 	it("records claude's version and picks the gh backend when both answer", async () => {
 		process.env.PATH = shim.withFakes;
 		expect(await probeToolchain(clonedRepo.root)).toEqual({
-			agent: { kind: "claude", version: "2.0.0" },
+			agent: { kind: "claude", version: "2.1.233" },
 			github: { kind: "gh" },
 		});
 	});

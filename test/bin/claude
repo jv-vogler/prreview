@@ -1,12 +1,162 @@
-#!/bin/sh
-# Fake claude CLI for toolchain-probe tests (ARCHITECTURE §16). Knobs:
-#   FAKE_CLAUDE_EXIT      exit code for any invocation   (default 0)
-#   FAKE_CLAUDE_VERSION   stdout for `claude --version`  (default below)
+#!/usr/bin/env node
+// Fake claude CLI (ARCHITECTURE §16): replays a captured
+// `claude -p --output-format stream-json --verbose` event stream from a
+// fixture, byte-faithful per line, then exits with the recorded exit code.
+// Promoted from spikes/fake-claude/fake-claude (spike 3); CJS on purpose —
+// extensionless scripts load as CJS regardless of the root "type": "module".
+//
+// Knobs (all test-only, never read by src/):
+//   FAKE_CLAUDE_VERSION          stdout for `claude --version` (default below)
+//   FAKE_CLAUDE_EXIT             non-zero → forced failure with that exit code
+//   FAKE_CLAUDE_FIXTURE          capture .jsonl to replay
+//   FAKE_CLAUDE_FIXTURE_BY_TASK  JSON map {promptSubstring: fixturePath} — one
+//                                PATH serves the analysis and chat lanes at once
+//   FAKE_CLAUDE_LOG              append one JSON line per invocation:
+//                                {argv, cwd, stdinBytes, stdinSha256}
+//   FAKE_CLAUDE_DELAY_MS         sleep between emitted lines (cancel/timeout tests)
 
-if [ "${FAKE_CLAUDE_EXIT:-0}" -ne 0 ]; then
-	echo "fake claude: forced failure" >&2
-	exit "${FAKE_CLAUDE_EXIT}"
-fi
+const { appendFileSync, existsSync, readFileSync } = require("node:fs");
+const { createHash } = require("node:crypto");
+const { setTimeout: sleep } = require("node:timers/promises");
 
-echo "${FAKE_CLAUDE_VERSION:-2.0.0 (Claude Code)}"
-exit 0
+const DEFAULT_VERSION = "2.1.233 (Claude Code)";
+const MISSING_FIXTURE_EXIT_CODE = 2;
+// A trailing non-JSON control line "#exit <code>" sets the exit code.
+const EXIT_CONTROL_PREFIX = "#exit ";
+
+// Baseline flags that consume the next argv member — needed to tell flag
+// values apart from the positional prompt when matching FIXTURE_BY_TASK keys.
+const VALUE_TAKING_FLAGS = new Set([
+	"--output-format",
+	"--json-schema",
+	"--max-turns",
+	"--append-system-prompt",
+	"--permission-mode",
+	"--allowedTools",
+	"--disallowedTools",
+	"--resume",
+	"--model",
+]);
+
+const argv = process.argv.slice(2);
+
+main().catch((error) => {
+	process.stderr.write(`fake claude: ${error.message}\n`);
+	process.exit(MISSING_FIXTURE_EXIT_CODE);
+});
+
+async function main() {
+	// Forced failure wins over --version: the knob simulates a broken binary,
+	// and the toolchain probe must see `claude --version` itself fail.
+	const forcedExitCode = Number(process.env.FAKE_CLAUDE_EXIT ?? 0);
+	if (forcedExitCode !== 0) {
+		appendInvocationLog("");
+		process.stderr.write("fake claude: forced failure\n");
+		process.exit(forcedExitCode);
+	}
+
+	if (argv.includes("--version") || argv.includes("-v")) {
+		appendInvocationLog("");
+		process.stdout.write(`${process.env.FAKE_CLAUDE_VERSION ?? DEFAULT_VERSION}\n`);
+		process.exit(0);
+	}
+
+	// Real CLI contract observed on 2.1.233 (spike 3, CON-001).
+	if (
+		argv.includes("-p") &&
+		flagValue("--output-format") === "stream-json" &&
+		!argv.includes("--verbose")
+	) {
+		appendInvocationLog("");
+		process.stderr.write(
+			"Error: When using --print, --output-format=stream-json requires --verbose\n",
+		);
+		process.exit(1);
+	}
+
+	const stdinContent = readStdinToEnd();
+	appendInvocationLog(stdinContent);
+
+	const fixturePath = selectFixture(stdinContent);
+	if (fixturePath === undefined || !existsSync(fixturePath)) {
+		process.stderr.write(
+			`fake claude: no fixture for this invocation (FAKE_CLAUDE_FIXTURE=${
+				process.env.FAKE_CLAUDE_FIXTURE ?? ""
+			})\n`,
+		);
+		process.exit(MISSING_FIXTURE_EXIT_CODE);
+	}
+
+	const delayMs = Number(process.env.FAKE_CLAUDE_DELAY_MS ?? 0);
+	const lines = readFileSync(fixturePath, "utf8").split("\n").filter(Boolean);
+	let exitCode = 0;
+	for (const line of lines) {
+		if (line.startsWith(EXIT_CONTROL_PREFIX)) {
+			exitCode = Number(line.slice(EXIT_CONTROL_PREFIX.length));
+			continue;
+		}
+		if (delayMs > 0) {
+			await sleep(delayMs);
+		}
+		process.stdout.write(`${line}\n`);
+	}
+	process.exit(exitCode);
+}
+
+/** stdin is how the prompt arrives (TASK-005's primary path); EOF-blocking read */
+function readStdinToEnd() {
+	try {
+		return readFileSync(0, "utf8");
+	} catch {
+		// stdin closed or not a readable fd — an argv-only invocation
+		return "";
+	}
+}
+
+function selectFixture(stdinContent) {
+	const byTaskRaw = process.env.FAKE_CLAUDE_FIXTURE_BY_TASK;
+	if (byTaskRaw !== undefined && byTaskRaw !== "") {
+		const byTask = JSON.parse(byTaskRaw);
+		const prompt = `${stdinContent}\n${positionalArguments().join("\n")}`;
+		for (const [promptSubstring, mappedFixture] of Object.entries(byTask)) {
+			if (prompt.includes(promptSubstring)) {
+				return mappedFixture;
+			}
+		}
+	}
+	return process.env.FAKE_CLAUDE_FIXTURE;
+}
+
+function positionalArguments() {
+	const positionals = [];
+	for (let i = 0; i < argv.length; i++) {
+		const token = argv[i];
+		if (token.startsWith("-")) {
+			if (VALUE_TAKING_FLAGS.has(token)) {
+				i++; // skip the flag's value
+			}
+			continue;
+		}
+		positionals.push(token);
+	}
+	return positionals;
+}
+
+function flagValue(flag) {
+	const index = argv.indexOf(flag);
+	return index >= 0 ? argv[index + 1] : undefined;
+}
+
+function appendInvocationLog(stdinContent) {
+	const logPath = process.env.FAKE_CLAUDE_LOG;
+	if (logPath === undefined || logPath === "") {
+		return;
+	}
+	const record = {
+		argv,
+		cwd: process.cwd(),
+		stdinBytes: Buffer.byteLength(stdinContent),
+		stdinSha256: createHash("sha256").update(stdinContent).digest("hex"),
+	};
+	appendFileSync(logPath, `${JSON.stringify(record)}\n`);
+}

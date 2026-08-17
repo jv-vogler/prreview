@@ -568,7 +568,7 @@ principle.
 ### Invocation baseline
 
 ```
-claude -p --output-format stream-json --json-schema <schema>
+claude -p --output-format stream-json --verbose --json-schema <schema>
        --allowedTools "Read,Glob,Grep" --disallowedTools "Write,Edit,Bash"
        --permission-mode dontAsk --max-turns N
        --append-system-prompt <contract>
@@ -615,9 +615,9 @@ Not a single mega-pass and not independent sessions per stage.
 |---|---|---|
 | A | fresh | comprehension: intentMap + walkthrough + explanations + risk, one schema |
 | B | `--resume` A | findings + relatedFindings |
-| C | `--resume` A, fork | ticket alignment, only when a ticket was detected |
-| D | `--resume` A, fork | PR description, on demand |
-| Chat | `--resume` A | context-framed Q&A |
+| C | `--resume` A `--fork-session` | ticket alignment, only when a ticket was detected |
+| D | `--resume` A `--fork-session` | PR description, on demand |
+| Chat | `--resume` A `--fork-session` on the first turn, then plain-resumes its own thread | context-framed Q&A |
 | Lens | `--resume` A | focused re-analysis → ReviewOut |
 | Incremental | fresh, deliberately not resumed | §12 |
 
@@ -651,7 +651,10 @@ Six clauses, appended to every analysis task:
 
 Authored in zod, converted to JSON Schema. The agent emits
 `AgentAnchor {path, side, startLine, endLine}`; the server converts it into a full `Anchor` by
-capturing the snapshot and computing `placement`.
+capturing the snapshot and computing `placement`. The CLI self-retries schema violations
+(feeding each validation error back to the model until `--max-turns` runs out), so the adapter
+implements no schema-retry loop of its own — it treats `is_error:true` /
+`structured_output:null` as the run's failure.
 
 ```ts
 ComprehensionOut = {

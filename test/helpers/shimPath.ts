@@ -21,6 +21,9 @@ export interface PathShim {
 export async function createPathShim(): Promise<PathShim> {
 	const shimDir = await mkdtemp(join(tmpdir(), "prreview-shim-"));
 	await symlink(await findOnPath("git"), join(shimDir, "git"));
+	// test/bin/claude is a node script: its `#!/usr/bin/env node` shebang must
+	// resolve on this stripped PATH, in the withFakes and gitOnly worlds alike
+	await symlink(process.execPath, join(shimDir, "node"));
 	return {
 		withFakes: [TEST_BIN_DIR, shimDir].join(delimiter),
 		gitOnly: shimDir,

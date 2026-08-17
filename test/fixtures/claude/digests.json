@@ -1,0 +1,275 @@
+{
+	"simple": {
+		"eventTypes": ["system:init", "assistant", "assistant", "result:success"],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [],
+		"toolResultsSeen": 0,
+		"result": {
+			"subtype": "success",
+			"isError": false,
+			"terminalReason": "completed",
+			"hasResultText": true,
+			"structuredOutputPresent": false,
+			"hasSessionId": true,
+			"hasCost": true,
+			"hasUsage": true,
+			"numTurnsIsNumber": true
+		},
+		"exitCode": 0
+	},
+	"schema": {
+		"eventTypes": [
+			"system:init",
+			"assistant",
+			"assistant",
+			"user",
+			"assistant",
+			"assistant",
+			"user",
+			"result:success"
+		],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [
+			{
+				"name": "StructuredOutput",
+				"inputKeys": ["status"]
+			}
+		],
+		"toolResultsSeen": 1,
+		"result": {
+			"subtype": "success",
+			"isError": false,
+			"terminalReason": "completed",
+			"hasResultText": true,
+			"structuredOutputPresent": true,
+			"hasSessionId": true,
+			"hasCost": true,
+			"hasUsage": true,
+			"numTurnsIsNumber": true
+		},
+		"exitCode": 0
+	},
+	"tooluse": {
+		"eventTypes": [
+			"system:init",
+			"assistant",
+			"assistant",
+			"user",
+			"assistant",
+			"assistant",
+			"result:success"
+		],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [
+			{
+				"name": "Read",
+				"inputKeys": ["file_path"]
+			}
+		],
+		"toolResultsSeen": 1,
+		"result": {
+			"subtype": "success",
+			"isError": false,
+			"terminalReason": "completed",
+			"hasResultText": true,
+			"structuredOutputPresent": false,
+			"hasSessionId": true,
+			"hasCost": true,
+			"hasUsage": true,
+			"numTurnsIsNumber": true
+		},
+		"exitCode": 0
+	},
+	"badmodel": {
+		"eventTypes": ["system:init", "assistant", "result:success"],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [],
+		"toolResultsSeen": 0,
+		"result": {
+			"subtype": "success",
+			"isError": true,
+			"terminalReason": "api_error",
+			"hasResultText": true,
+			"structuredOutputPresent": false,
+			"hasSessionId": true,
+			"hasCost": true,
+			"hasUsage": true,
+			"numTurnsIsNumber": true
+		},
+		"exitCode": 1
+	},
+	"comprehension": {
+		"eventTypes": [
+			"system:init",
+			"assistant",
+			"assistant",
+			"user",
+			"assistant",
+			"user",
+			"assistant",
+			"user",
+			"assistant",
+			"assistant",
+			"user",
+			"assistant",
+			"assistant",
+			"user",
+			"assistant",
+			"assistant",
+			"user",
+			"assistant",
+			"assistant",
+			"user",
+			"result:success"
+		],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [
+			{
+				"name": "Read",
+				"inputKeys": ["file_path"]
+			},
+			{
+				"name": "Read",
+				"inputKeys": ["file_path"]
+			},
+			{
+				"name": "Glob",
+				"inputKeys": ["pattern"]
+			},
+			{
+				"name": "Grep",
+				"inputKeys": ["glob", "pattern"]
+			},
+			{
+				"name": "StructuredOutput",
+				"inputKeys": ["intentMap"]
+			},
+			{
+				"name": "StructuredOutput",
+				"inputKeys": ["__unparsedToolInput"]
+			},
+			{
+				"name": "StructuredOutput",
+				"inputKeys": ["explanations", "intentMap", "risk", "walkthrough"]
+			}
+		],
+		"toolResultsSeen": 7,
+		"result": {
+			"subtype": "success",
+			"isError": false,
+			"terminalReason": "completed",
+			"hasResultText": true,
+			"structuredOutputPresent": true,
+			"hasSessionId": true,
+			"hasCost": true,
+			"hasUsage": true,
+			"numTurnsIsNumber": true
+		},
+		"exitCode": 0
+	},
+	"chat-stream": {
+		"eventTypes": [
+			"system:init",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"assistant",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"assistant",
+			"stream_event",
+			"stream_event",
+			"stream_event",
+			"result:success"
+		],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [],
+		"toolResultsSeen": 0,
+		"result": {
+			"subtype": "success",
+			"isError": false,
+			"terminalReason": "completed",
+			"hasResultText": true,
+			"structuredOutputPresent": false,
+			"hasSessionId": true,
+			"hasCost": true,
+			"hasUsage": true,
+			"numTurnsIsNumber": true
+		},
+		"exitCode": 0
+	},
+	"hooknoise": {
+		"eventTypes": ["system:init", "assistant", "assistant", "result:success"],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [],
+		"toolResultsSeen": 0,
+		"result": {
+			"subtype": "success",
+			"isError": false,
+			"terminalReason": "completed",
+			"hasResultText": true,
+			"structuredOutputPresent": false,
+			"hasSessionId": true,
+			"hasCost": true,
+			"hasUsage": true,
+			"numTurnsIsNumber": true
+		},
+		"exitCode": 0
+	},
+	"maxturns": {
+		"eventTypes": [
+			"system:init",
+			"assistant",
+			"assistant",
+			"user",
+			"result:error_max_turns"
+		],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [
+			{
+				"name": "Read",
+				"inputKeys": ["file_path"]
+			}
+		],
+		"toolResultsSeen": 1,
+		"result": {
+			"subtype": "error_max_turns",
+			"isError": true,
+			"terminalReason": "max_turns",
+			"hasResultText": false,
+			"structuredOutputPresent": false,
+			"hasSessionId": true,
+			"hasCost": true,
+			"hasUsage": true,
+			"numTurnsIsNumber": true
+		},
+		"exitCode": 1
+	},
+	"crash": {
+		"eventTypes": ["system:init", "assistant", "assistant"],
+		"sessionIdConsistent": true,
+		"initSeen": true,
+		"toolUses": [],
+		"toolResultsSeen": 0,
+		"result": null,
+		"exitCode": 1
+	}
+}
