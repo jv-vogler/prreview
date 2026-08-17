@@ -123,6 +123,24 @@ describe("intentMapClusterSizes", () => {
 		expect(intentMapClusterSizes(map, FILES)).toEqual([0.5, 0.5]);
 	});
 
+	it("falls back to the whole file when none of the named hunk ids are in it", () => {
+		const map = makeMap([
+			{
+				name: "stale ids",
+				kind: "core",
+				description: "",
+				members: [{ path: "src/core.ts", hunkIds: ["gone-1", "gone-2"] }],
+			},
+			{
+				name: "tests",
+				kind: "tests",
+				description: "",
+				members: [{ path: "test/core.test.ts", hunkIds: ["h3"] }],
+			},
+		]);
+		expect(intentMapClusterSizes(map, FILES)).toEqual([0.5, 0.5]);
+	});
+
 	it("counts nothing for a path the round does not contain", () => {
 		const map = makeMap([
 			{

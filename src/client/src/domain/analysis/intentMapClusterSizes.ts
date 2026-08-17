@@ -10,9 +10,10 @@ import type { IntentMapDto } from "@dto/IntentMapDto";
  *
  * A member naming hunk ids counts those hunks' changed lines; a member naming
  * only a path counts the whole file, which is what the agent meant when it
- * skipped hunk precision; a path this round does not contain counts nothing.
- * All zeros when the clusters cover nothing measurable, so a caller never
- * divides by zero.
+ * skipped hunk precision; a member whose hunk ids this round has none of counts
+ * the whole file too; a path this round does not contain counts nothing. All
+ * zeros when the clusters cover nothing measurable, so a caller never divides
+ * by zero.
  *
  * Deliberately a client-side twin of the server's `intentMapClusterSizes`: the
  * browser may import the wire contract (`@dto`) and nothing else of the server
@@ -49,15 +50,22 @@ function memberChangedLines(
 	if (file === undefined) {
 		return 0;
 	}
+	const wholeFile = file.additions + file.deletions;
 	if (member.hunkIds.length === 0) {
-		return file.additions + file.deletions;
+		return wholeFile;
 	}
 	const wantedHunkIds = new Set(member.hunkIds);
-	return file.hunks
-		.filter((hunk) => wantedHunkIds.has(hunk.id))
-		.reduce(
-			(count, hunk) =>
-				count + hunk.lines.filter((line) => line.type !== "context").length,
-			0,
-		);
+	const namedHunks = file.hunks.filter((hunk) => wantedHunkIds.has(hunk.id));
+	// Unknown hunk ids on a known path fall back to the whole file — the same
+	// rule `resolveStepTarget` applies to a walkthrough step. A cluster sized at
+	// zero renders "0%" next to a file it visibly contains, which is a false
+	// claim; "at least this file" is the honest floor.
+	if (namedHunks.length === 0) {
+		return wholeFile;
+	}
+	return namedHunks.reduce(
+		(count, hunk) =>
+			count + hunk.lines.filter((line) => line.type !== "context").length,
+		0,
+	);
 }

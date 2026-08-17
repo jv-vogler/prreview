@@ -38,6 +38,7 @@ export interface IntentMap {
  * per cluster, in cluster order, each in [0, 1] as its share of all changed
  * lines the clusters cover (all zeros when they cover none). A member naming
  * hunkIds counts those hunks' added+deleted lines; a member without counts
+ * its whole file; a member whose hunk ids this round has none of also counts
  * its whole file; a path the round does not contain counts nothing.
  */
 export function intentMapClusterSizes(
@@ -69,15 +70,23 @@ function memberChangedLines(
 	if (file === undefined) {
 		return 0;
 	}
+	const wholeFile = file.additions + file.deletions;
 	if (member.hunkIds.length === 0) {
-		return file.additions + file.deletions;
+		return wholeFile;
 	}
 	const wantedHunkIds = new Set(member.hunkIds);
-	return file.hunks
-		.filter((hunk) => wantedHunkIds.has(hunk.id))
-		.reduce(
-			(count, hunk) =>
-				count + hunk.lines.filter((line) => line.type !== "context").length,
-			0,
-		);
+	const namedHunks = file.hunks.filter((hunk) => wantedHunkIds.has(hunk.id));
+	// Unknown hunk ids on a known path fall back to the whole file — the same
+	// rule the walkthrough's `resolveStepTarget` applies. Ids can go stale
+	// (a later round re-hashed the hunk) or arrive garbled; sizing the cluster
+	// at zero would then claim it covers nothing, which is a false statement
+	// about a file that is demonstrably in it.
+	if (namedHunks.length === 0) {
+		return wholeFile;
+	}
+	return namedHunks.reduce(
+		(count, hunk) =>
+			count + hunk.lines.filter((line) => line.type !== "context").length,
+		0,
+	);
 }

@@ -69,6 +69,16 @@ describe("intentMapClusterSizes", () => {
 		expect(intentMapClusterSizes(map, files)).toEqual([0.75, 0.25]);
 	});
 
+	it("falls back to the whole file when none of the named hunk ids are in it", () => {
+		const files = [file("src/a.ts", [3]), file("src/b.ts", [1])];
+		const map = intentMap([
+			cluster("stale ids", [{ path: "src/a.ts", hunkIds: ["F9h9"] }]),
+			cluster("all of b", [{ path: "src/b.ts", hunkIds: ["F1h1"] }]),
+		]);
+
+		expect(intentMapClusterSizes(map, files)).toEqual([0.75, 0.25]);
+	});
+
 	it("counts nothing for a path this round does not contain", () => {
 		const map = intentMap([
 			cluster("known", [{ path: "src/a.ts", hunkIds: [] }]),
