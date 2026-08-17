@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { FakeGit } from "../test/helpers/FakeGit";
 import { InMemorySessionStore } from "../test/helpers/InMemorySessionStore";
 import type { Engine, EngineEvent } from "./application/ports/Engine";
+import type { RunManager } from "./application/ports/RunManager";
 import { type BootConfig, buildContainer } from "./container";
 import type { Toolchain } from "./domain/session/Toolchain";
 import { ClaudeEngine } from "./infrastructure/engine/ClaudeEngine";
@@ -106,11 +107,49 @@ describe("the container shape (ARCHITECTURE §2)", () => {
 		expect(container.store).toBeInstanceOf(OnDiskSessionStore);
 		expect(container.engine).toBeNull();
 		expect(container.engineWorkspaces.ensure).toBeTypeOf("function");
+		expect(container.runManager.enqueue).toBeTypeOf("function");
 		expect(container.openReview).toBeTypeOf("function");
 		expect(container.resolveChangeset).toBeTypeOf("function");
 		expect(container.refreshChangeset).toBeTypeOf("function");
 		expect(container.updateCoverage).toBeTypeOf("function");
 		expect(container.detectDrift).toBeTypeOf("function");
+		expect(container.runAnalysis).toBeTypeOf("function");
+		expect(container.chatTurn).toBeTypeOf("function");
+		expect(container.updateWalkthroughProgress).toBeTypeOf("function");
+	});
+
+	it("drops published events when no interface layer supplied a sink", () => {
+		const container = buildContainer(config, toolchainWith({ kind: "none" }));
+		expect(() =>
+			container.publish({ type: "annotation.removed", id: "01X" }),
+		).not.toThrow();
+	});
+
+	it("routes run-manager events to the injected publisher", () => {
+		const events: string[] = [];
+		const container = buildContainer(config, toolchainWith({ kind: "none" }), {
+			publish: (event) => events.push(event.type),
+		});
+		container.runManager.enqueue({
+			lane: "analysis",
+			taskType: "comprehension",
+			job: async () => ({ ok: true }),
+		});
+		expect(events).toContain("run.queued");
+	});
+
+	it("an injected run manager is used as-is (PAT-001)", () => {
+		const runManager: RunManager = {
+			enqueue: () => ({ kind: "accepted", runId: "run-1" }),
+			cancel: () => false,
+			cancelAll: () => {},
+			get: () => undefined,
+			list: () => [],
+		};
+		const container = buildContainer(config, toolchainWith({ kind: "none" }), {
+			runManager,
+		});
+		expect(container.runManager).toBe(runManager);
 	});
 
 	it("overrides inject fakes at the composition root (PAT-001)", () => {

@@ -1,14 +1,24 @@
+import {
+	ANALYSIS_TIMEOUT_MS,
+	CHAT_TIMEOUT_MS,
+} from "./application/analysis/limits";
+import { makeChatTurn } from "./application/chatTurn";
 import { makeDetectDrift } from "./application/detectDrift";
 import { makeOpenReview } from "./application/openReview";
 import type { Engine } from "./application/ports/Engine";
+import type { PublishEvent } from "./application/ports/EventPublisher";
 import type { Git } from "./application/ports/Git";
 import type { GithubService } from "./application/ports/GithubService";
+import type { RunManager } from "./application/ports/RunManager";
 import type { SessionStore } from "./application/ports/SessionStore";
 import { makeRefreshChangeset } from "./application/refreshChangeset";
 import { makeResolveChangeset } from "./application/resolveChangeset";
+import { makeRunAnalysis } from "./application/runAnalysis";
 import { makeUpdateCoverage } from "./application/updateCoverage";
+import { makeUpdateWalkthroughProgress } from "./application/updateWalkthroughProgress";
 import type { Toolchain } from "./domain/session/Toolchain";
 import { ClaudeEngine } from "./infrastructure/engine/ClaudeEngine";
+import { createRunManager } from "./infrastructure/engine/runManager";
 import {
 	createEngineWorkspaces,
 	type EngineWorkspaces,
@@ -43,6 +53,15 @@ export interface ContainerOverrides {
 	store?: SessionStore;
 	/** null = no agent CLI on this machine, matching `{agent: {kind: 'none'}}` */
 	engine?: Engine | null;
+	runManager?: RunManager;
+	/**
+	 * Where run, annotation, and chat events go — wired to the SSE hub's
+	 * publish by the interface layer. This is real production wiring rather
+	 * than a test seam; it lives here because the hub is built after the
+	 * container. Omitted, events are dropped, which is exactly right for a
+	 * container with no server attached.
+	 */
+	publish?: PublishEvent;
 }
 
 /**
@@ -69,22 +88,40 @@ export function buildContainer(
 	const engine: Engine | null =
 		overrides.engine !== undefined ? overrides.engine : selectEngine(toolchain);
 
+	const publish: PublishEvent = overrides.publish ?? (() => {});
+
+	const runManager: RunManager =
+		overrides.runManager ??
+		createRunManager({
+			publish,
+			timeoutMsByLane: {
+				analysis: ANALYSIS_TIMEOUT_MS,
+				chat: CHAT_TIMEOUT_MS,
+			},
+		});
+
+	const engineWorkspaces = createEngineWorkspaces({
+		git,
+		repoRoot: config.repoRoot,
+		cacheDir: config.cacheDir,
+	});
+
 	const resolveChangeset = makeResolveChangeset({
 		git,
 		githubService,
 		toolchain,
 	});
 
+	const updateCoverage = makeUpdateCoverage({ store });
+
 	return {
 		git,
 		githubService,
 		engine,
-		engineWorkspaces: createEngineWorkspaces({
-			git,
-			repoRoot: config.repoRoot,
-			cacheDir: config.cacheDir,
-		}),
+		engineWorkspaces,
+		runManager,
 		store,
+		publish,
 		resolveChangeset,
 		openReview: makeOpenReview({
 			resolveChangeset,
@@ -94,8 +131,27 @@ export function buildContainer(
 			toolchain,
 		}),
 		refreshChangeset: makeRefreshChangeset({ git, githubService, store }),
-		updateCoverage: makeUpdateCoverage({ store }),
+		updateCoverage,
 		detectDrift: makeDetectDrift({ git, githubService }),
+		runAnalysis: makeRunAnalysis({
+			engine,
+			runManager,
+			workspaces: engineWorkspaces,
+			git,
+			store,
+			publish,
+		}),
+		chatTurn: makeChatTurn({
+			engine,
+			runManager,
+			workspaces: engineWorkspaces,
+			store,
+			publish,
+		}),
+		updateWalkthroughProgress: makeUpdateWalkthroughProgress({
+			store,
+			updateCoverage,
+		}),
 	};
 }
 
@@ -111,12 +167,17 @@ export interface Container {
 	githubService: GithubService | null;
 	engine: Engine | null;
 	engineWorkspaces: EngineWorkspaces;
+	runManager: RunManager;
 	store: SessionStore;
+	publish: PublishEvent;
 	resolveChangeset: ReturnType<typeof makeResolveChangeset>;
 	openReview: ReturnType<typeof makeOpenReview>;
 	refreshChangeset: ReturnType<typeof makeRefreshChangeset>;
 	updateCoverage: ReturnType<typeof makeUpdateCoverage>;
 	detectDrift: ReturnType<typeof makeDetectDrift>;
+	runAnalysis: ReturnType<typeof makeRunAnalysis>;
+	chatTurn: ReturnType<typeof makeChatTurn>;
+	updateWalkthroughProgress: ReturnType<typeof makeUpdateWalkthroughProgress>;
 }
 
 /**
