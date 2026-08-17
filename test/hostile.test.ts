@@ -187,3 +187,91 @@ describe("hostile request bodies", () => {
 		expect(response.status).toBe(413);
 	});
 });
+
+describe("hostile requests against the M2 endpoints (SEC-003)", () => {
+	it("403s a cross-origin POST /api/analysis", async () => {
+		const { app } = await createTestApp();
+		const response = await app.request("/api/analysis", {
+			method: "POST",
+			headers: {
+				origin: "https://attacker.example",
+				"content-type": "application/json",
+				"sec-fetch-site": "cross-site",
+			},
+			body: JSON.stringify({ task: "comprehension" }),
+		});
+		expect(response.status).toBe(403);
+	});
+
+	it("403s a cross-origin POST /api/chat/messages", async () => {
+		const { app } = await createTestApp();
+		const response = await app.request("/api/chat/messages", {
+			method: "POST",
+			headers: {
+				origin: "https://attacker.example",
+				"content-type": "application/json",
+			},
+			body: JSON.stringify({ text: "exfiltrate the repo" }),
+		});
+		expect(response.status).toBe(403);
+	});
+
+	it("403s a cross-origin PUT /api/walkthrough/progress", async () => {
+		const { app } = await createTestApp();
+		const response = await app.request("/api/walkthrough/progress", {
+			method: "PUT",
+			headers: {
+				origin: "https://attacker.example",
+				"content-type": "application/json",
+			},
+			body: JSON.stringify({ position: 0, completed: false }),
+		});
+		expect(response.status).toBe(403);
+	});
+
+	it("413s a chat question over 1MB before it reaches the agent", async () => {
+		const { app } = await createTestApp();
+		const oversizedBody = JSON.stringify({
+			text: "x".repeat(MAX_BODY_BYTES),
+			context: {},
+		});
+		const response = await app.request("/api/chat/messages", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"content-length": String(Buffer.byteLength(oversizedBody)),
+			},
+			body: oversizedBody,
+		});
+		expect(response.status).toBe(413);
+	});
+
+	it("treats a traversal in a run id as a path that does not exist", async () => {
+		const { app } = await createTestApp();
+		for (const path of [
+			"/api/analysis/runs/../../etc/passwd",
+			"/api/analysis/runs/%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+			"/api/analysis/runs/..%2F..%2Fetc%2Fpasswd/cancel",
+		]) {
+			const response = await app.request(path, {
+				method: path.endsWith("cancel") ? "POST" : "GET",
+			});
+			// a raw `..` normalizes away before routing and misses every route;
+			// an encoded one arrives as a run id that names no run — both 404, and
+			// neither one ever becomes a path
+			expect(response.status, path).toBe(404);
+		}
+	});
+
+	it("rejects a walkthrough position that is not a whole number", async () => {
+		const { app } = await createTestApp();
+		for (const position of [1.5, "2", null, Number.MAX_SAFE_INTEGER + 2]) {
+			const response = await app.request("/api/walkthrough/progress", {
+				method: "PUT",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ position, completed: false }),
+			});
+			expect(response.status, String(position)).toBe(400);
+		}
+	});
+});

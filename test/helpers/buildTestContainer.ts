@@ -24,6 +24,8 @@ export interface TestContainerSetup {
 	 */
 	repoRoot?: string;
 	cacheDir?: string;
+	/** an extra sink beside the recorded `events` — the app's SSE bridge uses it */
+	publish?: PublishEvent;
 }
 
 export interface TestContainer {
@@ -58,6 +60,7 @@ export function buildTestContainer(
 	const events: AppEvent[] = [];
 	const publish: PublishEvent = (event) => {
 		events.push(event);
+		setup.publish?.(event);
 	};
 	const repoRoot = setup.repoRoot ?? DEFAULT_REPO_ROOT;
 	const container = buildContainer(

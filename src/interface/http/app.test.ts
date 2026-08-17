@@ -3,6 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+	analyze,
+	createAnalysisApp,
+} from "../../../test/helpers/createAnalysisApp";
+import {
 	createTestApp,
 	TEST_HEAD_SHA,
 	TEST_WORKTREE_DIFF,
@@ -26,6 +30,24 @@ describe("GET /api/session", () => {
 		expect(session.announce.resolved).toContain("working tree");
 		expect(session.announce.overrideHint).not.toBe("");
 		expect(session.coverage.total).toBe(0);
+		expect(session.analysis).toEqual({
+			intentMapAvailable: false,
+			walkthroughAvailable: false,
+			annotationCount: 0,
+		});
+	});
+
+	it("reports what analysis has produced, so the first render can route", async () => {
+		const app = await createAnalysisApp();
+		await analyze(app);
+
+		const session = sessionDtoSchema.parse(
+			await (await app.app.request("/api/session")).json(),
+		);
+		expect(session.analysis.intentMapAvailable).toBe(true);
+		expect(session.analysis.walkthroughAvailable).toBe(true);
+		expect(session.analysis.annotationCount).toBe(2);
+		expect(session.analysis.walkthroughProgress).toBeUndefined();
 	});
 
 	it("carries the security headers and no-store on /api", async () => {
@@ -149,6 +171,36 @@ describe("POST /api/changeset/refresh", () => {
 			await (await app.request("/api/changeset")).json(),
 		);
 		expect(changeset.roundId).toBe("r2");
+	});
+
+	it("re-anchors the round's explanations and announces the carry (REQ-006)", async () => {
+		const app = await createAnalysisApp();
+		await analyze(app);
+		const before = app.events.length;
+
+		const response = await app.app.request("/api/changeset/refresh", {
+			method: "POST",
+		});
+		expect(response.status).toBe(200);
+
+		// the same diff, so both notes survive and both are announced
+		const announced = app.events.slice(before);
+		expect(announced.map((event) => event.type)).toEqual([
+			"annotation.upserted",
+			"annotation.upserted",
+		]);
+		const annotations = (await (
+			await app.app.request("/api/annotations")
+		).json()) as { anchorStatus: string }[];
+		expect(annotations).toHaveLength(2);
+		expect(annotations.map((annotation) => annotation.anchorStatus)).toEqual([
+			"anchored",
+			"anchored",
+		]);
+
+		// the new round has no analysis of its own until the user asks again
+		const intentMap = await app.app.request("/api/intent-map");
+		expect(intentMap.status).toBe(404);
 	});
 });
 

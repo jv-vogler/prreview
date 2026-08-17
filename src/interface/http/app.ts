@@ -11,27 +11,52 @@ import { hostAllowlist } from "./middleware/hostAllowlist";
 import { originCheck } from "./middleware/originCheck";
 import { securityHeaders } from "./middleware/securityHeaders";
 import type { ReviewState } from "./reviewState";
+import { analysisRoute } from "./routes/analysis";
+import { annotationsRoute } from "./routes/annotations";
 import { blobRoute } from "./routes/blob";
 import { changesetRoute } from "./routes/changeset";
+import { chatRoute } from "./routes/chat";
 import { coverageRoute } from "./routes/coverage";
 import { goodbyeRoute } from "./routes/goodbye";
+import { intentMapRoute } from "./routes/intentMap";
 import { sessionRoute } from "./routes/session";
+import { walkthroughRoute } from "./routes/walkthrough";
 import { registerStatic } from "./static";
 
 /** The Vite dev server's port — allowlisted only under --dev (ARCHITECTURE §15, §16). */
 const VITE_DEV_PORT = 5173;
 
 /**
- * The one place an AppError becomes an HTTP status (TASK-038). Reasons not
- * listed — and anything that is not an AppError — are a 500 `internal` whose
- * stack stays in the server log and never reaches the response.
+ * The one place an AppError becomes an HTTP status. Reasons not listed — and
+ * anything that is not an AppError — are a 500 `internal` whose stack stays in
+ * the server log and never reaches the response.
+ *
+ * The rationale, since the mapping is not self-evident:
+ * - `validation` is the client's fault; everything else here is not.
+ * - the `not-found` family is 404 because the thing named does not exist:
+ *   a branch, a PR, an artifact stage A never produced, a run this process
+ *   has forgotten (runs are ephemeral).
+ * - `locked` is 409 because another prreview holds the session — a conflict
+ *   the user resolves by closing that one, not a server failure.
+ * - `agent-missing` is 503: the capability is off for this whole session, and
+ *   the client hides the surface anyway, so this is the defensive path.
+ * - `schema-violation` is 502: prreview is a gateway to the agent here, and
+ *   the agent returned something unusable.
+ * - `timed-out` is 504 for the same reason, and `crashed` is a 500 because
+ *   there is nothing more specific to say about a child that died.
  */
 const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	validation: 400,
 	"branch-not-found": 404,
 	"pr-not-found": 404,
+	"not-produced": 404,
+	"run-not-found": 404,
 	locked: 409,
 	"gh-unauthenticated": 403,
+	"agent-missing": 503,
+	"schema-violation": 502,
+	"timed-out": 504,
+	crashed: 500,
 };
 
 export interface AppDeps {
@@ -85,13 +110,17 @@ export function createApp(deps: AppDeps): Hono {
 	app.use(originCheck());
 	app.use(requestBodyLimit());
 
-	app.route("/api/session", sessionRoute(deps.state));
+	app.route(
+		"/api/session",
+		sessionRoute({ state: deps.state, store: deps.container.store }),
+	);
 	app.route("/api/goodbye", goodbyeRoute(deps.lifecycle));
 	app.route(
 		"/api/changeset",
 		changesetRoute({
 			state: deps.state,
 			refreshChangeset: deps.container.refreshChangeset,
+			publish: deps.container.publish,
 		}),
 	);
 	app.route(
@@ -108,6 +137,32 @@ export function createApp(deps: AppDeps): Hono {
 			state: deps.state,
 			updateCoverage: deps.container.updateCoverage,
 			hub: deps.hub,
+		}),
+	);
+	app.route(
+		"/api/analysis",
+		analysisRoute({
+			state: deps.state,
+			runAnalysis: deps.container.runAnalysis,
+			runManager: deps.container.runManager,
+		}),
+	);
+	app.route("/api/annotations", annotationsRoute({ state: deps.state }));
+	app.route("/api/intent-map", intentMapRoute({ state: deps.state }));
+	app.route(
+		"/api/walkthrough",
+		walkthroughRoute({
+			state: deps.state,
+			updateWalkthroughProgress: deps.container.updateWalkthroughProgress,
+			hub: deps.hub,
+		}),
+	);
+	app.route(
+		"/api/chat",
+		chatRoute({
+			state: deps.state,
+			store: deps.container.store,
+			chatTurn: deps.container.chatTurn,
 		}),
 	);
 	app.get("/api/events", (context) => deps.hub.handle(context));

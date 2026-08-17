@@ -13,6 +13,7 @@ import { defaultEngineCacheDir } from "../../infrastructure/engine/workspace";
 import { GitClient } from "../../infrastructure/git/GitClient";
 import { probeToolchain } from "../../infrastructure/toolchain/probe";
 import { createApp } from "../http/app";
+import { createAppEventPublisher } from "../http/events/appEventPublisher";
 import { createSseHub } from "../http/events/sseHub";
 import { createLifecycle } from "../http/lifecycle";
 import { createReviewState } from "../http/reviewState";
@@ -33,6 +34,9 @@ async function main(): Promise<void> {
 
 	const repoRoot = await detectRepoRoot(process.cwd());
 	const toolchain = await probeToolchain(repoRoot);
+	// built before the container because the container publishes through it, and
+	// connected to the channel below once the hub and the state exist
+	const publisher = createAppEventPublisher();
 	const container = buildContainer(
 		{
 			repoRoot,
@@ -40,19 +44,34 @@ async function main(): Promise<void> {
 			cacheDir: defaultEngineCacheDir(),
 		},
 		toolchain,
+		{ publish: publisher.publish },
 	);
 
 	const review = await container.openReview({
 		...(args.target === undefined ? {} : { target: args.target }),
 		...(args.base === undefined ? {} : { base: args.base }),
 	});
-	const state = createReviewState(review);
+	const state = createReviewState(review, container.store);
 
-	const lifecycle = createLifecycle({ flush: () => container.store.flush() });
+	const lifecycle = createLifecycle({
+		flush: () => container.store.flush(),
+		stopRuns: async () => {
+			container.runManager.cancelAll();
+			await container.engine?.stop();
+		},
+		releaseWorktrees: () => container.engineWorkspaces.release(),
+	});
 	const hub = createSseHub({
 		onConnect: () => lifecycle.connectionOpened(),
 		onDisconnect: () => lifecycle.connectionClosed(),
 	});
+	publisher.connect({ hub, state });
+
+	if (container.engine !== null) {
+		// a previous run killed mid-analysis leaves worktree admin files behind;
+		// clearing them is git's own job and must never delay boot
+		void container.engineWorkspaces.prune().catch(() => {});
+	}
 
 	// --dev pins the port (the Vite proxy targets it) and leaves static
 	// serving to Vite (ARCHITECTURE §16)

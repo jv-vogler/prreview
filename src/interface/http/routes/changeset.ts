@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { PublishEvent } from "../../../application/ports/EventPublisher";
 import type { RefreshChangeset } from "../../../application/refreshChangeset";
 import { computeCoverage } from "../../../domain/coverage/computeCoverage";
 import type { ChangesetDto } from "../dto/ChangesetDto";
@@ -8,6 +9,7 @@ import type { ReviewState } from "../reviewState";
 export interface ChangesetRouteDeps {
 	state: ReviewState;
 	refreshChangeset: RefreshChangeset;
+	publish: PublishEvent;
 }
 
 /**
@@ -30,6 +32,15 @@ export function changesetRoute(deps: ChangesetRouteDeps): Hono {
 			coverage: review.coverage,
 		});
 		deps.state.applyRefresh(refreshed);
+
+		// re-anchoring happened inside the refresh (REQ-006); this is where the
+		// other tabs — and this one's annotation cache — hear about it
+		for (const id of refreshed.annotations.retired) {
+			deps.publish({ type: "annotation.removed", id });
+		}
+		for (const annotation of refreshed.annotations.carried) {
+			deps.publish({ type: "annotation.upserted", annotation });
+		}
 
 		const response: RefreshResponse = {
 			changeset: changesetDtoFor(deps.state),

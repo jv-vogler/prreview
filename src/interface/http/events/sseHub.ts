@@ -4,6 +4,16 @@ import type { ServerEvent } from "../dto/ServerEvent";
 
 /** Big enough to bridge any realistic reconnect gap (ARCHITECTURE §8). */
 const RING_BUFFER_CAPACITY = 500;
+/**
+ * Events that share the id sequence but stay out of the replay buffer. A
+ * keepalive is worthless on reconnect, and a chat reply's token deltas are
+ * worse than worthless: thousands of them would evict every real event from the
+ * 500-slot window. A reconnecting client refetches the thread instead (§8).
+ */
+export const NON_BUFFERED_TYPES: ReadonlySet<ServerEvent["type"]> = new Set([
+	"heartbeat",
+	"chat.turn.delta",
+]);
 /** Keepalive cadence — frequent enough that proxies never time the stream out. */
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const LAST_EVENT_ID_HEADER = "Last-Event-ID";
@@ -36,16 +46,16 @@ export interface SseHub {
  * a 500-event ring buffer replayed from `Last-Event-ID`, and a 15s heartbeat.
  * Events are sent as default `message` events whose data is the ServerEvent
  * JSON — the `type` discriminator lives in the payload, so the client parses
- * once and dispatches without per-type listeners. Heartbeats share the id
- * sequence but skip the ring buffer: replaying keepalives would only crowd
- * real events out of the 500-slot window.
+ * once and dispatches without per-type listeners. NON_BUFFERED_TYPES share the
+ * id sequence but skip the ring buffer.
  */
 export function createSseHub(options: SseHubOptions = {}): SseHub {
 	const ring: StampedEvent[] = [];
 	const connections = new Set<(event: StampedEvent) => void>();
 	let nextEventId = 1;
 
-	function broadcast(event: ServerEvent, buffered: boolean): void {
+	function broadcast(event: ServerEvent): void {
+		const buffered = !NON_BUFFERED_TYPES.has(event.type);
 		const stamped: StampedEvent = {
 			id: nextEventId,
 			payload: JSON.stringify(event),
@@ -64,7 +74,7 @@ export function createSseHub(options: SseHubOptions = {}): SseHub {
 
 	const heartbeatTimer = setInterval(() => {
 		if (connections.size > 0) {
-			broadcast({ type: "heartbeat" }, false);
+			broadcast({ type: "heartbeat" });
 		}
 	}, options.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS);
 	// a keepalive must never keep the process itself alive
@@ -72,7 +82,7 @@ export function createSseHub(options: SseHubOptions = {}): SseHub {
 
 	return {
 		publish(event) {
-			broadcast(event, true);
+			broadcast(event);
 		},
 
 		handle(context) {

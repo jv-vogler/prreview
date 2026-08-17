@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { createTestApp } from "../../../../test/helpers/createTestApp";
 import { readSseFrames } from "../../../../test/helpers/readSse";
 import { serverEventSchema } from "../dto/ServerEvent";
+import { NON_BUFFERED_TYPES } from "./sseHub";
+
+const RUN_DTO = {
+	id: "run-1",
+	stage: "comprehension",
+	lane: "analysis" as const,
+	status: "running" as const,
+	queuedAt: "2026-08-17T10:00:00.000Z",
+};
 
 const WAIT_STEP_MS = 5;
 const WAIT_LIMIT_MS = 1_000;
@@ -132,5 +141,66 @@ describe("GET /api/events", () => {
 		await disconnect(body);
 		await waitFor(() => hub.connectionCount() === 0);
 		expect(lifecycle.liveness()).toBe(0);
+	});
+});
+
+describe("the ring-buffer policy (TASK-039)", () => {
+	it("buffers everything except heartbeats and chat token deltas", () => {
+		expect([...NON_BUFFERED_TYPES].sort()).toEqual([
+			"chat.turn.delta",
+			"heartbeat",
+		]);
+	});
+
+	it("replays run and annotation events but never a chat delta", async () => {
+		const { app, hub } = await createTestApp();
+
+		const firstBody = requireBody(await app.request("/api/events"));
+		hub.publish({ type: "changeset.drifted" });
+		expect((await readSseFrames(firstBody, 1))[0].id).toBe(1);
+		await disconnect(firstBody);
+		await waitFor(() => hub.connectionCount() === 0);
+
+		// a whole analysis, with a chat reply streaming through the middle of it
+		hub.publish({ type: "run.started", run: RUN_DTO });
+		hub.publish({ type: "chat.turn.delta", turnId: "t-1", text: "a word" });
+		hub.publish({ type: "annotation.removed", id: "01J0" });
+		hub.publish({
+			type: "run.succeeded",
+			run: { ...RUN_DTO, status: "succeeded" },
+		});
+
+		const secondBody = requireBody(
+			await app.request("/api/events", { headers: { "Last-Event-ID": "1" } }),
+		);
+		const replayed = await readSseFrames(secondBody, 3);
+		const events = replayed.map((frame) =>
+			serverEventSchema.parse(JSON.parse(frame.data)),
+		);
+
+		expect(events.map((event) => event.type)).toEqual([
+			"run.started",
+			"annotation.removed",
+			"run.succeeded",
+		]);
+		// the delta kept its id — the sequence is shared, only the buffer is not
+		expect(replayed.map((frame) => frame.id)).toEqual([2, 4, 5]);
+
+		await disconnect(secondBody);
+	});
+
+	it("delivers chat deltas live to a connected client", async () => {
+		const { app, hub } = await createTestApp();
+		const body = requireBody(await app.request("/api/events"));
+
+		hub.publish({ type: "chat.turn.delta", turnId: "t-1", text: "streaming" });
+		const [frame] = await readSseFrames(body, 1);
+		expect(serverEventSchema.parse(JSON.parse(frame.data))).toEqual({
+			type: "chat.turn.delta",
+			turnId: "t-1",
+			text: "streaming",
+		});
+
+		await disconnect(body);
 	});
 });

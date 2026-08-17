@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import type { UpdateCoverage } from "../../../application/updateCoverage";
-import type { HunkCoverage } from "../../../domain/coverage/HunkCoverage";
-import type { CoveragePut, CoverageUpdateDto } from "../dto/CoveragePut";
+import { changedCoverage } from "../coverageUpdates";
 import { coveragePutSchema } from "../dto/CoveragePut";
 import type { CoverageSummaryDto } from "../dto/CoverageSummaryDto";
 import type { SseHub } from "../events/sseHub";
@@ -34,7 +33,7 @@ export function coverageRoute(deps: CoverageRouteDeps): Hono {
 		});
 		deps.state.applyCoverage(coverage);
 
-		const applied = appliedUpdates(body, review.coverage, coverage);
+		const applied = changedCoverage(review.coverage, coverage);
 		if (applied.length > 0) {
 			deps.hub.publish({ type: "coverage.updated", updates: applied, summary });
 		}
@@ -43,25 +42,4 @@ export function coverageRoute(deps: CoverageRouteDeps): Hono {
 	});
 
 	return route;
-}
-
-function appliedUpdates(
-	body: CoveragePut,
-	before: Readonly<Record<string, HunkCoverage>>,
-	after: Readonly<Record<string, HunkCoverage>>,
-): CoverageUpdateDto[] {
-	const requestedHunkIds = [
-		...new Set(body.updates.map((update) => update.hunkId)),
-	];
-	return requestedHunkIds.flatMap((hunkId) => {
-		const newState = after[hunkId];
-		if (
-			newState === undefined ||
-			newState === "unseen" ||
-			newState === before[hunkId]
-		) {
-			return [];
-		}
-		return [{ hunkId, state: newState }];
-	});
 }

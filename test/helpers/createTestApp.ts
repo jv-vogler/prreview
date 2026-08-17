@@ -1,6 +1,12 @@
 import type { Hono } from "hono";
 import type { OpenedReview } from "../../src/application/openReview";
+import type { Engine } from "../../src/application/ports/Engine";
+import type { Toolchain } from "../../src/domain/session/Toolchain";
 import { createApp } from "../../src/interface/http/app";
+import {
+	type AppEventPublisher,
+	createAppEventPublisher,
+} from "../../src/interface/http/events/appEventPublisher";
 import {
 	createSseHub,
 	type SseHub,
@@ -53,6 +59,15 @@ export interface TestAppSetup {
 	graceMs?: number;
 	heartbeatIntervalMs?: number;
 	dev?: boolean;
+	/** defaults to `{kind: 'none'}` — the M1 viewer floor */
+	agent?: Toolchain["agent"];
+	engine?: Engine | null;
+	cacheDir?: string;
+	/** delta coalescing window; short by default so a test never waits on it */
+	coalesceMs?: number;
+	/** SEC-002's shutdown step, so a test can assert the runs were stopped */
+	stopRuns?: () => Promise<void>;
+	releaseWorktrees?: () => Promise<void>;
 }
 
 export interface TestApp extends TestContainer {
@@ -60,6 +75,7 @@ export interface TestApp extends TestContainer {
 	state: ReviewState;
 	hub: SseHub;
 	lifecycle: Lifecycle;
+	publisher: AppEventPublisher;
 	review: OpenedReview;
 	/** codes the lifecycle tried to exit with (the process never really exits) */
 	exitCodes: number[];
@@ -75,7 +91,15 @@ export interface TestApp extends TestContainer {
 export async function createTestApp(
 	setup: TestAppSetup = {},
 ): Promise<TestApp> {
+	const publisher = createAppEventPublisher({
+		coalesceMs: setup.coalesceMs ?? 5,
+	});
 	const testContainer = buildTestContainer({
+		publish: publisher.publish,
+		...(setup.agent === undefined ? {} : { agent: setup.agent }),
+		...(setup.engine === undefined ? {} : { engine: setup.engine }),
+		...(setup.repoRoot === undefined ? {} : { repoRoot: setup.repoRoot }),
+		...(setup.cacheDir === undefined ? {} : { cacheDir: setup.cacheDir }),
 		git: {
 			dirty: true,
 			refs: { HEAD: TEST_HEAD_SHA },
@@ -87,12 +111,21 @@ export async function createTestApp(
 	const review = await testContainer.container.openReview({
 		target: setup.target ?? "working",
 	});
-	const state = createReviewState(review);
+	const state = createReviewState(review, testContainer.store);
 
 	const exitCodes: number[] = [];
 	const loggedErrors: unknown[] = [];
 	const lifecycle = createLifecycle({
 		flush: () => testContainer.store.flush(),
+		stopRuns:
+			setup.stopRuns ??
+			(async () => {
+				testContainer.container.runManager.cancelAll();
+				await testContainer.container.engine?.stop();
+			}),
+		...(setup.releaseWorktrees === undefined
+			? {}
+			: { releaseWorktrees: setup.releaseWorktrees }),
 		...(setup.graceMs === undefined ? {} : { graceMs: setup.graceMs }),
 		exit: (code) => {
 			exitCodes.push(code);
@@ -103,6 +136,7 @@ export async function createTestApp(
 		onDisconnect: () => lifecycle.connectionClosed(),
 		heartbeatIntervalMs: setup.heartbeatIntervalMs ?? 60_000,
 	});
+	publisher.connect({ hub, state });
 
 	const app = createApp({
 		container: testContainer.container,
@@ -124,6 +158,7 @@ export async function createTestApp(
 		state,
 		hub,
 		lifecycle,
+		publisher,
 		review,
 		exitCodes,
 		loggedErrors,
