@@ -27,14 +27,38 @@ export interface DiffViewport {
 }
 
 const SYNC_THROTTLE_MS = 150;
-/** a row counts as read once at least half of it has been on screen */
+/** a row counts as read once at least half of its height has been on screen */
 const ROW_VIEWED_THRESHOLD = 0.5;
+/**
+ * Notify on every crossing and as visibility grows; `isRowRead` applies the
+ * real rule. A single ratio would not do: the observer measures intersected
+ * *area*, which horizontal clipping alone can hold below any positive value.
+ */
+const ROW_INTERSECTION_STEPS = [0, 0.25, 0.5, 0.75, 1];
 /** rows this close to the container top define the cursor position */
 const CURSOR_PROBE_OFFSET_PX = 2;
 
 interface RowContext {
 	fileIndex: number;
 	hunkIndex: number;
+}
+
+/**
+ * Whether enough of a row has been on screen to count as read.
+ *
+ * Deliberately measured on the vertical axis alone: a row spans the widest
+ * line in its file, so a single long line makes every row in that file many
+ * times wider than the pane, and an area-based `threshold` would then be
+ * capped below 0.5 by horizontal clipping no matter how the reader scrolls.
+ * Row width is unbounded and outside our control; row height is what "seen"
+ * actually means here.
+ */
+function isRowRead(entry: IntersectionObserverEntry): boolean {
+	const rowHeight = entry.boundingClientRect.height;
+	if (rowHeight === 0) {
+		return false;
+	}
+	return entry.intersectionRect.height >= rowHeight * ROW_VIEWED_THRESHOLD;
 }
 
 /**
@@ -98,7 +122,7 @@ export function useDiffViewport(options: DiffViewportOptions): DiffViewport {
 		(entries: IntersectionObserverEntry[]) => {
 			const viewedHunkIds: string[] = [];
 			for (const entry of entries) {
-				if (!entry.isIntersecting) {
+				if (!entry.isIntersecting || !isRowRead(entry)) {
 					continue;
 				}
 				const context = rowContextsRef.current.get(entry.target);
@@ -127,7 +151,7 @@ export function useDiffViewport(options: DiffViewportOptions): DiffViewport {
 		if (observerRef.current === null) {
 			observerRef.current = new IntersectionObserver(onRowsIntersecting, {
 				root: container,
-				threshold: ROW_VIEWED_THRESHOLD,
+				threshold: ROW_INTERSECTION_STEPS,
 			});
 		}
 

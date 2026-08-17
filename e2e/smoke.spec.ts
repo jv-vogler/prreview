@@ -43,9 +43,11 @@ test.describe("smoke: built artifact end to end", () => {
 		repo = await createFixtureRepo();
 		shim = await createPathShim();
 		await repo.write("src/greeting.ts", COMMITTED_GREETING);
+		await repo.write("docs/table.md", COMMITTED_TABLE);
 		await repo.commitAll("add greeting");
-		// the dirty state under review: one modified tracked file, one hunk
+		// the dirty state under review: two modified tracked files, one hunk each
 		await repo.write("src/greeting.ts", DIRTY_GREETING);
+		await repo.write("docs/table.md", DIRTY_TABLE);
 	});
 
 	test.afterEach(async () => {
@@ -165,6 +167,24 @@ const DIRTY_GREETING = [
 	`\tconst ${SMOKE_MARKER} = "changed for the smoke test";`,
 	`\treturn \`hello, \${name} (\${${SMOKE_MARKER}})\`;`,
 	"}",
+	"",
+].join("\n");
+
+/**
+ * A line far wider than the code pane. Pierre lays every row in a file out at
+ * the file's widest line, so this makes each row several times the pane width
+ * — the geometry that once left the whole file uncoverable, because the
+ * observer's area ratio could never reach the viewed threshold.
+ */
+const WIDE_TABLE_ROW = `| ${Array.from({ length: 40 }, (_, cell) => `wide cell number ${cell}`).join(" | ")} |`;
+
+const COMMITTED_TABLE = ["# Table", "", WIDE_TABLE_ROW, ""].join("\n");
+
+const DIRTY_TABLE = [
+	"# Table",
+	"",
+	WIDE_TABLE_ROW,
+	`${WIDE_TABLE_ROW} trailing edit`,
 	"",
 ].join("\n");
 
