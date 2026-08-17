@@ -1,0 +1,28 @@
+=== CHANGESET branch:feature-x..main
+source: branch feature-x..main
+base: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+head: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+round: r1
+
+=== FILES (1 changed, +2 −2)
+twins.js  (modified, +2 −2)
+
+=== FILE f_347fb77b1cde  twins.js  (modified, +2 −2)
+@@ HUNK ed673110c29e62bb4438229d635de5779fa917d31c5b2063eeb3975b54974b68 @@ -2,7 +2,7 @@
+     2 |      2 |  alpha
+     3 |      3 |  beta
+     4 |      4 |  gamma
+     5 |      . | -delta
+     . |      5 | +DELTA
+     6 |      6 |  epsilon
+     7 |      7 |  zeta
+     8 |      8 |  eta
+@@ HUNK ed673110c29e62bb4438229d635de5779fa917d31c5b2063eeb3975b54974b68-1 @@ -10,7 +10,7 @@ eta
+    10 |     10 |  alpha
+    11 |     11 |  beta
+    12 |     12 |  gamma
+    13 |      . | -delta
+     . |     13 | +DELTA
+    14 |     14 |  epsilon
+    15 |     15 |  zeta
+    16 |     16 |  eta
