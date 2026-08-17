@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { UnderstandingOut } from "./analysis/understandingSchemas";
 import type { EngineEvent } from "../../src/application/ports/Engine";
 import type { Run } from "../../src/application/ports/RunManager";
 import { buildTestContainer } from "../../test/helpers/buildTestContainer";
@@ -9,6 +8,7 @@ import {
 	fakeSession,
 } from "../../test/helpers/FakeEngine";
 import { EngineError } from "../domain/errors/EngineError";
+import type { UnderstandingOut } from "./analysis/understandingSchemas";
 
 const OLD_OID = "1".repeat(40);
 const NEW_OID = "2".repeat(40);
@@ -70,7 +70,6 @@ function harness(taskEvents: EngineEvent[]): Harness {
 	});
 	return { setup, engine };
 }
-
 
 async function opened(harnessed: Harness) {
 	const opened = await harnessed.setup.container.openReview({
@@ -265,7 +264,6 @@ describe("runAnalysis on a successful comprehension run", () => {
 		expect(analysis?.understanding.uncoveredHunks.length).toBeGreaterThan(0);
 	});
 });
-
 
 describe("runAnalysis when the run fails", () => {
 	it("turns unusable structured output into a schema-violation failure and applies nothing", async () => {

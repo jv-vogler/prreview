@@ -7,8 +7,8 @@ import type { TaskInput, TaskSpec } from "../ports/Engine";
 import { ANALYSIS_TIMEOUT_MS, COMPREHENSION_MAX_TURNS } from "./limits";
 import { serializeNud } from "./nud";
 import { comprehensionContract } from "./systemContract";
-import { TOPIC_SUMMARY_MAX, TOPIC_TITLE_MAX } from "./topicSchemas";
 import { toJsonSchema } from "./toJsonSchema";
+import { TOPIC_SUMMARY_MAX, TOPIC_TITLE_MAX } from "./topicSchemas";
 import { buildUnderstandingOutSchema } from "./understandingSchemas";
 
 export interface BuildUnderstandingTaskInput {

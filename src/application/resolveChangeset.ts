@@ -1,3 +1,5 @@
+import type { TicketHint } from "../domain/analysis/discoverTicket";
+import { discoverTicket } from "../domain/analysis/discoverTicket";
 import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import { AppError } from "../domain/errors/AppError";
@@ -5,8 +7,6 @@ import { ChangesetError } from "../domain/errors/ChangesetError";
 import { GithubError } from "../domain/errors/GithubError";
 import type { Toolchain } from "../domain/session/Toolchain";
 import type { Git } from "./ports/Git";
-import type { TicketHint } from "../domain/analysis/discoverTicket";
-import { discoverTicket } from "../domain/analysis/discoverTicket";
 import type { GithubService, PrInfo } from "./ports/GithubService";
 
 const PR_NUMBER_PATTERN = /^\d+$/;

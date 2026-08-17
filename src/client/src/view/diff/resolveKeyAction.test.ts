@@ -29,7 +29,7 @@ const SINGLE_KEYS: ReadonlyArray<[string, KeyAction]> = [
 	["[", "prev-annotation"],
 	["v", "mark-hunk-reviewed"],
 	["m", "mark-file-reviewed"],
-	["w", "toggle-walkthrough"],
+	["f", "toggle-findings"],
 	["c", "toggle-chat"],
 	["s", "toggle-diff-style"],
 	["?", "open-help"],
@@ -55,7 +55,7 @@ describe("resolveKeyAction", () => {
 	});
 
 	it("completes the go-to chords", () => {
-		expect(actionFor("o", "g")).toBe("go-orient");
+		expect(actionFor("o", "g")).toBe("go-overview");
 		expect(actionFor("d", "g")).toBe("go-diff");
 	});
 

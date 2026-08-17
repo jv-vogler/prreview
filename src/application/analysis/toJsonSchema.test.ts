@@ -1,8 +1,8 @@
 import Ajv from "ajv";
 import { describe, expect, it } from "vitest";
-import { representativeUnderstandingOutSchema } from "./understandingSchemas";
 import { TASK_SCHEMAS } from "./taskSchemas";
 import { assertSchemaFitsArgv, toJsonSchema } from "./toJsonSchema";
+import { representativeUnderstandingOutSchema } from "./understandingSchemas";
 
 const ARGV_SAFE_SCHEMA_BYTES = 85_000;
 
@@ -19,7 +19,9 @@ function validateAsTheCliDoes(json: string): boolean {
 
 describe("toJsonSchema", () => {
 	it("emits no $schema at all, so no meta-schema has to resolve (CON-014)", () => {
-		const parsed = JSON.parse(toJsonSchema(representativeUnderstandingOutSchema));
+		const parsed = JSON.parse(
+			toJsonSchema(representativeUnderstandingOutSchema),
+		);
 		expect(parsed.$schema).toBeUndefined();
 		expect(parsed.type).toBe("object");
 	});

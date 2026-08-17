@@ -3,15 +3,17 @@ import { discoverTicket } from "./discoverTicket";
 
 describe("discoverTicket", () => {
 	it("finds a tracker key in a branch name and normalizes its case", () => {
-		expect(discoverTicket({ branch: "feature/eng-4471-retry-webhooks" })).toEqual(
-			{ key: "ENG-4471", source: "branch" },
-		);
+		expect(
+			discoverTicket({ branch: "feature/eng-4471-retry-webhooks" }),
+		).toEqual({ key: "ENG-4471", source: "branch" });
 	});
 
 	it("finds a key at either end of a branch name", () => {
 		expect(discoverTicket({ branch: "ENG-12" })?.key).toBe("ENG-12");
 		expect(discoverTicket({ branch: "jv/ABC-9/thing" })?.key).toBe("ABC-9");
-		expect(discoverTicket({ branch: "fix_PROJ-77_flaky" })?.key).toBe("PROJ-77");
+		expect(discoverTicket({ branch: "fix_PROJ-77_flaky" })?.key).toBe(
+			"PROJ-77",
+		);
 	});
 
 	it("prefers the branch, the most deliberate signal a developer leaves", () => {
@@ -72,7 +74,9 @@ describe("discoverTicket", () => {
 		expect(discoverTicket({ title: "decode UTF-8 correctly" })).toBeNull();
 		expect(discoverTicket({ body: "switch the digest to SHA-256" })).toBeNull();
 		expect(discoverTicket({ title: "target ES-2022" })).toBeNull();
-		expect(discoverTicket({ body: "per RFC-7231 the method is idempotent" })).toBeNull();
+		expect(
+			discoverTicket({ body: "per RFC-7231 the method is idempotent" }),
+		).toBeNull();
 		expect(discoverTicket({ branch: "chore/utf-8-decoding" })).toBeNull();
 	});
 
@@ -91,11 +95,16 @@ describe("discoverTicket", () => {
 	 */
 	it("never reports the PR's own number as its ticket", () => {
 		expect(
-			discoverTicket({ title: "fix the retry loop (#20)", selfIssueNumber: 20 }),
+			discoverTicket({
+				title: "fix the retry loop (#20)",
+				selfIssueNumber: 20,
+			}),
 		).toBeNull();
 		expect(
-			discoverTicket({ title: "fix the retry loop (#312)", selfIssueNumber: 20 })
-				?.key,
+			discoverTicket({
+				title: "fix the retry loop (#312)",
+				selfIssueNumber: 20,
+			})?.key,
 		).toBe("#312");
 	});
 

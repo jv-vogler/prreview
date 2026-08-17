@@ -216,7 +216,6 @@ describe("hostile requests against the M2 endpoints (SEC-003)", () => {
 		expect(response.status).toBe(403);
 	});
 
-
 	it("413s a chat question over 1MB before it reaches the agent", async () => {
 		const { app } = await createTestApp();
 		const oversizedBody = JSON.stringify({
@@ -250,5 +249,4 @@ describe("hostile requests against the M2 endpoints (SEC-003)", () => {
 			expect(response.status, path).toBe(404);
 		}
 	});
-
 });

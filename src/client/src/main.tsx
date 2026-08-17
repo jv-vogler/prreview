@@ -2,13 +2,17 @@
 import "./infrastructure/configureZod";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRoot } from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { buildClientContainer } from "./infrastructure/container";
 import { installGoodbyeBeacon } from "./infrastructure/lifecycle/installGoodbyeBeacon";
+import { CommentsPage } from "./pages/CommentsPage";
 import { DiffPage } from "./pages/DiffPage";
-import { OrientPage } from "./pages/OrientPage";
+import { OverviewPage } from "./pages/OverviewPage";
+import { ReviewLayout } from "./pages/ReviewLayout";
 import { RootPage } from "./pages/RootPage";
+import { UnderstandPage } from "./pages/UnderstandPage";
 import { ClientContainerProvider } from "./view/app/ClientContainerProvider";
+import { FindingSelectionProvider } from "./view/findings/FindingSelectionProvider";
 import { TooltipProvider } from "./view/general/Tooltip";
 import { ThemeProvider } from "./view/styling/ThemeProvider";
 import "./view/styling/tokens.css";
@@ -30,10 +34,26 @@ const queryClient = new QueryClient({
 	},
 });
 
+/**
+ * Four surfaces as nested routes under one layout, so everything that must
+ * survive a tab switch — coverage, the run, chat, the diff cursor, the worker
+ * pool — is owned above them and rebuilt by none of them.
+ *
+ * `/orient` redirects permanently: the orientation it named is now Overview,
+ * and a link someone saved should land somewhere true rather than 404.
+ */
 const router = createBrowserRouter([
 	{ path: "/", element: <RootPage /> },
-	{ path: "/orient", element: <OrientPage /> },
-	{ path: "/diff", element: <DiffPage /> },
+	{ path: "/orient", element: <Navigate to="/overview" replace /> },
+	{
+		element: <ReviewLayout />,
+		children: [
+			{ path: "/overview", element: <OverviewPage /> },
+			{ path: "/diff", element: <DiffPage /> },
+			{ path: "/understand", element: <UnderstandPage /> },
+			{ path: "/comments", element: <CommentsPage /> },
+		],
+	},
 	{ path: "*", element: <RootPage /> },
 ]);
 
@@ -47,7 +67,9 @@ createRoot(rootElement).render(
 		<ClientContainerProvider container={container}>
 			<ThemeProvider>
 				<TooltipProvider>
-					<RouterProvider router={router} />
+					<FindingSelectionProvider>
+						<RouterProvider router={router} />
+					</FindingSelectionProvider>
 				</TooltipProvider>
 			</ThemeProvider>
 		</ClientContainerProvider>

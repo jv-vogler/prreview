@@ -1,8 +1,8 @@
+import type { TicketHint } from "../domain/analysis/discoverTicket";
 import {
 	type ChangesetId,
 	changesetIdFor,
 } from "../domain/changeset/ChangesetId";
-import type { TicketHint } from "../domain/analysis/discoverTicket";
 import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import type { HunkCoverage } from "../domain/coverage/HunkCoverage";

@@ -27,6 +27,14 @@ export function toAnnotation(dto: AnnotationDto): Annotation {
 		species: dto.species,
 		category: dto.category ?? null,
 		confidence: dto.confidence ?? null,
+		curation:
+			dto.curation === undefined
+				? null
+				: {
+						state: dto.curation.state,
+						dismissReason: dto.curation.dismissReason ?? null,
+					},
+		groundingVerified: dto.groundingVerified ?? null,
 	};
 }
 

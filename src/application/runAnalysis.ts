@@ -1,3 +1,7 @@
+import type { TicketHint } from "../domain/analysis/discoverTicket";
+import { topicGranularity } from "../domain/analysis/topicGranularity";
+import type { Understanding } from "../domain/analysis/Understanding";
+import { buildUnderstanding } from "../domain/analysis/Understanding";
 import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
@@ -5,10 +9,6 @@ import type { EngineErrorReason } from "../domain/errors/EngineError";
 import { EngineError } from "../domain/errors/EngineError";
 import type { RunMeta } from "../domain/session/RunMeta";
 import type { SessionManifest } from "../domain/session/SessionManifest";
-import type { TicketHint } from "../domain/analysis/discoverTicket";
-import type { Understanding } from "../domain/analysis/Understanding";
-import { buildUnderstanding } from "../domain/analysis/Understanding";
-import { topicGranularity } from "../domain/analysis/topicGranularity";
 import { ANALYSIS_TIMEOUT_MS } from "./analysis/limits";
 import { buildUnderstandingOutSchema } from "./analysis/understandingSchemas";
 import { buildUnderstandingTask } from "./analysis/understandingTask";
@@ -217,12 +217,16 @@ async function applyUnderstanding(
 ): Promise<void> {
 	const { deps, input } = run;
 
-	await deps.store.saveRoundAnalysis(input.manifest.changesetId, input.roundId, {
-		understanding: applied.understanding,
-		readLog: applied.result.readLog,
-		runId: applied.runId,
-		engineSessionId: applied.result.sessionId,
-	});
+	await deps.store.saveRoundAnalysis(
+		input.manifest.changesetId,
+		input.roundId,
+		{
+			understanding: applied.understanding,
+			readLog: applied.result.readLog,
+			runId: applied.runId,
+			engineSessionId: applied.result.sessionId,
+		},
+	);
 
 	deps.publish({ type: "understanding.updated", roundId: input.roundId });
 }

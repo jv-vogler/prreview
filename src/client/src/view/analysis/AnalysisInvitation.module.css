@@ -1,0 +1,52 @@
+.invitation {
+	max-width: 60ch;
+	margin: 64px auto;
+	padding: 24px;
+	border: 1px solid var(--borderColor-default);
+	border-radius: var(--borderRadius-medium);
+	background: var(--bgColor-muted);
+	text-align: left;
+}
+
+.title {
+	margin: 0 0 8px;
+	font-size: var(--text-title-size-medium);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-default);
+}
+
+.body {
+	margin: 0 0 12px;
+	font-size: var(--text-body-size-medium);
+	line-height: var(--text-body-lineHeight-medium);
+	color: var(--fgColor-default);
+}
+
+.cost {
+	margin: 0 0 16px;
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+}
+
+.action {
+	appearance: none;
+	border: 1px solid var(--button-primary-borderColor-rest);
+	background: var(--button-primary-bgColor-rest);
+	color: var(--button-primary-fgColor-rest);
+	border-radius: var(--borderRadius-medium);
+	padding: 6px 16px;
+	font-size: var(--text-body-size-medium);
+	font-weight: var(--base-text-weight-medium);
+	cursor: pointer;
+}
+
+.action:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.failure {
+	margin: 12px 0 0;
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-danger);
+}

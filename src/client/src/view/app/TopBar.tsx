@@ -137,7 +137,7 @@ function OrientationLink() {
 	const session = useGuaranteedSession();
 	const { pathname } = useLocation();
 
-	if (!flags.analysis || !session.analysis.intentMapAvailable) {
+	if (!flags.analysis || !session.analysis.understandingAvailable) {
 		return null;
 	}
 	const onOrient = pathname === ORIENT_PATH;

@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { materializeAnnotations } from "../../src/application/materializeAnnotations";
 import type { UnderstandingOut } from "../../src/application/analysis/understandingSchemas";
+import { materializeAnnotations } from "../../src/application/materializeAnnotations";
 import type { FileDiff } from "../../src/domain/changeset/FileDiff";
 import {
 	createTestApp,
@@ -79,9 +79,7 @@ export async function createAnalysisApp(
  * deliberately re-using the first file's hunks so every consumer is exercised
  * against the many-to-many case rather than a tidy partition.
  */
-export function understandingFor(
-	files: readonly FileDiff[],
-): UnderstandingOut {
+export function understandingFor(files: readonly FileDiff[]): UnderstandingOut {
 	const [greeting, todo] = files;
 	if (greeting === undefined || todo === undefined) {
 		throw new Error("the harness expects the two-file worktree diff");
@@ -134,7 +132,12 @@ export async function seedFindings(app: AnalysisApp): Promise<void> {
 		{
 			drafts: [
 				{
-					anchor: { path: greeting.path, side: "new", startLine: 2, endLine: 2 },
+					anchor: {
+						path: greeting.path,
+						side: "new",
+						startLine: 2,
+						endLine: 2,
+					},
 					body: "the message is addressed to whoever is reviewing",
 					species: "finding",
 					category: "correctness",

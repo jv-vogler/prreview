@@ -13,11 +13,7 @@ import type { RunEvent } from "./RunManager";
  * nobody is listening — so the callback returns void and a container with no
  * interface layer attached gets a no-op sink.
  */
-export type AppEvent =
-	| RunEvent
-	| AnnotationEvent
-	| ChatEvent
-	| ArtifactEvent;
+export type AppEvent = RunEvent | AnnotationEvent | ChatEvent | ArtifactEvent;
 
 export type PublishEvent = (event: AppEvent) => void;
 

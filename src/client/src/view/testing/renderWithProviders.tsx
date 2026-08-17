@@ -73,8 +73,8 @@ export function sessionDto(
 		announce: { resolved: "working tree", overrideHint: "" },
 		coverage: { total: 0, byFile: {} },
 		analysis: {
-			intentMapAvailable: false,
-			walkthroughAvailable: false,
+			understandingAvailable: false,
+			findingsAvailable: false,
 			annotationCount: 0,
 		},
 		...overrides,

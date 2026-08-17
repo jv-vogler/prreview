@@ -129,7 +129,6 @@ export class InMemorySessionStore implements SessionStore {
 		this.chatThreads.set(scopedKey(changesetId, threadId), thread);
 	}
 
-
 	async writeBlob(oid: string, content: Buffer): Promise<void> {
 		this.throwIfFailing();
 		this.blobs.set(oid, content);

@@ -75,7 +75,9 @@ describe("buildUnderstanding", () => {
 			files: FILES,
 			ticket: null,
 		});
-		expect(built.uncoveredHunks).toEqual([{ path: "src/core.ts", hunkId: "h2" }]);
+		expect(built.uncoveredHunks).toEqual([
+			{ path: "src/core.ts", hunkId: "h2" },
+		]);
 	});
 
 	/**

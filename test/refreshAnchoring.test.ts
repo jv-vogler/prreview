@@ -1,9 +1,9 @@
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AppEvent } from "../src/application/ports/EventPublisher";
-import type { Run } from "../src/application/ports/RunManager";
 import type { AnnotationDraft } from "../src/application/materializeAnnotations";
 import { materializeAnnotations } from "../src/application/materializeAnnotations";
+import type { AppEvent } from "../src/application/ports/EventPublisher";
+import type { Run } from "../src/application/ports/RunManager";
 import { buildContainer, type Container } from "../src/container";
 import type { Toolchain } from "../src/domain/session/Toolchain";
 import {
@@ -64,10 +64,7 @@ afterEach(async () => {
 });
 
 /** one finding anchored on a known line — what re-anchoring has to carry */
-function draftAnchoredAt(
-	startLine: number,
-	path: string,
-): AnnotationDraft[] {
+function draftAnchoredAt(startLine: number, path: string): AnnotationDraft[] {
 	return [
 		{
 			anchor: { path, side: "new", startLine, endLine: startLine },

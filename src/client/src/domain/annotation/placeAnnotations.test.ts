@@ -88,6 +88,8 @@ describe("placeAnnotations", () => {
 			species: "finding",
 			category: null,
 			confidence: "high",
+			curation: null,
+			groundingVerified: null,
 		};
 
 		expect(placeAnnotations([finding]).size).toBe(0);

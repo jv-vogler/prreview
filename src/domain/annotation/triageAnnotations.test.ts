@@ -167,7 +167,11 @@ describe("triageAnnotations", () => {
 			[
 				{
 					annotation: finding,
-					reanchor: { status: "moved", anchor: finding.anchor, touchedByDelta: false },
+					reanchor: {
+						status: "moved",
+						anchor: finding.anchor,
+						touchedByDelta: false,
+					},
 					targetHunkIds: [],
 				},
 			],

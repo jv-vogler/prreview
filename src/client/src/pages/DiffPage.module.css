@@ -1,0 +1,38 @@
+.layout {
+	display: flex;
+	min-height: 0;
+	height: 100%;
+}
+
+.sidebar {
+	flex: 0 0 auto;
+	width: 280px;
+	min-width: 0;
+	border-right: 1px solid var(--borderColor-default);
+	overflow: auto;
+}
+
+.main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.toolbar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 6px 16px;
+	border-bottom: 1px solid var(--borderColor-muted);
+	background: var(--bgColor-muted);
+}
+
+.toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+	cursor: pointer;
+}

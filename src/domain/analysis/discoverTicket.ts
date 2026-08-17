@@ -100,7 +100,8 @@ const TICKET_URL =
  * to the branch, where the convention holds — uppercasing prose would turn
  * every hyphenated word pair into a candidate.
  */
-const BRANCH_TRACKER_KEY = /(?:^|[/_-])([a-zA-Z][a-zA-Z0-9]{1,9}-\d+)(?:$|[/_-])/;
+const BRANCH_TRACKER_KEY =
+	/(?:^|[/_-])([a-zA-Z][a-zA-Z0-9]{1,9}-\d+)(?:$|[/_-])/;
 
 export function discoverTicket(sources: TicketSources): TicketHint | null {
 	const self =
@@ -174,7 +175,11 @@ function matchText(
 	const url = TICKET_URL.exec(text)?.[0];
 	if (url !== undefined) {
 		const keyInUrl = firstTrackerKey(url) ?? issueNumberInUrl(url);
-		if (keyInUrl !== null && keyInUrl !== undefined && keyInUrl !== selfIssueKey) {
+		if (
+			keyInUrl !== null &&
+			keyInUrl !== undefined &&
+			keyInUrl !== selfIssueKey
+		) {
 			return { key: keyInUrl, url };
 		}
 	}

@@ -16,8 +16,7 @@ import type {
 import { HttpError } from "../../infrastructure/httpClients/HttpError";
 import { useAnnotations } from "../annotations/useAnnotations";
 import { ClientContainerProvider } from "../app/ClientContainerProvider";
-import { useIntentMap } from "../orient/useIntentMap";
-import { useWalkthrough } from "../walkthrough/useWalkthrough";
+import { useUnderstanding } from "../understanding/useUnderstanding";
 import { AnalysisProvider, useAnalysis } from "./AnalysisProvider";
 
 afterEach(cleanup);
@@ -54,7 +53,7 @@ function createFakeServerEvents(): FakeServerEvents {
 
 function session(
 	agentKind: "claude" | "none",
-	walkthroughAvailable = false,
+	findingsAvailable = false,
 ): SessionDto {
 	return {
 		changesetId: "worktree",
@@ -71,8 +70,8 @@ function session(
 		announce: { resolved: "working tree", overrideHint: "" },
 		coverage: { total: 0, byFile: {} },
 		analysis: {
-			intentMapAvailable: false,
-			walkthroughAvailable,
+			understandingAvailable: false,
+			findingsAvailable,
 			annotationCount: 0,
 		},
 	};
@@ -117,8 +116,7 @@ function run(overrides: Partial<RunDto> = {}): RunDto {
 function Harness() {
 	const analysis = useAnalysis();
 	const annotations = useAnnotations();
-	const { intentMap } = useIntentMap();
-	const { walkthrough } = useWalkthrough();
+	const { understanding } = useUnderstanding();
 	return (
 		<div>
 			<p data-testid="active">{analysis.activeRun?.status ?? "idle"}</p>
@@ -129,12 +127,10 @@ function Harness() {
 					<li key={note.id}>{note.id}</li>
 				))}
 			</ul>
-			<p data-testid="intent-map">{intentMap?.summary ?? "no intent map"}</p>
-			<p data-testid="walkthrough">
-				{walkthrough === null
-					? "no walkthrough"
-					: `${walkthrough.steps.length}`}
+			<p data-testid="understanding">
+				{understanding?.summary ?? "no understanding"}
 			</p>
+			<p data-testid="topics">{understanding?.topics.length ?? 0}</p>
 			<button type="button" onClick={() => analysis.startAnalysis()}>
 				analyze
 			</button>
@@ -146,23 +142,27 @@ function renderHarness(agentKind: "claude" | "none") {
 	const events = createFakeServerEvents();
 	// what the server has produced so far; a run flips it, exactly as a real
 	// session's `analysis` block flips when the round gains an artifact
-	const produced = { walkthrough: false };
+	const produced = { understanding: false };
 	const get = vi.fn(async (path: string) => {
 		if (path === "/api/session") {
-			return session(agentKind, produced.walkthrough);
+			return session(agentKind, produced.understanding);
 		}
 		if (path === "/api/annotations") {
 			return [annotation()];
 		}
-		if (path === "/api/intent-map") {
+		if (path === "/api/understanding") {
 			return {
 				summary: "Moves the port into the config object.",
-				clusters: [],
+				topics: [],
 				suggestedEntryPoint: "src/server.ts",
+				goalMatch: {
+					verdict: "matches",
+					rationale: "the config change is self-consistent",
+					basis: "inferred",
+					ticket: null,
+				},
+				uncoveredHunks: [],
 			};
-		}
-		if (path === "/api/walkthrough") {
-			return { steps: [] };
 		}
 		throw new Error(`unexpected GET ${path}`);
 	});
@@ -203,7 +203,7 @@ describe("AnalysisProvider with an agent", () => {
 			expect(screen.getByTestId("annotations").textContent).toBe("a1");
 		});
 		expect(callsTo(get, "/api/annotations")).toBe(1);
-		expect(screen.getByTestId("intent-map").textContent).toContain(
+		expect(screen.getByTestId("understanding").textContent).toContain(
 			"Moves the port",
 		);
 	});
@@ -260,36 +260,35 @@ describe("AnalysisProvider with an agent", () => {
 		expect(screen.getByTestId("failure").textContent).toBe("timed-out");
 	});
 
-	it("refetches the artifacts exactly once when a comprehension run succeeds", async () => {
+	it("refetches the artifact when the server says it landed", async () => {
 		const { events, get, produced } = renderHarness("claude");
 		await waitFor(() => {
-			expect(callsTo(get, "/api/intent-map")).toBe(1);
+			expect(callsTo(get, "/api/understanding")).toBe(1);
 		});
-		// a walkthrough that does not exist yet is never asked for: the endpoint
-		// would answer a designed 404 on every page load
-		expect(callsTo(get, "/api/walkthrough")).toBe(0);
 
-		produced.walkthrough = true;
+		produced.understanding = true;
 		act(() => {
-			events.emit({
-				type: "run.succeeded",
-				run: run({ status: "succeeded" }),
-			});
+			events.emit({ type: "understanding.updated", roundId: "r1" });
 		});
 
 		await waitFor(() => {
-			expect(callsTo(get, "/api/intent-map")).toBe(2);
+			expect(callsTo(get, "/api/understanding")).toBe(2);
+			// whether an artifact exists is the server's answer, never inferred
 			expect(callsTo(get, "/api/session")).toBe(2);
-			// asked for the moment the refreshed session says it exists
-			expect(callsTo(get, "/api/walkthrough")).toBe(1);
 		});
+		// annotations arrive by their own events, not by this one
 		expect(callsTo(get, "/api/annotations")).toBe(1);
 	});
 
-	it("ignores a chat run's success — it produced no artifacts", async () => {
+	/**
+	 * The trigger is the artifact landing, not a run finishing. A run can
+	 * succeed having produced nothing a tab renders — the chat lane does exactly
+	 * that on every turn.
+	 */
+	it("ignores a run's success on its own — it may have produced no artifact", async () => {
 		const { events, get } = renderHarness("claude");
 		await waitFor(() => {
-			expect(callsTo(get, "/api/intent-map")).toBe(1);
+			expect(callsTo(get, "/api/understanding")).toBe(1);
 		});
 
 		act(() => {
@@ -300,7 +299,7 @@ describe("AnalysisProvider with an agent", () => {
 		});
 
 		await waitFor(() => {
-			expect(callsTo(get, "/api/intent-map")).toBe(1);
+			expect(callsTo(get, "/api/understanding")).toBe(1);
 		});
 	});
 
@@ -336,12 +335,11 @@ describe("AnalysisProvider without an agent (F12 degradation)", () => {
 
 		expect(callsTo(get, "/api/session")).toBe(1);
 		expect(callsTo(get, "/api/annotations")).toBe(0);
-		expect(callsTo(get, "/api/intent-map")).toBe(0);
-		expect(callsTo(get, "/api/walkthrough")).toBe(0);
-		expect(screen.getByTestId("intent-map").textContent).toBe("no intent map");
-		expect(screen.getByTestId("walkthrough").textContent).toBe(
-			"no walkthrough",
+		expect(callsTo(get, "/api/understanding")).toBe(0);
+		expect(screen.getByTestId("understanding").textContent).toBe(
+			"no understanding",
 		);
+		expect(screen.getByTestId("topics").textContent).toBe("0");
 		expect(screen.getByTestId("active").textContent).toBe("idle");
 	});
 });

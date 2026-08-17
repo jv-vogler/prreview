@@ -417,7 +417,6 @@ describe("chat threads", () => {
 	});
 });
 
-
 describe("lock pidfile: one server per session", () => {
 	it("second acquire against a live holder → StoreError('locked')", async () => {
 		const { store, dataDir } = await makeStore();

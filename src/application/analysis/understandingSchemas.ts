@@ -73,7 +73,9 @@ export type UnderstandingOut = z.infer<
 >;
 
 /** a representative instance for the shape-level gates (CON-014, CON-005) */
-export const representativeUnderstandingOutSchema = buildUnderstandingOutSchema({
-	targetTopicCount: 6,
-	maxTopics: 10,
-});
+export const representativeUnderstandingOutSchema = buildUnderstandingOutSchema(
+	{
+		targetTopicCount: 6,
+		maxTopics: 10,
+	},
+);

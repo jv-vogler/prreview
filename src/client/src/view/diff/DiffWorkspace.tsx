@@ -5,10 +5,9 @@ import type {
 	FileDiffLoadedFiles,
 	FileDiffMetadata,
 } from "@pierre/diffs";
-import { parsePatchFiles, registerCustomCSSVariableTheme } from "@pierre/diffs";
+import { parsePatchFiles } from "@pierre/diffs";
 import type { CodeViewHandle } from "@pierre/diffs/react";
-import { CodeView, WorkerPoolContextProvider } from "@pierre/diffs/react";
-import DiffsWorker from "@pierre/diffs/worker/worker.js?worker";
+import { CodeView } from "@pierre/diffs/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type {
 	AnnotationCard,
@@ -18,11 +17,14 @@ import { placeAnnotations } from "../../domain/annotation/placeAnnotations";
 import { blobSidesFor } from "../../domain/changeset/blobSidesFor";
 import { buildPatchText } from "../../domain/changeset/buildPatchText";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
-import { ExplanationNote } from "../annotations/ExplanationNote";
-import { UnanchoredTray } from "../annotations/UnanchoredTray";
 import { useAnnotations } from "../annotations/useAnnotations";
 import { useClientContainer } from "../app/ClientContainerProvider";
+import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
 import { useCoverageActions } from "../coverage/CoverageProvider";
+import {
+	FindingBalloon,
+	FindingBalloonGroup,
+} from "../findings/FindingBalloon";
 import type { DiffCursor } from "./DiffNavigationProvider";
 import { useDiffNavigation } from "./DiffNavigationProvider";
 import styles from "./DiffWorkspace.module.css";
@@ -31,31 +33,18 @@ import { useDiffViewport } from "./useDiffViewport";
 import { useGuaranteedChangeset } from "./useGuaranteedChangeset";
 
 /**
- * The one module that imports @pierre/diffs (TASK-046 / RISK-002): everything
- * Pierre-specific — theme registration, worker pool, patch parsing, the
- * loadDiffFiles blob bridge, scrolling — lives behind this wrapper.
+ * The Diff tab's renderer.
+ *
+ * Pierre-specific concerns are split in two: the worker pool and theme
+ * registration are hoisted into `WorkerPoolHost` so they outlive a tab switch,
+ * and everything about *this* view — patch parsing, the loadDiffFiles blob
+ * bridge, scrolling, balloons — stays here.
  */
-
-const PIERRE_THEME_NAME = "prreview-primer";
-/** the spike's proven pool size; highlight throughput was never the bottleneck */
-const WORKER_POOL_SIZE = 4;
-const HIGHLIGHTER = {
-	theme: PIERRE_THEME_NAME,
-	// 'shiki-wasm' would need 'wasm-unsafe-eval' in script-src, which the CSP
-	// does not grant (Spike 1)
-	preferredHighlighter: "shiki-js",
-} as const;
-
-/**
- * Registered once at startup (module scope runs exactly once): every color
- * slot resolves through `var(--diffs-*)` references defined in
- * pierre-theme.css, so no defaults are needed here and a theme flip is pure
- * CSS cascade — no re-render, no re-highlight (Spike 1).
- */
-registerCustomCSSVariableTheme(PIERRE_THEME_NAME, {});
 
 export interface DiffWorkspaceProps {
 	diffStyle: DiffStyle;
+	/** the balloon toggle: findings in the margin, or a clean diff */
+	showFindings: boolean;
 }
 
 /**
@@ -67,21 +56,7 @@ interface AnnotationMetadata {
 	card: AnnotationCard;
 }
 
-export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
-	return (
-		<WorkerPoolContextProvider
-			poolOptions={{
-				workerFactory: () => new DiffsWorker(),
-				poolSize: WORKER_POOL_SIZE,
-			}}
-			highlighterOptions={HIGHLIGHTER}
-		>
-			<DiffCodeView diffStyle={diffStyle} />
-		</WorkerPoolContextProvider>
-	);
-}
-
-function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
+export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
 	const { api } = useClientContainer();
 	const changeset = useGuaranteedChangeset();
 	const navigation = useDiffNavigation();
@@ -96,11 +71,25 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 		[navigation.files],
 	);
 
-	// where every note hangs, decided by the domain; this module only hands the
-	// result to the renderer (ARCHITECTURE §6, consumer 1)
+	/**
+	 * Where every balloon hangs, decided by the domain; this module only hands
+	 * the result to the renderer (ARCHITECTURE §6, consumer 1).
+	 *
+	 * Explanations are filtered out unconditionally, not merely hidden by the
+	 * toggle: narration belongs beside its code on the Understanding tab, and
+	 * scattering it through the margin is the thing this re-model exists to
+	 * undo. The toggle governs findings only.
+	 */
 	const placedByFileId = useMemo(
-		() => placeAnnotations(annotations),
-		[annotations],
+		() =>
+			placeAnnotations(
+				showFindings
+					? annotations.filter(
+							(annotation) => annotation.species !== "explanation",
+						)
+					: [],
+			),
+		[annotations, showFindings],
 	);
 
 	const items = useMemo<CodeViewDiffItem<AnnotationMetadata>[]>(() => {
@@ -287,9 +276,9 @@ function annotationsVersion(placed: readonly PlacedAnnotation[]): number {
  */
 function renderCard(card: AnnotationCard) {
 	if (card.kind === "unanchored") {
-		return <UnanchoredTray notes={card.notes} />;
+		return <FindingBalloonGroup notes={card.notes} />;
 	}
-	return <ExplanationNote note={card.note} />;
+	return <FindingBalloon note={card.note} />;
 }
 
 /**
