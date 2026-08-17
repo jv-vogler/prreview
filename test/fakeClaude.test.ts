@@ -26,6 +26,7 @@ const FIXTURE_NAMES = [
 	"tooluse",
 	"badmodel",
 	"understanding",
+	"review",
 	"chat-stream",
 	"hooknoise",
 	"maxturns",

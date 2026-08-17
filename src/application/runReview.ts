@@ -18,7 +18,11 @@ import type {
 	RunOutcome,
 } from "./ports/RunManager";
 import type { SessionStore } from "./ports/SessionStore";
-import { adjudicate, type LensResult } from "./review/adjudicate";
+import {
+	type AdjudicatedFinding,
+	adjudicate,
+	type LensResult,
+} from "./review/adjudicate";
 import { buildProjectFrame } from "./review/projectFrame";
 import { buildReviewOutSchema, type ReviewOut } from "./review/reviewSchemas";
 import { buildLensTask } from "./review/reviewTask";
@@ -225,18 +229,10 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 		{ git: deps.git, store: deps.store },
 		{
 			drafts: [
-				...adjudicated.findings.map((finding) => ({
-					anchor: finding.anchor,
-					body: finding.body,
-					species: "finding" as const,
-					category: finding.category,
-				})),
-				...adjudicated.relatedFindings.map((finding) => ({
-					anchor: finding.anchor,
-					body: finding.body,
-					species: "related-finding" as const,
-					category: finding.category,
-				})),
+				...adjudicated.findings.map((finding) => toDraft(finding, "finding")),
+				...adjudicated.relatedFindings.map((finding) =>
+					toDraft(finding, "related-finding"),
+				),
 			],
 			files: input.files,
 			provenance: {
@@ -332,4 +328,41 @@ async function recordRun(run: ReviewRun, meta: RunMeta): Promise<void> {
 
 function nowIso(): string {
 	return new Date().toISOString();
+}
+
+/**
+ * Everything adjudication decided, carried onto the stored annotation.
+ *
+ * In particular `groundingVerified`: the check runs once, against the union of
+ * the round's read logs, and dropping its answer here would mean the gate ran
+ * and told nobody.
+ */
+function toDraft(
+	finding: AdjudicatedFinding,
+	species: "finding" | "related-finding",
+) {
+	return {
+		anchor: finding.anchor,
+		body: finding.body,
+		species,
+		category: finding.category,
+		title: finding.title,
+		severity: finding.severity,
+		groundingVerified: finding.groundingVerified,
+		proof: { mode: finding.proof.mode, how: finding.proof.how },
+		confidence: confidenceBand(finding.confidence),
+	};
+}
+
+/**
+ * The schema's 0–100 becomes the three bands the UI and the store speak.
+ *
+ * The thresholds sit above the 80 floor every preset enforces, so the bands
+ * describe what actually survives rather than a range that cannot occur.
+ */
+function confidenceBand(confidence: number): "high" | "medium" | "low" {
+	if (confidence >= 90) {
+		return "high";
+	}
+	return confidence >= 80 ? "medium" : "low";
 }

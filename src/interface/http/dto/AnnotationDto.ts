@@ -55,7 +55,25 @@ export const annotationDtoSchema = z.object({
 	/** an explanation kind (intent/mechanism/implication) or a finding category */
 	category: z.string().optional(),
 	confidence: z.enum(["high", "medium", "low"]).optional(),
+	/** how much a finding matters: blocker | should-fix | consider | nitpick */
+	severity: z.string().optional(),
+	/**
+	 * How the claim was established. `traced` means the path was followed end to
+	 * end through code the agent read; `inferred` means a step rests on
+	 * something unverified. There is no mode implying execution — prreview
+	 * cannot run anything, and a word suggesting otherwise would mislead.
+	 *
+	 * `stale` is set when a rewrite changed the sentence the proof was about.
+	 */
+	proof: z
+		.object({
+			mode: z.enum(["traced", "inferred"]),
+			how: z.string(),
+			stale: z.boolean().optional(),
+		})
+		.optional(),
 	citations: z.array(citationDtoSchema).optional(),
+	/** whether every citation resolved against what the round actually read */
 	groundingVerified: z.boolean().optional(),
 	suggestedFix: z.string().optional(),
 	curation: annotationCurationDtoSchema.optional(),

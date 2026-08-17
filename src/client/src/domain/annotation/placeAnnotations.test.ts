@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { Annotation, Explanation } from "./Annotation";
+import type { Annotation, Explanation, Finding } from "./Annotation";
 import { placeAnnotations } from "./placeAnnotations";
 
-function explanation(overrides: Partial<Explanation> = {}): Explanation {
+/** the margin holds findings; narration lives on the Understanding tab */
+function finding(overrides: Partial<Finding> = {}): Finding {
 	return {
 		id: "a1",
-		species: "explanation",
-		kind: "mechanism",
+		species: "finding",
+		category: "correctness",
+		severity: "should-fix",
+		confidence: "high",
+		proof: null,
+		curation: null,
+		groundingVerified: true,
 		anchor: {
 			fileId: "f1",
 			path: "src/greeting.ts",
@@ -27,7 +33,7 @@ function explanation(overrides: Partial<Explanation> = {}): Explanation {
 
 describe("placeAnnotations", () => {
 	it("hangs a note under the last line of its range, on the new side", () => {
-		const placed = placeAnnotations([explanation()]);
+		const placed = placeAnnotations([finding()]);
 
 		expect(placed.get("f1")).toEqual([
 			{
@@ -40,12 +46,12 @@ describe("placeAnnotations", () => {
 
 	it("keeps each file's notes together", () => {
 		const placed = placeAnnotations([
-			explanation({ id: "a1" }),
-			explanation({
+			finding({ id: "a1" }),
+			finding({
 				id: "a2",
-				anchor: { ...explanation().anchor, fileId: "f2", path: "src/main.ts" },
+				anchor: { ...finding().anchor, fileId: "f2", path: "src/main.ts" },
 			}),
-			explanation({ id: "a3" }),
+			finding({ id: "a3" }),
 		]);
 
 		expect(placed.get("f1")?.map((entry) => entry.card)).toHaveLength(2);
@@ -54,9 +60,9 @@ describe("placeAnnotations", () => {
 
 	it("collapses a file's orphaned notes into one tray at the top", () => {
 		const placed = placeAnnotations([
-			explanation({ id: "a1", anchorStatus: "orphaned" }),
-			explanation({ id: "a2", anchorStatus: "orphaned" }),
-			explanation({ id: "a3" }),
+			finding({ id: "a1", anchorStatus: "orphaned" }),
+			finding({ id: "a2", anchorStatus: "orphaned" }),
+			finding({ id: "a3" }),
 		]);
 
 		const entries = placed.get("f1") ?? [];
@@ -70,8 +76,8 @@ describe("placeAnnotations", () => {
 
 	it("puts a deletion-side note on the deletions side", () => {
 		const placed = placeAnnotations([
-			explanation({
-				anchor: { ...explanation().anchor, side: "old", endLine: 9 },
+			finding({
+				anchor: { ...finding().anchor, side: "old", endLine: 9 },
 			}),
 		]);
 
@@ -81,18 +87,20 @@ describe("placeAnnotations", () => {
 		});
 	});
 
-	it("places nothing for a species this milestone does not render", () => {
-		const { kind: _explanationKind, ...base } = explanation();
-		const finding: Annotation = {
-			...base,
-			species: "finding",
-			category: null,
-			confidence: "high",
-			curation: null,
-			groundingVerified: null,
+	it("places nothing for an explanation: narration is not margin material", () => {
+		const explanation: Explanation = {
+			id: "e1",
+			species: "explanation",
+			kind: "mechanism",
+			anchor: finding().anchor,
+			anchorStatus: "anchored",
+			body: "what this does",
+			title: null,
+			touchedByDelta: false,
+			createdAt: "2026-08-17T10:00:00.000Z",
+			roundId: "r1",
 		};
-
-		expect(placeAnnotations([finding]).size).toBe(0);
+		expect(placeAnnotations([explanation])).toEqual(new Map());
 	});
 
 	it("returns an empty map for no annotations", () => {

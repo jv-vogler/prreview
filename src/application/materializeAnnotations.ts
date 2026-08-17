@@ -38,6 +38,19 @@ export interface AnnotationDraft {
 	/** the producer's own classification, stored verbatim on the annotation */
 	category?: string;
 	species?: "explanation" | "finding" | "related-finding";
+	title?: string;
+	severity?: string;
+	/**
+	 * Whether every citation resolved against what the round actually read.
+	 *
+	 * Carried through rather than recomputed here: the check runs once, in
+	 * adjudication, against the union of the round's read logs — and a check
+	 * whose answer is computed and then dropped is the same as no check at all.
+	 */
+	groundingVerified?: boolean;
+	proof?: { mode: "traced" | "inferred"; how: string };
+	confidence?: "high" | "medium" | "low";
+	citations?: { path: string; startLine?: number; endLine?: number }[];
 }
 
 export interface MaterializeAnnotationsInput {
@@ -122,9 +135,13 @@ export async function materializeAnnotations(
 			anchor,
 			anchorStatus: "anchored",
 			body: explanation.body,
-			...(explanation.category === undefined
-				? {}
-				: { category: explanation.category }),
+			...optional("category", explanation.category),
+			...optional("title", explanation.title),
+			...optional("severity", explanation.severity),
+			...optional("groundingVerified", explanation.groundingVerified),
+			...optional("proof", explanation.proof),
+			...optional("confidence", explanation.confidence),
+			...optional("citations", explanation.citations),
 			provenance: input.provenance,
 			createdAt: input.createdAt,
 		});
@@ -207,4 +224,12 @@ function clampRange(
 		startLine: clampedStart,
 		endLine: Math.max(clampedStart, Math.min(endLine, lineCount)),
 	};
+}
+
+/** spreads a field only when it has a value, so `exactOptionalPropertyTypes` holds */
+function optional<Key extends string, Value>(
+	key: Key,
+	value: Value | undefined,
+): Record<Key, Value> | Record<string, never> {
+	return value === undefined ? {} : ({ [key]: value } as Record<Key, Value>);
 }

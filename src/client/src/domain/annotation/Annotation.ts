@@ -36,6 +36,10 @@ export type CurationState = "proposed" | "accepted" | "edited" | "dismissed";
 
 interface FindingFields {
 	category: string | null;
+	/** blocker | should-fix | consider | nitpick */
+	severity: string | null;
+	/** how the claim was established; `stale` once a rewrite changed it */
+	proof: { mode: "traced" | "inferred"; how: string; stale: boolean } | null;
 	confidence: "high" | "medium" | "low" | null;
 	/** absent until the reviewer has touched it: an untouched finding is `proposed` */
 	curation: { state: CurationState; dismissReason: string | null } | null;
