@@ -289,6 +289,36 @@ describe("chatTurn", () => {
 		]);
 	});
 
+	it("forks from the stored manifest even when the caller's copy predates the analysis", async () => {
+		const harnessed = harness();
+		const review = await harnessed.setup.container.openReview({
+			target: "working",
+		});
+		// exactly what the HTTP layer holds: the manifest `openReview` produced,
+		// captured before any run existed. The analysis wrote its session id to
+		// the store minutes later, and that is where it has to be read from.
+		await harnessed.setup.store.saveSessionManifest({
+			...review.manifest,
+			engine: { ...review.manifest.engine, analysisSessionId: "session-A" },
+		});
+
+		const started = await harnessed.setup.container.chatTurn({
+			manifest: review.manifest,
+			roundId: review.roundId,
+			ref: review.ref,
+			files: review.files,
+			text: "why?",
+			context: {},
+		});
+		await settled(harnessed.setup, runIdOf(started.run));
+
+		expect(harnessed.engine.calls[0].resume).toEqual({
+			sessionId: "session-A",
+			fork: true,
+		});
+		expect(harnessed.engine.calls[0].prompt).not.toContain("=== CHANGESET");
+	});
+
 	it("queues a second question behind the first instead of rejecting it", async () => {
 		const engine = new FakeEngine({
 			chat: { events: ANSWER, blockBeforeResult: true },

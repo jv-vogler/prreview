@@ -99,7 +99,12 @@ export function makeChatTurn(deps: ChatTurnDeps): ChatTurn {
 			messages: [...thread.messages, userMessage],
 		});
 
-		const resume = resumeFor(thread, request.manifest);
+		// The stored manifest, not the request's: the HTTP layer holds the one
+		// `openReview` produced, and `analysisSessionId` is written minutes later
+		// by a background run. Reading it here is what makes the fork actually
+		// happen (CON-004) instead of every first turn starting a fresh session.
+		const stored = await deps.store.loadSessionManifest(changesetId);
+		const resume = resumeFor(thread, stored ?? request.manifest);
 		const prompt = buildPrompt(request, resume);
 		const run = deps.runManager.enqueue({
 			lane: "chat",
