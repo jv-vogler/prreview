@@ -14,6 +14,7 @@ describe("parseCliArgs", () => {
 			port: DEFAULT_PORT,
 			open: true,
 			dev: false,
+			brainMode: "layer",
 		});
 	});
 
@@ -92,5 +93,27 @@ describe("parseCliArgs", () => {
 		} finally {
 			stderr.mockRestore();
 		}
+	});
+});
+
+describe("--brain", () => {
+	it("is absent unless asked for, and layers by default", () => {
+		expect(parse([]).brain).toBeUndefined();
+		expect(parse(["--brain", "./rules.md"]).brain).toBe("./rules.md");
+		expect(parse(["--brain", "./rules.md"]).brainMode).toBe("layer");
+	});
+
+	/**
+	 * `replace` swaps taste only — the schema, grounding, anchoring, budget, and
+	 * species split survive it. The flag is here so that intent is explicit
+	 * rather than inferred from how the document happens to be written.
+	 */
+	it("accepts replace, and nothing else", () => {
+		expect(
+			parse(["--brain", "./r.md", "--brain-mode", "replace"]).brainMode,
+		).toBe("replace");
+		expect(() =>
+			parse(["--brain", "./r.md", "--brain-mode", "obliterate"]),
+		).toThrow();
 	});
 });

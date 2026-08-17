@@ -26,6 +26,7 @@ import {
 import { GitClient } from "./infrastructure/git/GitClient";
 import { GhCliGithubService } from "./infrastructure/github/GhCliGithubService";
 import { GitRemoteGithubService } from "./infrastructure/github/GitRemoteGithubService";
+import type { LoadedBrain } from "./infrastructure/review/loadBrain";
 import { SessionStore as OnDiskSessionStore } from "./infrastructure/store/SessionStore";
 
 export interface BootConfig {
@@ -62,6 +63,14 @@ export interface ContainerOverrides {
 	 * container with no server attached.
 	 */
 	publish?: PublishEvent;
+	/**
+	 * The reviewer's own guidelines, loaded once at boot (`--brain`).
+	 *
+	 * Held here rather than fetched per run so every lens shares one string in
+	 * the cached prompt prefix, and so a mid-run fetch failure cannot happen:
+	 * the process either started with the rules or refused to start.
+	 */
+	brain?: LoadedBrain;
 }
 
 /**
@@ -148,6 +157,7 @@ export function buildContainer(
 			git,
 			store,
 			publish,
+			...(overrides.brain === undefined ? {} : { brain: overrides.brain }),
 		}),
 		chatTurn: makeChatTurn({
 			engine,

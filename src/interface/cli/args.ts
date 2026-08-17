@@ -2,13 +2,24 @@ import { Command, InvalidArgumentError, Option } from "commander";
 
 export const DEFAULT_PORT = 4973;
 
-/** The whole CLI surface, exactly PRODUCT.md §13 (REQ-002) — nothing else. */
+/**
+ * The whole CLI surface (REQ-002) — nothing else.
+ *
+ * `--brain` is the one addition since the surface was frozen, and it earns its
+ * place: it is the only way to make a review measure against *your* team's
+ * standards rather than a generic sense of what is worth raising, and there is
+ * no config file to put it in.
+ */
 export interface CliArgs {
 	target?: string;
 	base?: string;
 	port: number;
 	open: boolean;
 	dev: boolean;
+	/** a path or URL to review guidelines */
+	brain?: string;
+	/** `layer` adds to prreview's taste; `replace` swaps taste only */
+	brainMode: "layer" | "replace";
 }
 
 /**
@@ -34,6 +45,18 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
 			DEFAULT_PORT,
 		)
 		.option("--no-open", "do not open the browser")
+		.option(
+			"--brain <file|url>",
+			"review guidelines to apply: a local path, a GitHub URL (fetched through gh), or an https URL",
+		)
+		.addOption(
+			new Option(
+				"--brain-mode <mode>",
+				"whether your guidelines add to prreview's judgement or replace it",
+			)
+				.choices(["layer", "replace"])
+				.default("layer"),
+		)
 		// internal dev-loop flag (ARCHITECTURE §16): skips static serving and
 		// browser-open, pins the port; deliberately not part of the surface
 		.addOption(new Option("--dev").hideHelp())
@@ -46,6 +69,8 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
 		port: number;
 		open: boolean;
 		dev?: boolean;
+		brain?: string;
+		brainMode: "layer" | "replace";
 	}>();
 	return {
 		...(target === undefined ? {} : { target }),
@@ -53,6 +78,8 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
 		port: options.port,
 		open: options.open,
 		dev: options.dev === true,
+		...(options.brain === undefined ? {} : { brain: options.brain }),
+		brainMode: options.brainMode,
 	};
 }
 

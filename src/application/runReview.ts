@@ -27,6 +27,11 @@ export const REVIEW_TASK_TYPE = "review";
 
 export interface RunReviewDeps {
 	engine: Engine | null;
+	/** the reviewer's own guidelines, loaded once at boot (`--brain`) */
+	brain?: {
+		text: string;
+		manifest: { source: string; sha256: string; mode: string };
+	};
 	runManager: RunManager;
 	workspaces: {
 		ensure(request: {
@@ -141,6 +146,7 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 				lens,
 				depth: input.depth,
 				frame,
+				...(deps.brain === undefined ? {} : { brain: deps.brain }),
 				ref: input.ref,
 				files: input.files,
 				roundId: input.roundId,
