@@ -54,7 +54,8 @@ async function toHttpError(response: Response): Promise<HttpError> {
 		`Request failed with status ${response.status}.`,
 	);
 	try {
-		const parsed = errorDtoSchema.safeParse(await response.json());
+		const body = await response.json();
+		const parsed = errorDtoSchema.safeParse(body);
 		if (!parsed.success) {
 			return fallback;
 		}
@@ -62,6 +63,7 @@ async function toHttpError(response: Response): Promise<HttpError> {
 			response.status,
 			parsed.data.reason,
 			parsed.data.message,
+			body,
 		);
 	} catch {
 		return fallback;
