@@ -15,20 +15,34 @@ this change introduces. Curating those comments and publishing them to GitHub ar
 
 ## Quickstart
 
-Run it inside a git repository:
+**Not published yet**, so `npx prreview` will not find it. Build once and link it onto your PATH:
 
 ```sh
-npx prreview
+git clone https://github.com/jv-vogler/prreview && cd prreview
+npm install
+npm run link          # builds, then npm-links `prreview` globally
+```
+
+The link points at the checkout rather than a copy, so `npm run build` is enough to pick up
+changes afterwards — no relinking. `npm run unlink` removes it.
+
+Then, inside any git repository:
+
+```sh
+prreview
 ```
 
 It auto-detects what to review, starts a local server bound to `127.0.0.1`, and opens your
 browser. Close the tab and the server shuts itself down. Press `?` in the browser for the
 keyboard shortcuts.
 
+If you use a version manager (nvm, mise, fnm), the link belongs to the Node version that was
+active when you made it — switch versions and you will need `npm run link` again.
+
 ## What you can review
 
 ```
-npx prreview [target] [base]
+prreview [target] [base]
 ```
 
 | Invocation | Reviews |

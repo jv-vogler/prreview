@@ -35,6 +35,8 @@
 	"scripts": {
 		"build": "tsdown && vite build src/client",
 		"dev": "concurrently \"tsx watch src/interface/cli/index.ts --dev\" \"vite src/client\"",
+		"link": "npm run build && npm link",
+		"unlink": "npm unlink -g prreview",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
 		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input && node scripts/check-dto-imports.mjs",
