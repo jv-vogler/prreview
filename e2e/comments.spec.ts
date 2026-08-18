@@ -69,8 +69,13 @@ test.describe("suggested comments", () => {
 		});
 		servers.push(server);
 
-		await page.goto(server.url);
-		await page.locator('[data-tab="comments"]').click();
+			/*
+		 * Reached by URL, not by a tab. The findings surface is postponed — its
+		 * output is not good enough to put in front of someone yet — so the tab
+		 * and the trigger are gone from the UI while the pass itself, and this
+		 * proof of it, stay intact.
+		 */
+		await page.goto(`${server.url}comments`);
 
 		// nothing has been reviewed, so the tab invites — and states its own cost
 		await expect(
@@ -108,21 +113,22 @@ test.describe("suggested comments", () => {
 		 */
 		await expect(page.getByText(/treat as a lead/).first()).toBeVisible();
 
-		// ── the same findings, in the diff, behind the toggle ──────────────────
+		/*
+		 * ── the same findings, in the diff ────────────────────────────────────
+		 *
+		 * One query, two surfaces, and no switch between them. There used to be a
+		 * "show suggested comments in the diff" checkbox, which meant a review
+		 * someone had paid for rendered only if they also found and flipped it.
+		 */
 		await page.locator('[data-tab="diff"]').click();
 		const balloons = page.locator("[data-annotation-id]");
 		await expect(balloons.first()).toBeVisible({
 			timeout: RUN_SETTLE_TIMEOUT_MS,
 		});
-
-		// one query, two surfaces: the toggle hides them without losing them
-		await page.getByLabel(/Show suggested comments/).uncheck();
-		await expect(page.locator("[data-annotation-id]")).toHaveCount(0);
-		await page.getByLabel(/Show suggested comments/).check();
-		await expect(page.locator("[data-annotation-id]").first()).toBeVisible();
+		await expect(page.getByLabel(/Show suggested comments/)).toHaveCount(0);
 
 		// ── dismissing is never deletion ───────────────────────────────────────
-		await page.locator('[data-tab="comments"]').click();
+		await page.goto(`${server.url}comments`);
 		await page.getByRole("button", { name: "Dismiss" }).first().click();
 
 		await expect(page.getByRole("heading", { name: /^Dismissed/ })).toBeVisible(

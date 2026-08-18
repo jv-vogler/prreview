@@ -3,7 +3,6 @@ import {
 	ColumnsIcon,
 	LinkExternalIcon,
 	MoonIcon,
-	QuestionIcon,
 	RowsIcon,
 	SunIcon,
 } from "@primer/octicons-react";
@@ -18,7 +17,6 @@ export interface TopBarProps {
 	/** absent on pages with no diff to lay out */
 	diffStyle?: DiffStyle;
 	onToggleDiffStyle?(): void;
-	onOpenHelp(): void;
 }
 
 const THEME_MODE_LABEL = {
@@ -36,11 +34,7 @@ const THEME_MODE_LABEL = {
  * navigated to. Each pass is now triggered from inside the tab it fills, where
  * the invitation can say what it costs and what it produces.
  */
-export function TopBar({
-	diffStyle,
-	onToggleDiffStyle,
-	onOpenHelp,
-}: TopBarProps) {
+export function TopBar({ diffStyle, onToggleDiffStyle }: TopBarProps) {
 	const session = useGuaranteedSession();
 	const { mode, resolvedTheme, cycleThemeMode } = useTheme();
 	const href = sourceUrl(session.source);
@@ -105,16 +99,12 @@ export function TopBar({
 						)}
 					</button>
 				</Tooltip>
-				<Tooltip label="Keyboard shortcuts (?)">
-					<button
-						type="button"
-						className={styles.iconButton}
-						onClick={onOpenHelp}
-						aria-label="Keyboard shortcuts"
-					>
-						<QuestionIcon size={16} />
-					</button>
-				</Tooltip>
+				{/*
+					No shortcuts button. The keymap still works and `?` still opens the
+					dialog — what is gone is the icon advertising it, because a header
+					control that only opens a reference is one more thing to look past
+					on a screen whose job is the change.
+				*/}
 			</div>
 		</header>
 	);

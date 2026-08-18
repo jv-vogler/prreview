@@ -28,11 +28,24 @@
 	background: var(--bgColor-muted);
 }
 
-.toggle {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
+.review {
+	padding: 3px 12px;
+	background: var(--button-default-bgColor-rest);
+	border: 1px solid var(--button-default-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+	color: var(--fgColor-muted);
+	white-space: nowrap;
+}
+
+.review:disabled {
+	cursor: not-allowed;
+	opacity: 0.6;
+}
+
+.reviewNote {
 	font-size: var(--text-body-size-small);
 	color: var(--fgColor-muted);
-	cursor: pointer;
+	min-width: 0;
 }

@@ -19,16 +19,17 @@ import type { ReviewOutletContext } from "./ReviewLayout";
 /**
  * `/diff` — the plain GitHub-style diff, free and always available.
  *
- * Findings appear here as balloons behind a toggle; explanations never do.
- * Narration belongs beside the code it describes on the Understanding tab, not
- * scattered through the margin where a reader has to reassemble it.
+ * Findings appear here as balloons, and there is no longer a switch for that:
+ * a review you paid for that renders only if you also find and flip a checkbox
+ * is a review that is hidden by default. Explanations never appear here at all
+ * — narration belongs beside the code it describes on the Understanding tab,
+ * not scattered through the margin where a reader has to reassemble it.
  */
 export function DiffPage() {
 	const { diffStyle, toggleDiffStyle } =
 		useOutletContext<ReviewOutletContext>();
 	const navigation = useDiffNavigation();
 	const { markReviewed } = useCoverageActions();
-	const [showFindings, setShowFindings] = useState(true);
 	const flags = useFeatureFlags();
 	const navigate = useNavigate();
 	const annotations = useAnnotations();
@@ -89,8 +90,6 @@ export function DiffPage() {
 					return jumpToStop("previous");
 				case "go-understand":
 					return navigate("/understand");
-				case "go-comments":
-					return navigate("/comments");
 				case "go-diff":
 					return undefined;
 				case "next-file":
@@ -107,12 +106,6 @@ export function DiffPage() {
 					return markReviewed(reviewedHunkIdsFor("file"));
 				case "toggle-diff-style":
 					return toggleDiffStyle();
-				case "toggle-findings":
-					// absent, not disabled, without an agent: the key belongs to the
-					// surface, and with no agent there is no surface
-					return flags.analysis
-						? setShowFindings((shown) => !shown)
-						: undefined;
 			}
 		},
 		[
@@ -122,7 +115,6 @@ export function DiffPage() {
 			toggleDiffStyle,
 			jumpToStop,
 			navigate,
-			flags.analysis,
 		],
 	);
 
@@ -134,19 +126,8 @@ export function DiffPage() {
 				<FileTreePanel />
 			</aside>
 			<div className={styles.main}>
-				{flags.analysis && (
-					<div className={styles.toolbar}>
-						<label className={styles.toggle}>
-							<input
-								type="checkbox"
-								checked={showFindings}
-								onChange={(event) => setShowFindings(event.target.checked)}
-							/>
-							Show suggested comments in the diff
-						</label>
-					</div>
-				)}
-				<DiffWorkspace diffStyle={diffStyle} showFindings={showFindings} />
+				{flags.analysis && <ReviewToolbar />}
+				<DiffWorkspace diffStyle={diffStyle} />
 			</div>
 		</div>
 	);
@@ -165,4 +146,27 @@ function useCursorUrlSync(): void {
 			},
 		);
 	}, [files, cursor, setSearchParams]);
+}
+
+/**
+ * The findings pass, where its output lands — and honest about not being ready.
+ *
+ * The trigger used to be a tab of its own. The pass works end to end, but its
+ * output is not good enough to put in front of someone yet, and a tab you
+ * cannot use is worse than no tab: a standing invitation to click something
+ * that goes nowhere. Disabled and labelled beats hidden, because hidden also
+ * hides the plan.
+ */
+function ReviewToolbar() {
+	return (
+		<div className={styles.toolbar}>
+			<button type="button" className={styles.review} disabled>
+				Review this change
+			</button>
+			<span className={styles.reviewNote}>
+				Not ready yet — suggested review comments are being reworked. Findings
+				appear here in the margin once this is switched on.
+			</span>
+		</div>
+	);
 }

@@ -105,13 +105,18 @@ function ReviewFrame() {
 	const drift = useDriftBanner();
 	const blocked = useAgentRouteGuard();
 
-	// The chat toggle is owned here rather than by a tab, so a question asked
-	// while reading the diff is still open after switching to Understanding.
+	// Chat and help are owned here rather than by a tab: a question asked while
+	// reading the diff is still open after switching to Understanding, and `?`
+	// is the only way to reach the keymap now that the header no longer
+	// advertises it with a button.
 	useKeymap({
 		dialogOpen: helpOpen,
 		onAction: (action) => {
 			if (action === "toggle-chat" && flags.chat) {
 				setChatOpen((open) => !open);
+			}
+			if (action === "open-help") {
+				setHelpOpen(true);
 			}
 		},
 	});
@@ -120,11 +125,7 @@ function ReviewFrame() {
 		<AppShell
 			topBar={
 				<>
-					<TopBar
-						diffStyle={diffStyle}
-						onToggleDiffStyle={toggleDiffStyle}
-						onOpenHelp={() => setHelpOpen(true)}
-					/>
+					<TopBar diffStyle={diffStyle} onToggleDiffStyle={toggleDiffStyle} />
 					<TabBar />
 				</>
 			}

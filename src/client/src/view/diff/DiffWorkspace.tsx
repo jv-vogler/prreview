@@ -45,8 +45,6 @@ import { useGuaranteedChangeset } from "./useGuaranteedChangeset";
 
 export interface DiffWorkspaceProps {
 	diffStyle: DiffStyle;
-	/** the balloon toggle: findings in the margin, or a clean diff */
-	showFindings: boolean;
 }
 
 /**
@@ -61,7 +59,7 @@ interface AnnotationMetadata {
 /** the server's per-file percentage at which every hunk is accounted for */
 const FULLY_READ_PERCENT = 100;
 
-export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
+export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 	const { api } = useClientContainer();
 	const changeset = useGuaranteedChangeset();
 	const session = useGuaranteedSession();
@@ -97,21 +95,21 @@ export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
 	 * Where every balloon hangs, decided by the domain; this module only hands
 	 * the result to the renderer (ARCHITECTURE §6, consumer 1).
 	 *
-	 * Explanations are filtered out unconditionally, not merely hidden by the
-	 * toggle: narration belongs beside its code on the Understanding tab, and
-	 * scattering it through the margin is the thing this re-model exists to
-	 * undo. The toggle governs findings only.
+	 * Findings are always shown. There used to be a checkbox for it, which meant
+	 * a review someone paid for rendered only if they also found and flipped a
+	 * switch — hidden by default, in other words. Explanations are filtered out
+	 * unconditionally: narration belongs beside its code on the Understanding
+	 * tab, and scattering it through the margin is the thing this re-model
+	 * exists to undo.
 	 */
 	const placedByFileId = useMemo(
 		() =>
 			placeAnnotations(
-				showFindings
-					? annotations.filter(
-							(annotation) => annotation.species !== "explanation",
-						)
-					: [],
+				annotations.filter(
+					(annotation) => annotation.species !== "explanation",
+				),
 			),
-		[annotations, showFindings],
+		[annotations],
 	);
 
 	const items = useMemo<CodeViewDiffItem<AnnotationMetadata>[]>(() => {

@@ -50,7 +50,7 @@ const CHAT_QUESTION = "What does the excited flag change for callers?";
 const EXPLANATION_NOTE = '[data-annotation-species="explanation"]';
 const TOPIC_BLOCK = "[data-topic-id]";
 
-test.describe("understand: one pass, four tabs, and a question", () => {
+test.describe("understand: one pass, two tabs, and a question", () => {
 	test.setTimeout(UNDERSTAND_TEST_TIMEOUT_MS);
 
 	let repo: FixtureRepo;
@@ -104,12 +104,16 @@ test.describe("understand: one pass, four tabs, and a question", () => {
 
 		await page.goto(firstRun.url);
 		await expect(page.locator('[data-tab="diff"]')).toBeVisible();
-		// the AI tabs exist because an agent does, but hold nothing yet
+		// the AI tab exists because an agent does, but holds nothing yet
 		await expect(page.locator('[data-tab="understand"]')).toBeVisible();
-		await expect(page.locator('[data-tab="comments"]')).toBeVisible();
-		// Overview was folded into Understanding: the tab is gone, and the route
-		// someone bookmarked lands on the whole account rather than a 404
+		/*
+		 * Two tabs, not four. Overview was folded into Understanding — same pass,
+		 * one account — and Suggested comments is postponed, its trigger moved to
+		 * the diff and plainly marked as not ready. Both old routes still resolve
+		 * for anyone who bookmarked them.
+		 */
 		await expect(page.locator('[data-tab="overview"]')).toHaveCount(0);
+		await expect(page.locator('[data-tab="comments"]')).toHaveCount(0);
 		// and nothing agent-produced is in the margin before the reader asks
 		await expect(page.locator(EXPLANATION_NOTE)).toHaveCount(0);
 

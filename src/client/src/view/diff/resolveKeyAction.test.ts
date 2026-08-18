@@ -29,7 +29,6 @@ const SINGLE_KEYS: ReadonlyArray<[string, KeyAction]> = [
 	["[", "prev-annotation"],
 	["v", "mark-hunk-reviewed"],
 	["m", "mark-file-reviewed"],
-	["f", "toggle-findings"],
 	["c", "toggle-chat"],
 	["s", "toggle-diff-style"],
 	["?", "open-help"],

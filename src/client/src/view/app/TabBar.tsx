@@ -3,14 +3,18 @@ import { useFeatureFlags } from "../session/useFeatureFlags";
 import styles from "./TabBar.module.css";
 
 /**
- * The three surfaces, and the promise each one makes about spending.
+ * The two surfaces, and the promise each one makes about spending.
  *
- * The diff is free and always present. Each AI tab is a separate, deliberate
- * trigger — nothing chains a second pass off the first, because "I clicked
- * Understanding and it also ran a review" is exactly the surprise that makes a
- * tool untrustworthy with someone's money.
+ * Understanding first, because reading what a change is for before reading its
+ * diff is the whole shape of the tool. The diff is free and always present.
  *
- * With no agent installed the AI tabs are **absent**, not disabled. A disabled
+ * Suggested comments was a third tab and is not one now. The findings pass is
+ * being reworked, and a tab you cannot use is worse than no tab: it is a
+ * standing invitation to click something that goes nowhere. The pass is
+ * triggered from the diff instead — where its output lands — and is plainly
+ * marked as not ready. Nothing about the findings code was deleted.
+ *
+ * With no agent installed the AI tab is **absent**, not disabled. A disabled
  * control says "you could have this"; absence says "this build does not do
  * that", which is the truth when there is no agent to do it.
  */
@@ -25,7 +29,6 @@ interface Tab {
 const TABS: Tab[] = [
 	{ to: "/understand", label: "Understanding", alwaysAvailable: false },
 	{ to: "/diff", label: "Diff", alwaysAvailable: true },
-	{ to: "/comments", label: "Suggested comments", alwaysAvailable: false },
 ];
 
 export function TabBar() {
