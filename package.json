@@ -1,6 +1,6 @@
 {
 	"name": "prreview",
-	"version": "0.1.0",
+	"version": "0.0.1",
 	"description": "GitHub-style diff viewer on localhost for reviewing PRs, branches, commit ranges, and working-tree changes",
 	"keywords": [
 		"code-review",
