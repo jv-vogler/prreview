@@ -90,6 +90,13 @@ Key structural facts:
   one delegated listener reading `composedPath()` (`view/diff/useHeaderFoldClicks.ts`, which is
   what makes the whole file header fold its file). Neither reaches into a shadow root, so a Pierre
   upgrade breaks them into doing nothing rather than into doing something wrong.
+  A fold is **eased, not cut to** (`view/diff/useAnimatedCollapse.ts`): the renderer is told to
+  collapse only at the end of a fold and the start of an unfold, and the height in between is
+  animated with the Web Animations API. This is safe *only* because `CodeView` resize-observes
+  the container holding its items and re-reconciles the window, the sticky headers, and the
+  scroll anchor on any drift — its layout model follows the DOM rather than fighting it. The e2e
+  spec samples an intermediate height in both directions, which is the assertion that fails if
+  that ever stops being true.
   The narrowing recipe lives in `domain/understanding/narrowToHunks.ts` —
   read its comment before touching it; filtering the `hunks` array does **not** work, and the
   failure renders nothing while logging a renderer error (`spikes/topic-render/VERDICT.md`).

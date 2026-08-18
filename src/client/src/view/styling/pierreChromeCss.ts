@@ -69,8 +69,29 @@ const CLICKABLE_HEADER_CSS = `
 	}
 `;
 
+/**
+ * The clamp a fold eases through.
+ *
+ * Both halves of this cross the shadow boundary and nothing else does:
+ * `:host()` lets a rule inside the shadow root read an attribute on the element
+ * outside it, and custom properties inherit straight through. So the animation
+ * is driven entirely by two values set on the item's own element — no reaching
+ * into a shadow root, no patching the renderer. See `useAnimatedCollapse.ts`
+ * for why animating the height does not desynchronize the virtualizer.
+ *
+ * The rule applies only while the attribute is present, so a file at rest keeps
+ * exactly the overflow behaviour the renderer gave it and its horizontal
+ * scroller is untouched.
+ */
+const FOLD_ANIMATION_CSS = `
+	:host([data-prr-folding]) [data-diff] {
+		overflow: hidden;
+		max-height: var(--prr-fold-height, none);
+	}
+`;
+
 /** for the Diff tab's CodeView, where files fold */
-export const PIERRE_DIFF_CHROME_CSS = `${SCROLLBAR_CSS}${CLICKABLE_HEADER_CSS}`;
+export const PIERRE_DIFF_CHROME_CSS = `${SCROLLBAR_CSS}${CLICKABLE_HEADER_CSS}${FOLD_ANIMATION_CSS}`;
 
 /**
  * For the Understanding tab's topic excerpts, which are curated cuts of a file

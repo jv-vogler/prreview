@@ -32,6 +32,7 @@ import { useDiffNavigation } from "./DiffNavigationProvider";
 import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";
 import { FileViewedToggle } from "./FileViewedToggle";
+import { useAnimatedCollapse } from "./useAnimatedCollapse";
 import type { DiffStyle } from "./useDiffStyle";
 import { useDiffViewport } from "./useDiffViewport";
 import { useGuaranteedChangeset } from "./useGuaranteedChangeset";
@@ -116,6 +117,27 @@ export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 		[annotations],
 	);
 
+	/**
+	 * The fold state the session asks for, which is not always the one drawn.
+	 *
+	 * `useAnimatedCollapse` lags this by one animation so a fold can be eased
+	 * rather than cut to. Everything a person looks at — the chevron's rotation,
+	 * the aria state — follows the request, because the request is what they
+	 * just asked for; only the renderer is told the lagging one.
+	 */
+	const requestedCollapsed = useMemo(() => {
+		const folded = new Set<string>();
+		for (const file of renderedFiles) {
+			const viewed = isFileViewed(file.id, viewedByFileId.has(file.id));
+			if (isFolded(file.id, viewed)) {
+				folded.add(file.id);
+			}
+		}
+		return folded;
+	}, [renderedFiles, isFolded, isFileViewed, viewedByFileId]);
+
+	const drawnCollapsed = useAnimatedCollapse(requestedCollapsed, containerRef);
+
 	const items = useMemo<CodeViewDiffItem<AnnotationMetadata>[]>(() => {
 		const parsed = parsePatchFiles(
 			buildPatchText(renderedFiles),
@@ -131,10 +153,7 @@ export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 				return [];
 			}
 			const placed = placedByFileId.get(file.id) ?? [];
-			const collapsed = isFolded(
-				file.id,
-				isFileViewed(file.id, viewedByFileId.has(file.id)),
-			);
+			const collapsed = drawnCollapsed.has(file.id);
 			return [
 				{
 					id: file.id,
@@ -153,14 +172,7 @@ export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 				},
 			];
 		});
-	}, [
-		renderedFiles,
-		changeset.roundId,
-		placedByFileId,
-		isFolded,
-		isFileViewed,
-		viewedByFileId,
-	]);
+	}, [renderedFiles, changeset.roundId, placedByFileId, drawnCollapsed]);
 
 	const filesByPath = useMemo(
 		() => new Map(renderedFiles.map((file) => [file.path, file])),

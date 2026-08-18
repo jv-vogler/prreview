@@ -211,6 +211,90 @@ test.describe("run feedback", () => {
 		await page.locator("[data-file-fold]").first().click();
 		await expect(page.getByText("excited").first()).toBeVisible();
 
+		/*
+		 * The fold is eased, not cut to.
+		 *
+		 * This samples the code region's height while the fold is in flight and
+		 * asserts it is partway down: strictly shorter than it started, strictly
+		 * taller than nothing. An instant collapse cannot produce that reading,
+		 * and neither can a broken one — the element is gone the moment the
+		 * renderer is told to collapse, so a sample of a real intermediate height
+		 * is proof that the clamp ran before the commit.
+		 *
+		 * The animation is only possible because `CodeView` resize-observes the
+		 * container its items live in and re-reconciles on any drift, so easing
+		 * the height drives its layout model rather than desynchronizing it. If
+		 * that ever stops being true this test is where it will show.
+		 */
+		// the locator pierces the shadow root the code region lives in
+		const codeHeight = () =>
+			page
+				.locator("[data-diff]")
+				.first()
+				// a short timeout because absence is an expected answer here: the
+				// renderer drops the code once a fold commits, and waiting the
+				// default half-minute for each of those samples is the difference
+				// between a two-second test and a timed-out one
+				.evaluate((code) => code.getBoundingClientRect().height, undefined, {
+					timeout: 200,
+				})
+				.catch(() => 0);
+
+		/**
+		 * Samples the code region while a fold plays, and reports whether it was
+		 * ever caught partway.
+		 *
+		 * An instant fold cannot produce a height strictly between nothing and the
+		 * height it started at, in either direction — the code is either laid out
+		 * or removed. So one intermediate reading is the proof, and sampling for
+		 * it beats waiting a fixed interval and hoping to land inside the
+		 * animation on a loaded machine.
+		 */
+		const foldPlaysOut = async (act: Promise<void>, from: number) => {
+			const seen: number[] = [];
+			await act;
+			for (let sample = 0; sample < 12; sample++) {
+				seen.push(await codeHeight());
+				await page.waitForTimeout(20);
+			}
+			return seen.some((height) => height > 0 && height < from);
+		};
+
+		/** the height once nothing is mid-fold; a clamped file measures short */
+		const settledHeight = async () => {
+			await expect(page.locator("[data-prr-folding]")).toHaveCount(0);
+			return codeHeight();
+		};
+
+		const openHeight = await settledHeight();
+		expect(openHeight).toBeGreaterThan(0);
+
+		/*
+		 * Shut, eased. This is only possible because `CodeView` resize-observes
+		 * the container its items live in and re-reconciles on any drift, so
+		 * animating the height drives its layout model rather than
+		 * desynchronizing it. If that ever stops being true, this is where it
+		 * shows.
+		 */
+		expect(
+			await foldPlaysOut(
+				page.locator("[data-diffs-header] [data-title]").first().click(),
+				openHeight,
+			),
+		).toBe(true);
+		await expect(page.getByText("excited")).toHaveCount(0);
+
+		// and open again, which has to grow from nothing rather than appear
+		expect(
+			await foldPlaysOut(
+				page.locator("[data-file-fold]").first().click(),
+				openHeight,
+			),
+		).toBe(true);
+		// and it ends open, with nothing left clamped by an animation that never
+		// finished — the failure mode that would hide a file for good
+		expect(await settledHeight()).toBeGreaterThan(0);
+
 		// unticking is the only thing that gives the coverage back
 		await box.uncheck();
 		await expect(
