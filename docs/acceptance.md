@@ -19,7 +19,7 @@ npm run build             # or use the published package
 Run it from inside the repository the PR belongs to:
 
 ```sh
-npx prreview https://github.com/<owner>/<repo>/pull/<number>
+prreview https://github.com/<owner>/<repo>/pull/<number>
 ```
 
 The first lines it prints are worth reading. They say what it resolved, whether the session is

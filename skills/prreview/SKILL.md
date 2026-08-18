@@ -5,7 +5,7 @@ description: Open prreview, a local GitHub-style diff viewer that can also expla
 
 # prreview
 
-prreview is a CLI (`npx prreview`) that resolves a changeset from git or GitHub, then serves a
+prreview is a CLI (`npx @jv-vogler/prreview`, command `prreview`) that resolves a changeset from git or GitHub, then serves a
 GitHub-accurate diff viewer on `127.0.0.1` for a human to review. It tracks which hunks the
 reviewer has seen, and that coverage survives restarts. It is read-only toward GitHub: nothing
 is posted, commented, or approved.
@@ -18,7 +18,7 @@ the command line.
 ## Pick the invocation
 
 ```
-npx prreview [target] [base]
+prreview [target] [base]
 ```
 
 | Invocation | Reviews |
@@ -46,7 +46,7 @@ The process is a server: it keeps serving until the reviewer closes the browser 
 shuts itself down within seconds). A foreground run therefore blocks you indefinitely — always
 launch it as a background process.
 
-1. Run `npx prreview <target>` in the repository, in the background.
+1. Run `prreview <target>` in the repository, in the background.
 2. Read its stdout: it announces what changeset it resolved and the served URL
    (`http://127.0.0.1:<port>/`).
 3. Tell the user the URL and what is being reviewed. In environments where opening a browser

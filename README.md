@@ -1,6 +1,6 @@
 # prreview
 
-> `npx prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
+> `npx @jv-vogler/prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
 > already have to explain what a changeset actually does: its intent, its mechanics, and its
 > implications. From there, you curate grounded review comments into a markdown scratchfile or
 > a pending GitHub review.
@@ -17,7 +17,16 @@ them to GitHub are still ahead.
 
 ## Quickstart
 
-**Not published yet**, so `npx prreview` will not find it. Build once and link it onto your PATH:
+Inside any git repository:
+
+```sh
+npx @jv-vogler/prreview
+```
+
+The package is scoped; the command it installs is not. However you get it, the thing on your
+PATH is `prreview`.
+
+To work on prreview itself, link the checkout onto your PATH instead:
 
 ```sh
 git clone https://github.com/jv-vogler/prreview && cd prreview
@@ -28,7 +37,7 @@ npm run link          # builds, then npm-links `prreview` globally
 The link points at the checkout rather than a copy, so `npm run build` is enough to pick up
 changes afterwards — no relinking. `npm run unlink` removes it.
 
-Then, inside any git repository:
+Either way, inside any git repository:
 
 ```sh
 prreview

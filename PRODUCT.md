@@ -2,7 +2,7 @@
 
 ## 1. One-liner
 
-> `npx prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
+> `npx @jv-vogler/prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
 > already have to explain what a changeset actually does: its intent, its mechanics, and its
 > implications. From there, you curate grounded review comments into a markdown scratchfile or
 > a pending GitHub review.
@@ -81,7 +81,7 @@ Both are first-class.
 
 ## 6. The core loop
 
-1. **Open.** `npx prreview` auto-detects the changeset. Explicit forms: PR number/URL, branch
+1. **Open.** `npx @jv-vogler/prreview` auto-detects the changeset. Explicit forms: PR number/URL, branch
    vs base, commit range, working tree. The tool states what it resolved.
 2. **Understand.** One screen, one pass. It opens with what this change is for, the ticket when
    one was cheap to find, and whether the code appears to do what it set out to do; then the
@@ -243,7 +243,7 @@ Decided together with the architecture. Minimal on purpose: every form below has
 justification, and everything else was rejected.
 
 ```
-npx prreview [target] [base]
+prreview [target] [base]
 ```
 
 | Invocation | Reviews |

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-prreview: a CLI (`npx prreview`) that serves a code review workspace on localhost for PRs,
+prreview: a CLI (`npx @jv-vogler/prreview`, command `prreview`) that serves a code review workspace on localhost for PRs,
 branches, commit ranges, and working-tree changes. **Three tabs**, each a separate deliberate
 spend:
 

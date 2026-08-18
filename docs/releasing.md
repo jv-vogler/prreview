@@ -65,7 +65,7 @@ Versioning is manual by design (ALT-004: no changesets/semantic-release).
 5. Smoke-test from the registry, from a directory outside this repo:
 
    ```sh
-   npx prreview@latest --help
+   npx @jv-vogler/prreview@latest --help
    ```
 
 If the workflow fails before the publish step, nothing was published: fix, delete the tag

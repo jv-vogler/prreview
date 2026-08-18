@@ -17,7 +17,7 @@ Decisions already settled with the user, not up for relitigation:
   wants an API key, while the CLI runs on the user's own subscription auth.
 - All GitHub interaction goes through a **GithubService port** with swappable implementations;
   v1 ships a `gh`-backed one and a plain-git one (§4).
-- The CLI surface is deliberately minimal: `npx prreview [target] [base]` plus `--port` and
+- The CLI surface is deliberately minimal: `prreview [target] [base]` plus `--port` and
   `--no-open`. The full list of forms lives in PRODUCT.md §13.
 
 ---
@@ -47,7 +47,7 @@ Decisions already settled with the user, not up for relitigation:
 
 ## 1. System overview
 
-In plain terms: `npx prreview` starts one local program. It figures out what you want reviewed,
+In plain terms: `npx @jv-vogler/prreview` starts one local program. It figures out what you want reviewed,
 shows it in a browser UI, runs the claude CLI in the background to explain and review it, and,
 when you say so, publishes your curated comments to GitHub. Nothing leaves your machine except
 the agent's own traffic and explicit publishes.
@@ -257,7 +257,7 @@ then behaves according to that answer without re-checking.
 ### Surface
 
 The supported forms and flags are product scope and live in **PRODUCT.md §13**. Summary:
-`npx prreview [target] [base]`, where target is empty (auto-detect), a PR number, a PR URL, a
+`prreview [target] [base]`, where target is empty (auto-detect), a PR number, a PR URL, a
 branch name, a `from..to` commit range, or the keyword `working`. Flags: `--port` (default
 4973, walks upward if taken) and `--no-open`. There is deliberately no `--host`: the server
 binds `127.0.0.1` unconditionally, because the no-token security posture in §15 is only sound
