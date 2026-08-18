@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Annotation, Explanation, Finding } from "./Annotation";
+import type { Explanation, Finding } from "./Annotation";
 import { placeAnnotations } from "./placeAnnotations";
 
 /** the margin holds findings; narration lives on the Understanding tab */

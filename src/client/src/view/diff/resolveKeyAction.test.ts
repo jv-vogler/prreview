@@ -55,7 +55,6 @@ describe("resolveKeyAction", () => {
 	});
 
 	it("completes the go-to chords", () => {
-		expect(actionFor("o", "g")).toBe("go-overview");
 		expect(actionFor("d", "g")).toBe("go-diff");
 	});
 

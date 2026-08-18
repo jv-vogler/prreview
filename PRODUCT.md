@@ -83,16 +83,17 @@ Both are first-class.
 
 1. **Open.** `npx prreview` auto-detects the changeset. Explicit forms: PR number/URL, branch
    vs base, commit range, working tree. The tool states what it resolved.
-2. **Orient.** *Overview*: what this change is for, the ticket when one was cheap to find, and
-   whether the code appears to do what it set out to do. Read this before any diff.
-3. **Understand.** The change retold as plain-language topics, each carrying the hunks that serve
-   it. Topics overlap where one hunk does two things — they name what the change does rather than
-   partition it. Coverage is tracked as you read.
-4. **Browse.** The plain diff, always available and free. A toggle overlays suggested comments as
-   balloons where they land.
-5. **Review.** *Suggested comments*: candidate comments about problems this change introduced, at
-   a depth you choose. A separate, deliberate spend — nothing chains it off step 2 or 3. Problems
-   that predate the change are kept in their own section and never mixed into review feedback.
+2. **Understand.** One screen, one pass. It opens with what this change is for, the ticket when
+   one was cheap to find, and whether the code appears to do what it set out to do; then the
+   change retold as plain-language topics, each carrying the hunks that serve it. Topics overlap
+   where one hunk does two things — they name what the change does rather than partition it. Read
+   this before any diff.
+3. **Browse.** The plain diff, always available and free. Mark a file **Viewed** the way you do on
+   GitHub and it folds away; coverage counts what you ticked, never what scrolled past. A toggle
+   overlays suggested comments as balloons where they land.
+4. **Review.** *Suggested comments*: candidate comments about problems this change introduced, at
+   a depth you choose. A separate, deliberate spend — nothing chains it off step 2. Problems that
+   predate the change are kept in their own section and never mixed into review feedback.
 6. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"), and
    operations on the suggested comments themselves.
 7. **Curate.** Accept, edit, or dismiss comments. A dismissal is remembered, so a later pass does
@@ -133,8 +134,11 @@ progress is shown, and you are free to jump out to browsing and back.
 **F6. Risk/attention ranking.** Each hunk gets a needs-human-eyes score, rendered as subtle
 heat rather than more balloons. Files and hunks are sortable by attention.
 
-**F7. Coverage tracking.** Tracks which hunks were actually viewed or marked reviewed, per file
-and in total ("you've seen 70% of this change"). This is the guard against scroll-and-approve.
+**F7. Coverage tracking.** Tracks which files you marked **Viewed**, per file and in total
+("you've seen 70% of this change"). This is the guard against scroll-and-approve, so it is
+deliberately never inferred from scrolling — a percentage that counts rows crossing the viewport
+measures how far down the page you got, which is the very thing it was supposed to guard
+against.
 
 **F8. Chat assistant.** A full assistant: repo-grounded Q&A about the change, annotation
 operations (rephrase, redo, split, tone), and triggering re-analysis. It is context-aware of

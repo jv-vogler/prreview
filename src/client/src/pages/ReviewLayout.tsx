@@ -2,6 +2,7 @@ import { Suspense, useMemo, useRef, useState } from "react";
 import { Navigate, Outlet, useLocation, useSearchParams } from "react-router";
 import { sortFilesByAttention } from "../domain/changeset/sortFilesByAttention";
 import { AnalysisProvider } from "../view/analysis/AnalysisProvider";
+import { RunStatusBar } from "../view/analysis/RunStatusBar";
 import { AppShell } from "../view/app/AppShell";
 import { TabBar } from "../view/app/TabBar";
 import { TopBar } from "../view/app/TopBar";
@@ -80,7 +81,7 @@ function ReviewLayoutContent() {
 }
 
 /** the tabs that need an agent; with none, they do not exist */
-const AI_TABS = ["/overview", "/understand", "/comments"];
+const AI_TABS = ["/understand", "/comments"];
 
 /**
  * Sends a reader who reached an AI route without an agent back to the diff.
@@ -129,6 +130,13 @@ function ReviewFrame() {
 			}
 			banner={
 				<>
+					{/*
+						First, because it is the one thing a reader might be waiting on.
+						It sits in the layout rather than in a tab so a run started on
+						Understanding is still visible from the Diff, and so a failure
+						reaches whoever is looking at whatever.
+					*/}
+					<RunStatusBar />
 					{drift.driftDetected && (
 						<ChangesDetectedBanner
 							refreshing={drift.refreshing}

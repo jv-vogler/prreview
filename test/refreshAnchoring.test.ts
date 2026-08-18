@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { AnnotationDraft } from "../src/application/materializeAnnotations";
 import { materializeAnnotations } from "../src/application/materializeAnnotations";
 import type { AppEvent } from "../src/application/ports/EventPublisher";
-import type { Run } from "../src/application/ports/RunManager";
 import { buildContainer, type Container } from "../src/container";
 import type { Toolchain } from "../src/domain/session/Toolchain";
 import {
@@ -101,22 +100,6 @@ function harnessFor(fixture: FixtureRepo): Harness {
 		},
 	);
 	return { container, store, events, engine };
-}
-
-async function settled(container: Container, runId: string): Promise<Run> {
-	const deadline = Date.now() + 2000;
-	while (Date.now() < deadline) {
-		const run = container.runManager.get(runId);
-		if (
-			run !== undefined &&
-			run.status !== "queued" &&
-			run.status !== "running"
-		) {
-			return run;
-		}
-		await new Promise((resolve) => setTimeout(resolve, 5));
-	}
-	throw new Error(`run ${runId} never settled`);
 }
 
 /**

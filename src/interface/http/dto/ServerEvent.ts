@@ -25,6 +25,12 @@ export const serverEventSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("changeset.drifted") }),
 	z.object({ type: z.literal("run.queued"), run: runDtoSchema }),
 	z.object({ type: z.literal("run.started"), run: runDtoSchema }),
+	/**
+	 * The run is still going and here is what it is doing. Coalesced by the run
+	 * manager to roughly two a second, and never published after a terminal
+	 * frame for the same run.
+	 */
+	z.object({ type: z.literal("run.progress"), run: runDtoSchema }),
 	z.object({ type: z.literal("run.succeeded"), run: runDtoSchema }),
 	z.object({ type: z.literal("run.failed"), run: runDtoSchema }),
 	z.object({ type: z.literal("run.cancelled"), run: runDtoSchema }),

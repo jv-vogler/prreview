@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Anchor, AnchorStatus } from "../anchor/Anchor";
 import { captureSnapshot } from "../anchor/captureSnapshot";
 import type { ReanchorResult } from "../anchor/reanchor";
-import type { AnnotationSpecies, StoredAnnotation } from "./Annotation";
+import type { StoredAnnotation } from "./Annotation";
 import {
 	type DeltaHunkSets,
 	type ReanchoredAnnotation,

@@ -87,8 +87,6 @@ export function DiffPage() {
 					return jumpToStop("next");
 				case "prev-annotation":
 					return jumpToStop("previous");
-				case "go-overview":
-					return navigate("/overview");
 				case "go-understand":
 					return navigate("/understand");
 				case "go-comments":

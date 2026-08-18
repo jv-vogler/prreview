@@ -11,6 +11,11 @@ import type {
 	RunRequest,
 	RunStatus,
 } from "../../application/ports/RunManager";
+import type { RunProgressUpdate } from "../../domain/analysis/RunProgress";
+import {
+	applyRunProgress,
+	EMPTY_RUN_PROGRESS,
+} from "../../domain/analysis/RunProgress";
 
 /**
  * The two lanes of ARCHITECTURE §7, at most two `claude` children alive: an
@@ -39,6 +44,16 @@ export interface RunManagerOptions {
 	timeoutMsByLane: Record<RunLane, number>;
 }
 
+/**
+ * How often a running job's progress reaches the browser.
+ *
+ * An agent reading forty files emits forty tool events in a few seconds, and
+ * forty SSE frames to move one line of text is waste. One frame every half
+ * second still reads as live to a person, and the newest state is always the
+ * one that gets sent — a coalesced frame is never a stale frame.
+ */
+const PROGRESS_PUBLISH_MS = 500;
+
 interface QueuedRun {
 	run: Run;
 	job: RunJob;
@@ -46,6 +61,8 @@ interface QueuedRun {
 	controller: AbortController;
 	cancelRequested: boolean;
 	timedOut: boolean;
+	/** set while a coalesced progress frame is waiting to go out */
+	progressTimer: NodeJS.Timeout | null;
 }
 
 interface Lane {
@@ -77,6 +94,7 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 			}
 		}
 
+		const timeoutMs = request.timeoutMs ?? timeoutMsByLane[request.lane];
 		const entry: QueuedRun = {
 			run: {
 				id: ulid(),
@@ -84,12 +102,14 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 				taskType: request.taskType,
 				status: "queued",
 				queuedAt: nowIso(),
+				timeoutMs,
 			},
 			job: request.job,
-			timeoutMs: request.timeoutMs ?? timeoutMsByLane[request.lane],
+			timeoutMs,
 			controller: new AbortController(),
 			cancelRequested: false,
 			timedOut: false,
+			progressTimer: null,
 		};
 		runsById.set(entry.run.id, entry);
 		lane.queue.push(entry);
@@ -166,11 +186,48 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 		transition(entry, "failed", "run.failed");
 	}
 
+	/**
+	 * Records what a running job is doing and lets the browser know.
+	 *
+	 * Two rules keep this from becoming a source of lies. A settled run is
+	 * ignored, so a tool event arriving after the result cannot make a finished
+	 * run look busy. And the frames are coalesced rather than dropped: the state
+	 * published is always the newest one, so the line on screen matches what the
+	 * agent is doing now, not what it was doing when the window opened.
+	 */
+	function report(runId: string, update: RunProgressUpdate): void {
+		const entry = runsById.get(runId);
+		if (entry === undefined || isSettled(entry.run.status)) {
+			return;
+		}
+		entry.run.progress = applyRunProgress(
+			entry.run.progress ?? EMPTY_RUN_PROGRESS,
+			update,
+			nowIso(),
+		);
+		if (entry.progressTimer !== null) {
+			return;
+		}
+		entry.progressTimer = setTimeout(() => {
+			entry.progressTimer = null;
+			if (!isSettled(entry.run.status)) {
+				publish({ type: "run.progress", run: snapshot(entry) });
+			}
+		}, PROGRESS_PUBLISH_MS);
+		entry.progressTimer.unref?.();
+	}
+
 	function transition(
 		entry: QueuedRun,
 		status: RunStatus,
 		eventType: RunEventType,
 	): void {
+		if (entry.progressTimer !== null) {
+			// a queued progress frame published after the terminal one would put
+			// the run back into "working" on every screen watching it
+			clearTimeout(entry.progressTimer);
+			entry.progressTimer = null;
+		}
 		entry.run.status = status;
 		if (status === "running") {
 			entry.run.startedAt = nowIso();
@@ -203,6 +260,7 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 
 	return {
 		enqueue,
+		report,
 		cancel,
 		cancelAll: () => {
 			for (const entry of runsById.values()) {

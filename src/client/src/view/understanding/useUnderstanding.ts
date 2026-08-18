@@ -14,7 +14,7 @@ export interface UnderstandingResult {
 
 /**
  * What the comprehension pass understood: the topics the Understanding tab
- * renders and the orientation the Overview tab renders, from one run.
+ * renders and the orientation above them, from one run.
  *
  * Gated on the agent flag, so a viewer-only install requests nothing at all
  * (REQ-004) rather than asking an endpoint that would answer a designed 404 on

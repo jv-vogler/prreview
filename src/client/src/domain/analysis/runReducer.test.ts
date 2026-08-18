@@ -1,7 +1,7 @@
 import type { RunDto } from "@dto/RunDto";
 import { describe, expect, it } from "vitest";
 import type { RunEvent, RunState } from "./runReducer";
-import { initialRunState, runReducer } from "./runReducer";
+import { initialRunState, reconcileRuns, runReducer } from "./runReducer";
 
 function run(overrides: Partial<RunDto> = {}): RunDto {
 	return {
@@ -10,6 +10,7 @@ function run(overrides: Partial<RunDto> = {}): RunDto {
 		lane: "analysis",
 		status: "queued",
 		queuedAt: "2026-08-17T10:00:00.000Z",
+		timeoutMs: 600_000,
 		...overrides,
 	};
 }
@@ -69,6 +70,7 @@ describe("runReducer", () => {
 		expect(state.activeRunId).toBeNull();
 		expect(state.lastError).toEqual({
 			runId: "run-1",
+			stage: "comprehension",
 			reason: "schema-violation",
 			message: "unusable output",
 		});
@@ -139,5 +141,94 @@ describe("runReducer", () => {
 			{ type: "run.succeeded", run: run({ id: "run-1", status: "succeeded" }) },
 		]);
 		expect(state.activeRunId).toBe("run-2");
+	});
+});
+
+/**
+ * The backstop against the failure that made the tool feel broken: the SSE
+ * channel drops a frame, the client keeps showing "Running…" for a run the
+ * server finished minutes ago, and the only way to find out is a terminal.
+ */
+describe("reconcileRuns", () => {
+	it("adopts a run in flight that this client never saw start", () => {
+		const state = reconcileRuns(initialRunState, [
+			run({ status: "running", startedAt: "2026-08-17T10:00:01.000Z" }),
+		]);
+
+		expect(state.activeRunId).toBe("run-1");
+	});
+
+	it("clears an active run the server says has finished", () => {
+		const running = fold([
+			{ type: "run.started", run: run({ status: "running" }) },
+		]);
+		expect(running.activeRunId).toBe("run-1");
+
+		const state = reconcileRuns(running, [
+			run({ status: "succeeded", endedAt: "2026-08-17T10:04:00.000Z" }),
+		]);
+
+		expect(state.activeRunId).toBeNull();
+	});
+
+	/** a failure whose `run.failed` frame was lost still has to reach the reader */
+	it("surfaces a failure it learns about only from the snapshot", () => {
+		const running = fold([
+			{ type: "run.started", run: run({ status: "running" }) },
+		]);
+
+		const state = reconcileRuns(running, [
+			run({
+				status: "failed",
+				error: { reason: "api-error", message: "HTTP 429: rate limited" },
+			}),
+		]);
+
+		expect(state.activeRunId).toBeNull();
+		expect(state.lastError).toMatchObject({
+			reason: "api-error",
+			message: "HTTP 429: rate limited",
+		});
+	});
+
+	it("leaves a live run alone", () => {
+		const running = fold([
+			{ type: "run.started", run: run({ status: "running" }) },
+		]);
+		const state = reconcileRuns(running, [run({ status: "running" })]);
+
+		expect(state.activeRunId).toBe("run-1");
+		expect(state.lastError).toBeNull();
+	});
+
+	/** a chat turn running in the background is not the analysis the tray is about */
+	it("does not adopt a chat run as the active analysis", () => {
+		const state = reconcileRuns(initialRunState, [
+			run({ id: "chat-1", lane: "chat", stage: "chat", status: "running" }),
+		]);
+
+		expect(state.activeRunId).toBeNull();
+	});
+});
+
+describe("runReducer progress frames", () => {
+	it("keeps the run active and carries what it is doing", () => {
+		const state = fold([
+			{ type: "run.started", run: run({ status: "running" }) },
+			{
+				type: "run.progress",
+				run: run({
+					status: "running",
+					progress: {
+						activity: "Reading src/a.ts",
+						toolCalls: 12,
+						lastActivityAt: "2026-08-17T10:02:00.000Z",
+					},
+				}),
+			},
+		]);
+
+		expect(state.activeRunId).toBe("run-1");
+		expect(state.byId["run-1"]?.progress?.toolCalls).toBe(12);
 	});
 });

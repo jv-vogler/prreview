@@ -1,3 +1,4 @@
+import { describeToolActivity } from "../domain/analysis/RunProgress";
 import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import type { Hunk } from "../domain/changeset/Hunk";
@@ -249,6 +250,13 @@ async function runTurn(run: TurnRun): Promise<RunOutcome> {
 		{
 			signal: run.context.signal,
 			onText: (text) => deps.publish({ type: "chat.turn.delta", turnId, text }),
+			// a question that sends the agent off to read six files goes quiet for
+			// a while; saying which file keeps that from reading as a hang
+			onTool: (event) =>
+				deps.runManager.report(run.context.runId, {
+					kind: "activity",
+					activity: describeToolActivity(event.name, event.target),
+				}),
 		},
 	);
 

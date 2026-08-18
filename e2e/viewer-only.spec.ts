@@ -105,14 +105,16 @@ test.describe("viewer only: no agent, no AI surfaces", () => {
 		).toContainText("greeting.ts");
 		await expect(dismissNotice).toHaveCount(0);
 
-		// and coverage still works, ring and disk alike
+		// and coverage still works, ring and disk alike — driven by the box, which
+		// is a viewer affordance and stays whether or not an agent exists
 		const coverageRing = page.getByRole("meter", { name: "Review coverage" });
+		await page.locator("[data-file-viewed]").first().check();
 		await expect(coverageRing).toHaveAttribute("aria-valuenow", "100", {
 			timeout: RING_UPDATE_TIMEOUT_MS,
 		});
 		await expect
 			.poll(() => coverageStatesOnDisk(), { timeout: DISK_PERSIST_TIMEOUT_MS })
-			.toContain("viewed");
+			.toContain("reviewed");
 	});
 
 	/** the `gitOnly` shim: no claude, no gh, whatever the machine has installed */

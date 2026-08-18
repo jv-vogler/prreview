@@ -811,8 +811,10 @@ it.
 **domain/** No React, no URLs. `session` derives FeatureFlags from the toolchain. `changeset`
 holds `sortFilesByAttention` (F6). `annotation` has the three-species discriminated union, pure
 `applyCuration` transitions, and `checkIfPublishable`. `analysis` holds the run reducer, `chat`
-holds `reduceChatDelta`. `coverage` has a monotonic `upgradeHunkCoverage` (viewed never silently
-downgrades a hunk already marked reviewed) plus the percentage math for F7. Two flow machines
+holds `reduceChatDelta`. `coverage` has `applyHunkCoverage` — monotonic between the two seen states (viewed never
+silently downgrades a hunk already marked reviewed), while an explicit `unseen` always wins,
+because unticking the box is a statement and nothing infers coverage any more — plus the
+percentage math for F7. Two flow machines
 live here: walkthrough as `NotStarted | AtStep{index} | Detoured{fromStep} | Completed`, because
 jumping out and coming back is a transition rather than a boolean, and publish as
 `Idle → Preflight → Confirming{summary, skipped} → Publishing → Published{url} | Failed`. Errors
@@ -821,7 +823,9 @@ are typed with machine-readable reason unions that views map exhaustively.
 **State ownership.** Server state is authoritative via TanStack Query, with SSE events patching
 caches through `setQueryData` rather than blanket invalidation. `changeset.drifted` only raises
 a banner; refetching is a user action. Curation is optimistic through the echo protocol above.
-Viewed hunks come from an IntersectionObserver into a local set, flushed by a debounced PUT.
+Viewed state comes from a per-file "Viewed" box, flushed by a PUT. It used to come from an
+IntersectionObserver over the rendered rows, which meant scrolling past a file marked it read and
+the percentage measured scroll position rather than attention; the observer is gone.
 Walkthrough position is mirrored to the server. Cursor, scroll, panel sizes, and drafts stay
 client-only. Diff mode and theme live in localStorage.
 
@@ -848,10 +852,13 @@ client-only. Diff mode and theme live in localStorage.
   because focus trapping and dismissal are the highest-defect-density code in any UI, while the
   visuals stay 100% ours through tokens. The rest are plain styled elements.
 
-**pages/** `/` is the gate, redirecting to `/overview` when a comprehension pass has run and
-coverage is 0, otherwise to `/diff`. The four surfaces are **nested routes under one
-`ReviewLayout`**: `/overview`, `/diff?file=&hunk=&finding=`, `/understand?topic=`, `/comments`.
-`/orient` redirects to `/overview` permanently, so a saved link still lands somewhere true.
+**pages/** `/` is the gate, redirecting to `/understand` when a comprehension pass has run and
+coverage is 0, otherwise to `/diff`. The three surfaces are **nested routes under one
+`ReviewLayout`**: `/understand?topic=`, `/diff?file=&hunk=&finding=`, `/comments`. `/orient` and
+`/overview` both redirect to `/understand` permanently, so a saved link still lands somewhere
+true. Overview shipped as its own tab for one release and was folded back in: it and the topics
+came from one comprehension pass and read as one account, so the split charged a click for half
+a thought.
 
 The layout owns everything that must survive a tab switch — the session and changeset gate,
 coverage, analysis, chat, the diff cursor, the drift banner, and **the highlight worker pool**.
@@ -859,15 +866,26 @@ The pool in particular cannot live inside the diff: it is a singleton that termi
 last provider unmounts, so a tab switch would kill four workers and the switch back would
 re-highlight everything. Hoisted, with content-derived cache keys, a remount is a cache hit.
 
-Without an agent the three AI routes redirect to `/diff`. Hiding the tabs is not enough — a
+Without an agent the two AI routes redirect to `/diff`. Hiding the tabs is not enough — a
 saved link, the `/orient` redirect, or a typed URL all reach a route directly, and the page they
 would land on invites the reader to start a pass no agent can run.
 
 **Keyboard-first.** `DiffNavigationProvider` owns a `{fileIndex, hunkIndex}` cursor kept in sync
 with scrolling. Keymap: `j`/`k` files, `n`/`p` hunks, `]`/`[` annotations, `a`/`e`/`x`
 accept/edit/dismiss, `v`/`m` mark hunk/file reviewed, `f` toggle finding balloons, `c` chat, `s`
-split/unified, `g o`/`g d`/`g u`/`g c` go to overview/diff/understanding/comments, `?` help. All
-suppressed inside inputs and dialogs.
+split/unified, `g d`/`g u`/`g c` go to diff/understanding/comments, `?` help. All suppressed
+inside inputs and dialogs.
+
+**A run is never a bare spinner.** `RunStatusBar` sits in the layout, not in a tab, and reports
+the running pass wherever the reader is: what the agent is doing right now (its own tool calls,
+forwarded through `RunProgress` and coalesced by the run manager into `run.progress`), elapsed
+against the run's own `timeoutMs` so the deadline is named, a stall warning when nothing has
+moved for 90s, a Stop button, and — the part that matters most — the failure, with a Try again.
+Failures used to be reported only inside the invitation on the tab that started the pass, so a
+run that died while the reader was on the diff said nothing anywhere and the screen simply
+stopped changing. Alongside the channel the client re-reads `GET /api/analysis/runs` every 8s
+while a run is live (`reconcileRuns`), which bounds how wrong a dropped frame can leave it, and
+`interface/cli/runReporter.ts` narrates the same facts to the terminal as a second witness.
 
 ---
 

@@ -54,11 +54,13 @@ export function AnalysisInvitation({
 			>
 				{running ? "Running…" : actionLabel}
 			</button>
-			{analysis.failure !== null && (
-				<p className={styles.failure} role="alert">
-					{analysis.failure.message}
-				</p>
-			)}
+			{/*
+				No failure text here on purpose. It used to be the only place a
+				failure was reported, which meant a run that died while the reader
+				was on another tab said nothing anywhere. RunStatusBar sits in the
+				layout and reports it wherever they are; repeating it here would be
+				the same sentence twice on one screen.
+			*/}
 		</div>
 	);
 }

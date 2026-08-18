@@ -1,4 +1,5 @@
 import type { TicketHint } from "../domain/analysis/discoverTicket";
+import { describeToolActivity } from "../domain/analysis/RunProgress";
 import { topicGranularity } from "../domain/analysis/topicGranularity";
 import type { Understanding } from "../domain/analysis/Understanding";
 import { buildUnderstanding } from "../domain/analysis/Understanding";
@@ -125,7 +126,17 @@ async function runComprehension(run: ComprehensionRun): Promise<RunOutcome> {
 	const startedAt = nowIso();
 	const consumed = await consumeEngineRun(
 		run.engine.runTask(run.task, run.taskInput),
-		{ signal: run.context.signal },
+		{
+			signal: run.context.signal,
+			// what the agent is doing, forwarded so the screen can say it. Without
+			// this the reader sees "Running…" for as long as the pass takes and has
+			// no way to tell a working run from a wedged one.
+			onTool: (event) =>
+				run.deps.runManager.report(run.context.runId, {
+					kind: "activity",
+					activity: describeToolActivity(event.name, event.target),
+				}),
+		},
 	);
 	const sessionSoFar = {
 		engineSessionId: consumed.session?.sessionId ?? "",

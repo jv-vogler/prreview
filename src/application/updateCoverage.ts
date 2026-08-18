@@ -1,11 +1,11 @@
 import type { ChangesetId } from "../domain/changeset/ChangesetId";
 import type { FileDiff } from "../domain/changeset/FileDiff";
+import { applyHunkCoverage } from "../domain/coverage/applyHunkCoverage";
 import {
 	type CoverageSummary,
 	computeCoverage,
 } from "../domain/coverage/computeCoverage";
 import type { HunkCoverage } from "../domain/coverage/HunkCoverage";
-import { upgradeHunkCoverage } from "../domain/coverage/upgradeHunkCoverage";
 import type { SessionStore } from "./ports/SessionStore";
 
 export interface UpdateCoverageDeps {
@@ -53,12 +53,16 @@ export function makeUpdateCoverage(deps: UpdateCoverageDeps): UpdateCoverage {
 			if (!knownHunkIds.has(update.hunkId)) {
 				continue;
 			}
-			const upgraded = upgradeHunkCoverage(
+			const next = applyHunkCoverage(
 				coverage[update.hunkId] ?? "unseen",
 				update.state,
 			);
-			if (upgraded !== "unseen") {
-				coverage[update.hunkId] = upgraded;
+			if (next === "unseen") {
+				// deleted rather than stored: absence *is* unseen, and leaving the
+				// key behind would make an un-marked hunk survive a round carry
+				delete coverage[update.hunkId];
+			} else {
+				coverage[update.hunkId] = next;
 			}
 		}
 

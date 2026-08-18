@@ -5,16 +5,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DiffViewer } from "./useDiffViewport";
 import { useDiffViewport } from "./useDiffViewport";
 
-const ROW_HEIGHT = 20;
-/** the pane the rows are scrolled inside */
-const ROOT_WIDTH = 1120;
 /**
- * A file whose widest line dwarfs the pane: Pierre gives every row in a file
- * the file's full horizontal scroll width, so one long line makes all of them
- * this wide. Horizontal clipping alone then caps the intersected *area* ratio
- * at ROOT_WIDTH / WIDE_ROW_WIDTH — far below any useful threshold.
+ * What survives of this hook after coverage stopped being inferred.
+ *
+ * It used to also drive an IntersectionObserver that marked hunks *viewed* as
+ * their rows crossed the viewport, and most of this file tested that: whether a
+ * row wider than the pane still counted, where the half-height threshold sat.
+ * All of it measured the wrong thing — scrolling past code is not reading it —
+ * and the mechanism is gone. Reading state is now a box a person ticks
+ * (FileViewedToggle), and this hook only answers "where is the reader looking".
  */
-const WIDE_ROW_WIDTH = 4517;
+
+const ROW_HEIGHT = 20;
+const ROOT_WIDTH = 1120;
+const ROW_WIDTH = 4517;
 
 const file: FileDiffDto = {
 	id: "f_wide",
@@ -28,7 +32,7 @@ const file: FileDiffDto = {
 	newBlob: null,
 	hunks: [
 		{
-			id: "hunk-wide",
+			id: "hunk-one",
 			header: "@@ -182,2 +182,2 @@",
 			oldStart: 182,
 			oldLines: 2,
@@ -40,39 +44,29 @@ const file: FileDiffDto = {
 				{ type: "add", content: "| new |", newLine: 183 },
 			],
 		},
+		{
+			id: "hunk-two",
+			header: "@@ -300,1 +300,1 @@",
+			oldStart: 300,
+			oldLines: 1,
+			newStart: 300,
+			newLines: 1,
+			lines: [{ type: "add", content: "| later |", newLine: 300 }],
+		},
 	],
 };
 
-interface ObserverStub {
-	callback: IntersectionObserverCallback;
-	observed: Element[];
-}
-
-let observers: ObserverStub[] = [];
-
-class FakeIntersectionObserver {
-	constructor(callback: IntersectionObserverCallback) {
-		this.stub = { callback, observed: [] };
-		observers.push(this.stub);
-	}
-	private readonly stub: ObserverStub;
-	observe(target: Element) {
-		this.stub.observed.push(target);
-	}
-	unobserve() {}
-	disconnect() {}
-}
-
-function createViewer(): DiffViewer {
+/** rows laid out top to bottom, the first one scrolled just off the pane */
+function createViewer(topsByLine: Record<number, number>): DiffViewer {
 	const container = document.createElement("div");
 	container.getBoundingClientRect = () => new DOMRect(0, 0, ROOT_WIDTH, 900);
 	const item = document.createElement("div");
 	const shadow = item.attachShadow({ mode: "open" });
-	for (const line of [182, 183]) {
+	for (const [line, top] of Object.entries(topsByLine)) {
 		const row = document.createElement("div");
-		row.setAttribute("data-line", String(line));
+		row.setAttribute("data-line", line);
 		row.getBoundingClientRect = () =>
-			new DOMRect(0, 0, WIDE_ROW_WIDTH, ROW_HEIGHT);
+			new DOMRect(0, top, ROW_WIDTH, ROW_HEIGHT);
 		shadow.append(row);
 	}
 	container.append(item);
@@ -83,86 +77,58 @@ function createViewer(): DiffViewer {
 	};
 }
 
-/** an entry for a row that is `visibleHeight` px tall on screen */
-function entryFor(target: Element, visibleHeight: number) {
-	return {
-		target,
-		isIntersecting: visibleHeight > 0,
-		boundingClientRect: new DOMRect(0, 0, WIDE_ROW_WIDTH, ROW_HEIGHT),
-		intersectionRect: new DOMRect(0, 0, ROOT_WIDTH, visibleHeight),
-	} as unknown as IntersectionObserverEntry;
-}
-
 beforeEach(() => {
-	observers = [];
-	vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
 	vi.useFakeTimers();
 });
 
 afterEach(() => {
 	vi.useRealTimers();
-	vi.unstubAllGlobals();
 	document.body.replaceChildren();
 });
 
-function mountViewport(onHunksViewed: (ids: readonly string[]) => void) {
+function mountViewport(
+	topsByLine: Record<number, number>,
+	onCursorFromScroll: (cursor: {
+		fileIndex: number;
+		hunkIndex: number;
+	}) => void,
+) {
 	const rendered = renderHook(() =>
-		useDiffViewport({
-			files: [file],
-			onHunksViewed,
-			onCursorFromScroll: () => {},
-		}),
+		useDiffViewport({ files: [file], onCursorFromScroll }),
 	);
 	act(() => {
-		rendered.result.current.attachViewer(createViewer());
+		rendered.result.current.attachViewer(createViewer(topsByLine));
 		vi.runAllTimers();
 	});
-	return observers[0];
+	return rendered;
 }
 
 describe("useDiffViewport", () => {
-	it("marks a row read on vertical visibility even when it is far wider than the pane", () => {
-		const onHunksViewed = vi.fn();
-		const observer = mountViewport(onHunksViewed);
-		expect(observer.observed.length).toBeGreaterThan(0);
+	it("reports the topmost visible hunk as the cursor", () => {
+		const onCursorFromScroll = vi.fn();
+		mountViewport({ 182: 10, 300: 400 }, onCursorFromScroll);
 
-		// fully visible top to bottom; the intersected area is only ~24% of the
-		// row because the row extends well past the pane horizontally.
-		act(() => {
-			observer.callback(
-				[entryFor(observer.observed[0], ROW_HEIGHT)],
-				{} as IntersectionObserver,
-			);
+		expect(onCursorFromScroll).toHaveBeenCalledWith({
+			fileIndex: 0,
+			hunkIndex: 0,
 		});
-
-		expect(onHunksViewed).toHaveBeenCalledWith(["hunk-wide"]);
 	});
 
-	it("ignores a row only slightly on screen", () => {
-		const onHunksViewed = vi.fn();
-		const observer = mountViewport(onHunksViewed);
+	/** the reader scrolled past the first hunk: the cursor follows, not the DOM order */
+	it("skips a hunk scrolled above the pane", () => {
+		const onCursorFromScroll = vi.fn();
+		mountViewport({ 182: -100, 300: 40 }, onCursorFromScroll);
 
-		act(() => {
-			observer.callback(
-				[entryFor(observer.observed[0], ROW_HEIGHT * 0.2)],
-				{} as IntersectionObserver,
-			);
+		expect(onCursorFromScroll).toHaveBeenCalledWith({
+			fileIndex: 0,
+			hunkIndex: 1,
 		});
-
-		expect(onHunksViewed).not.toHaveBeenCalled();
 	});
 
-	it("marks a row read once half its height is on screen", () => {
-		const onHunksViewed = vi.fn();
-		const observer = mountViewport(onHunksViewed);
+	it("reports nothing when the viewer has no rows", () => {
+		const onCursorFromScroll = vi.fn();
+		mountViewport({}, onCursorFromScroll);
 
-		act(() => {
-			observer.callback(
-				[entryFor(observer.observed[0], ROW_HEIGHT * 0.5)],
-				{} as IntersectionObserver,
-			);
-		});
-
-		expect(onHunksViewed).toHaveBeenCalledWith(["hunk-wide"]);
+		expect(onCursorFromScroll).not.toHaveBeenCalled();
 	});
 });

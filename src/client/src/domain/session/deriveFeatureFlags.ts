@@ -18,6 +18,5 @@ export function deriveFeatureFlags(toolchain: ToolchainDto): FeatureFlags {
 	return {
 		analysis: agentAvailable,
 		chat: agentAvailable,
-		walkthrough: agentAvailable,
 	};
 }

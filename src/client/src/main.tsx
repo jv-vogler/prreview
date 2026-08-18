@@ -7,7 +7,6 @@ import { buildClientContainer } from "./infrastructure/container";
 import { installGoodbyeBeacon } from "./infrastructure/lifecycle/installGoodbyeBeacon";
 import { CommentsPage } from "./pages/CommentsPage";
 import { DiffPage } from "./pages/DiffPage";
-import { OverviewPage } from "./pages/OverviewPage";
 import { ReviewLayout } from "./pages/ReviewLayout";
 import { RootPage } from "./pages/RootPage";
 import { UnderstandPage } from "./pages/UnderstandPage";
@@ -35,22 +34,24 @@ const queryClient = new QueryClient({
 });
 
 /**
- * Four surfaces as nested routes under one layout, so everything that must
+ * Three surfaces as nested routes under one layout, so everything that must
  * survive a tab switch — coverage, the run, chat, the diff cursor, the worker
  * pool — is owned above them and rebuilt by none of them.
  *
- * `/orient` redirects permanently: the orientation it named is now Overview,
- * and a link someone saved should land somewhere true rather than 404.
+ * `/orient` and `/overview` both redirect to Understanding. Overview was its
+ * own tab for one release and should not have been: it and Understanding came
+ * from the same pass over the diff and read as one account, so splitting them
+ * charged a click for half a thought. Old links land on the whole thing.
  */
 const router = createBrowserRouter([
 	{ path: "/", element: <RootPage /> },
-	{ path: "/orient", element: <Navigate to="/overview" replace /> },
+	{ path: "/orient", element: <Navigate to="/understand" replace /> },
+	{ path: "/overview", element: <Navigate to="/understand" replace /> },
 	{
 		element: <ReviewLayout />,
 		children: [
-			{ path: "/overview", element: <OverviewPage /> },
-			{ path: "/diff", element: <DiffPage /> },
 			{ path: "/understand", element: <UnderstandPage /> },
+			{ path: "/diff", element: <DiffPage /> },
 			{ path: "/comments", element: <CommentsPage /> },
 		],
 	},

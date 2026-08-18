@@ -141,6 +141,7 @@ describe("the container shape (ARCHITECTURE §2)", () => {
 	it("an injected run manager is used as-is (PAT-001)", () => {
 		const runManager: RunManager = {
 			enqueue: () => ({ kind: "accepted", runId: "run-1" }),
+			report: () => {},
 			cancel: () => false,
 			cancelAll: () => {},
 			get: () => undefined,

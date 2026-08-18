@@ -19,6 +19,25 @@ export const runFailureReasonDtoSchema = z.enum([
 export type RunFailureReasonDto = z.infer<typeof runFailureReasonDtoSchema>;
 
 /**
+ * What a run is doing, so the UI never has to show a bare spinner.
+ *
+ * `lastActivityAt` is the load-bearing field: elapsed time alone cannot tell a
+ * slow run from a hung one, and the difference is the whole reason a reader
+ * would reach for a terminal to check on their own tool.
+ */
+export const runProgressDtoSchema = z.object({
+	/** the current move in plain words; null before the agent's first */
+	activity: z.string().nullable(),
+	toolCalls: z.int().min(0),
+	lastActivityAt: z.string(),
+	/** a fan-out's finished children, when this run has children */
+	partsDone: z.int().min(0).optional(),
+	partsTotal: z.int().min(0).optional(),
+});
+
+export type RunProgressDto = z.infer<typeof runProgressDtoSchema>;
+
+/**
  * One run of the two-lane manager (ARCHITECTURE §7, §8), carried by every
  * `run.*` event and served by `GET /api/analysis/runs`. `queuedAt` is always
  * known; `startedAt` appears when the lane picked the run up, which is what
@@ -45,6 +64,9 @@ export const runDtoSchema = z.object({
 		.optional(),
 	/** anchors the agent named that could not be placed and were dropped */
 	skippedAnchors: z.int().min(0).optional(),
+	progress: runProgressDtoSchema.optional(),
+	/** the budget this run is stopped at, so the UI can name the deadline */
+	timeoutMs: z.int().min(0),
 });
 
 export type RunDto = z.infer<typeof runDtoSchema>;

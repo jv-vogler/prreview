@@ -135,11 +135,28 @@ describe("PUT /api/coverage", () => {
 		const response = await app.request("/api/coverage", {
 			method: "PUT",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ updates: [{ hunkId: "x", state: "unseen" }] }),
+			body: JSON.stringify({ updates: [{ hunkId: "x", state: "skimmed" }] }),
 		});
 
 		expect(response.status).toBe(400);
 		expect(await response.json()).toMatchObject({ reason: "validation" });
+	});
+
+	/**
+	 * `unseen` is on the wire deliberately: unticking GitHub's "Viewed" box has
+	 * to reach the server as something. It used to be rejected, from back when a
+	 * scroll observer wrote coverage and a client could not be trusted to undo
+	 * it.
+	 */
+	it("accepts a deliberate return to unseen", async () => {
+		const { app } = await createTestApp();
+		const response = await app.request("/api/coverage", {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ updates: [{ hunkId: "x", state: "unseen" }] }),
+		});
+
+		expect(response.status).toBe(200);
 	});
 
 	it("rejects malformed JSON with 400 validation", async () => {

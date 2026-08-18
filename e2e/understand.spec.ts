@@ -2,7 +2,7 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
 	createFixtureRepo,
 	type FixtureRepo,
@@ -105,8 +105,11 @@ test.describe("understand: one pass, four tabs, and a question", () => {
 		await page.goto(firstRun.url);
 		await expect(page.locator('[data-tab="diff"]')).toBeVisible();
 		// the AI tabs exist because an agent does, but hold nothing yet
-		await expect(page.locator('[data-tab="overview"]')).toBeVisible();
 		await expect(page.locator('[data-tab="understand"]')).toBeVisible();
+		await expect(page.locator('[data-tab="comments"]')).toBeVisible();
+		// Overview was folded into Understanding: the tab is gone, and the route
+		// someone bookmarked lands on the whole account rather than a 404
+		await expect(page.locator('[data-tab="overview"]')).toHaveCount(0);
 		// and nothing agent-produced is in the margin before the reader asks
 		await expect(page.locator(EXPLANATION_NOTE)).toHaveCount(0);
 
@@ -146,8 +149,7 @@ test.describe("understand: one pass, four tabs, and a question", () => {
 			firstTopic.locator("[data-block-key]").first(),
 		).toHaveAttribute("data-block-key", /^t\d+:/);
 
-		// ── the Overview, from the same pass ───────────────────────────────────
-		await page.locator('[data-tab="overview"]').click();
+		// ── the purpose, on the same screen and from the same pass ────────────
 		await expect(
 			page.getByRole("heading", { name: "What this change is for" }),
 		).toBeVisible();
@@ -346,10 +348,6 @@ function firstHunkId(changeset: ChangesetSnapshot, path: string): string {
 		throw new Error(`the round has no hunk for ${path}`);
 	}
 	return hunkId;
-}
-
-async function ringPercent(ring: Locator): Promise<number> {
-	return Number(await ring.getAttribute("aria-valuenow"));
 }
 
 const COMMITTED_GREETING = [

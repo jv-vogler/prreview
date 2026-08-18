@@ -22,6 +22,7 @@ import { createLifecycle } from "../http/lifecycle";
 import { createReviewState } from "../http/reviewState";
 import { resolveClientDir } from "../http/static";
 import { type CliArgs, parseCliArgs } from "./args";
+import { createRunReporter } from "./runReporter";
 
 /** SEC-001: loopback only, unconditionally — there is no --host on purpose. */
 const BIND_HOST = "127.0.0.1";
@@ -52,6 +53,12 @@ async function main(): Promise<void> {
 	// built before the container because the container publishes through it, and
 	// connected to the channel below once the hub and the state exist
 	const publisher = createAppEventPublisher();
+	// the terminal is the second witness: whatever the browser shows about a
+	// run, the window prreview was started from shows too, so "is it working?"
+	// never needs a third tool to answer
+	const reporter = createRunReporter({
+		write: (line) => process.stdout.write(line),
+	});
 	const container = buildContainer(
 		{
 			repoRoot,
@@ -59,7 +66,13 @@ async function main(): Promise<void> {
 			cacheDir: defaultEngineCacheDir(),
 		},
 		toolchain,
-		{ publish: publisher.publish, ...(brain === null ? {} : { brain }) },
+		{
+			publish: (event) => {
+				reporter.observe(event);
+				publisher.publish(event);
+			},
+			...(brain === null ? {} : { brain }),
+		},
 	);
 
 	const review = await container.openReview({

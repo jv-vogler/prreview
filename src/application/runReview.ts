@@ -1,3 +1,4 @@
+import { describeToolActivity } from "../domain/analysis/RunProgress";
 import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
@@ -139,6 +140,21 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 	);
 	const resumeSessionId = analysis?.engineSessionId ?? null;
 
+	/*
+	 * The fan-out is one run to the manager, which is right for cancellation and
+	 * wrong for the reader: without this counter a five-lens review looks like a
+	 * single opaque wait. `parts` is how many readings are finished, so a slow
+	 * pass still visibly advances.
+	 */
+	let lensesDone = 0;
+	const reportParts = () =>
+		deps.runManager.report(run.context.runId, {
+			kind: "parts",
+			done: lensesDone,
+			total: input.depth.lenses.length,
+		});
+	reportParts();
+
 	const results = await mapWithLimit(
 		input.depth.lenses,
 		input.depth.parallelChildren,
@@ -160,8 +176,20 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 			});
 			const consumed = await consumeEngineRun(
 				run.engine.runTask(task, taskInput),
-				{ signal: run.context.signal },
+				{
+					signal: run.context.signal,
+					onTool: (event) =>
+						deps.runManager.report(run.context.runId, {
+							kind: "activity",
+							// the lens is named because five children read in parallel
+							// and "Reading src/api.ts" alone would look like one agent
+							// jumping around at random
+							activity: `${lens}: ${describeToolActivity(event.name, event.target)}`,
+						}),
+				},
 			);
+			lensesDone += 1;
+			reportParts();
 			const result = consumed.result;
 			if (consumed.aborted || result === null || !result.ok) {
 				// one lens failing is not the run failing: five readings minus one

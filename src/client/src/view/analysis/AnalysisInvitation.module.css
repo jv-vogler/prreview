@@ -44,9 +44,3 @@
 	opacity: 0.6;
 	cursor: default;
 }
-
-.failure {
-	margin: 12px 0 0;
-	font-size: var(--text-body-size-small);
-	color: var(--fgColor-danger);
-}

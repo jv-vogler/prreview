@@ -25,9 +25,11 @@ import {
 	FindingBalloon,
 	FindingBalloonGroup,
 } from "../findings/FindingBalloon";
+import { useGuaranteedSession } from "../session/useGuaranteedSession";
 import type { DiffCursor } from "./DiffNavigationProvider";
 import { useDiffNavigation } from "./DiffNavigationProvider";
 import styles from "./DiffWorkspace.module.css";
+import { FileViewedToggle } from "./FileViewedToggle";
 import type { DiffStyle } from "./useDiffStyle";
 import { useDiffViewport } from "./useDiffViewport";
 import { useGuaranteedChangeset } from "./useGuaranteedChangeset";
@@ -56,13 +58,33 @@ interface AnnotationMetadata {
 	card: AnnotationCard;
 }
 
+/** the server's per-file percentage at which every hunk is accounted for */
+const FULLY_READ_PERCENT = 100;
+
 export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
 	const { api } = useClientContainer();
 	const changeset = useGuaranteedChangeset();
+	const session = useGuaranteedSession();
 	const navigation = useDiffNavigation();
-	const { markViewed } = useCoverageActions();
+	const { isFolded, isFileViewed } = useCoverageActions();
 	const annotations = useAnnotations();
 	const handleRef = useRef<CodeViewHandle<AnnotationMetadata>>(null);
+
+	/*
+	 * Read state comes from the server's coverage summary, never from a local
+	 * guess: it is the same number the ring in the header shows, so the box and
+	 * the percentage can never disagree, and it survives a reload because the
+	 * session owns it.
+	 */
+	const viewedByFileId = useMemo(() => {
+		const viewed = new Set<string>();
+		for (const [fileId, percent] of Object.entries(session.coverage.byFile)) {
+			if (percent >= FULLY_READ_PERCENT) {
+				viewed.add(fileId);
+			}
+		}
+		return viewed;
+	}, [session.coverage.byFile]);
 
 	// files without hunks (binary, mode-only, pure renames) have no rows to
 	// render; they stay in the tree but not in the code view
@@ -107,12 +129,20 @@ export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
 				return [];
 			}
 			const placed = placedByFileId.get(file.id) ?? [];
+			const collapsed = isFolded(
+				file.id,
+				isFileViewed(file.id, viewedByFileId.has(file.id)),
+			);
 			return [
 				{
 					id: file.id,
 					type: "diff" as const,
 					fileDiff,
-					version: annotationsVersion(placed),
+					// the fold state is in the version because the renderer reuses a
+					// file's rendered record until this number moves, so a fold that
+					// is not in the hash is a fold that does not happen
+					version: itemVersion(placed, collapsed),
+					collapsed,
 					annotations: placed.map((entry) => ({
 						side: entry.side,
 						lineNumber: entry.lineNumber,
@@ -121,7 +151,14 @@ export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
 				},
 			];
 		});
-	}, [renderedFiles, changeset.roundId, placedByFileId]);
+	}, [
+		renderedFiles,
+		changeset.roundId,
+		placedByFileId,
+		isFolded,
+		isFileViewed,
+		viewedByFileId,
+	]);
 
 	const filesByPath = useMemo(
 		() => new Map(renderedFiles.map((file) => [file.path, file])),
@@ -156,9 +193,13 @@ export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
 
 	const viewport = useDiffViewport({
 		files: navigation.files,
-		onHunksViewed: markViewed,
 		onCursorFromScroll: navigation.setCursorFromScroll,
 	});
+
+	const filesById = useMemo(
+		() => new Map(renderedFiles.map((file) => [file.id, file])),
+		[renderedFiles],
+	);
 
 	const scrollToCursor = useCallback(
 		(cursor: DiffCursor) => {
@@ -224,6 +265,20 @@ export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
 			className={styles.codeView}
 			onScroll={viewport.scheduleSync}
 			renderAnnotation={(annotation) => renderCard(annotation.metadata.card)}
+			renderHeaderMetadata={(item) => {
+				const file = filesById.get(item.id);
+				if (file === undefined) {
+					return null;
+				}
+				const viewed = isFileViewed(file.id, viewedByFileId.has(file.id));
+				return (
+					<FileViewedToggle
+						file={file}
+						viewed={viewed}
+						folded={isFolded(file.id, viewed)}
+					/>
+				);
+			}}
 			options={{
 				theme: PIERRE_THEME_NAME,
 				diffStyle,
@@ -241,19 +296,25 @@ export function DiffWorkspace({ diffStyle, showFindings }: DiffWorkspaceProps) {
 const FNV_OFFSET_BASIS = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 const NO_ANNOTATIONS_VERSION = 0;
+/** a file with nothing in its margin, folded: still a different render */
+const COLLAPSED_EMPTY_VERSION = 2;
 
 /**
  * The renderer reuses a file's rendered record until that item's `version`
  * changes, so notes arriving mid-run appear only if the version moves with
- * them. Derived from what is actually placed rather than from a counter, so the
- * number a reload computes is the number the previous render had, and an
- * unchanged file is never re-laid-out.
+ * them — and a file folds only if the fold is in here too. Derived from what is
+ * actually rendered rather than from a counter, so the number a reload computes
+ * is the number the previous render had, and an unchanged file is never
+ * re-laid-out.
  */
-function annotationsVersion(placed: readonly PlacedAnnotation[]): number {
+function itemVersion(
+	placed: readonly PlacedAnnotation[],
+	collapsed: boolean,
+): number {
 	if (placed.length === 0) {
-		return NO_ANNOTATIONS_VERSION;
+		return collapsed ? COLLAPSED_EMPTY_VERSION : NO_ANNOTATIONS_VERSION;
 	}
-	let hash = FNV_OFFSET_BASIS;
+	let hash = collapsed ? FNV_OFFSET_BASIS ^ 1 : FNV_OFFSET_BASIS;
 	for (const entry of placed) {
 		const ids =
 			entry.card.kind === "note"
@@ -265,9 +326,13 @@ function annotationsVersion(placed: readonly PlacedAnnotation[]): number {
 			hash = Math.imul(hash, FNV_PRIME);
 		}
 	}
-	// zero means "no notes", so a signature that lands there borrows the next one
-	return hash >>> 0 || 1;
+	// the low values are the empty cases above; a signature landing on one
+	// borrows the first number nothing else claims
+	const signature = hash >>> 0;
+	return signature > COLLAPSED_EMPTY_VERSION ? signature : FIRST_FREE_VERSION;
 }
+
+const FIRST_FREE_VERSION = 3;
 
 /**
  * The renderer calls this through a React portal for every annotation it lays

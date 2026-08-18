@@ -5,19 +5,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 prreview: a CLI (`npx prreview`) that serves a code review workspace on localhost for PRs,
-branches, commit ranges, and working-tree changes. **Four tabs**, each a separate deliberate
+branches, commit ranges, and working-tree changes. **Three tabs**, each a separate deliberate
 spend:
 
 | Tab | Route | What it is | Spend |
 |---|---|---|---|
-| Overview | `/overview` | what the change is for; ticket when cheaply found; whether the code matches | shares the comprehension pass |
-| Diff | `/diff` | plain GitHub-style diff; a toggle overlays finding balloons | free |
-| Understanding | `/understand` | the change as plain-language topics, each carrying its code | comprehension pass |
+| Understanding | `/understand` | what the change is for, whether the code matches, then the change as plain-language topics each carrying its code | comprehension pass |
+| Diff | `/diff` | plain GitHub-style diff, GitHub-style per-file "Viewed"; a toggle overlays finding balloons | free |
 | Suggested comments | `/comments` | candidate review comments at a chosen depth | its own pass |
 
 Nothing chains one pass off another: reading about a change must never quietly spend on a review
-nobody asked for. With no agent installed the three AI tabs are **absent** (not disabled), and
-the routes redirect to the diff.
+nobody asked for. With no agent installed the two AI tabs are **absent** (not disabled), and the
+routes redirect to the diff. `/overview` and `/orient` both redirect to `/understand` — Overview
+was its own tab for one release and should not have been: it came from the same pass and read as
+the same account, so splitting it charged a click for half a thought.
+
+**Every pass triggers from inside the tab it fills.** There is no analysis button in the header;
+one lived there, appeared beside every tab, and belonged to none of them.
 
 Built and working: the viewer, the comprehension pass (topics + overview + opportunistic ticket),
 the findings pass (six lenses, adjudication, form and grounding gates), and chat. Not yet:
@@ -57,6 +61,21 @@ Key structural facts:
 - **Server-authoritative client**: TanStack Query caches patched by one SSE channel
   (`interface/http/events/`); coverage percentages always come from the server, never
   recomputed for display.
+- **Coverage is never inferred**: a per-file "Viewed" box is the only writer, exactly like
+  GitHub's, and ticking it folds the file (reopenable without unticking). The
+  IntersectionObserver that used to mark hunks viewed on scroll is **gone** — scrolling past code
+  is not reading it, review is not linear, and the percentage was measuring how far down the page
+  you had got. `applyHunkCoverage` is monotonic between the two seen states but an explicit
+  `unseen` always wins, because unticking a box is a statement.
+- **A run always says what it is doing**: the engine's tool events reach `RunProgress` in the
+  domain, the run manager coalesces them into `run.progress` (~2/s, never after a terminal
+  frame), and `view/analysis/RunStatusBar.tsx` renders activity, elapsed against the run's own
+  `timeoutMs`, a stall warning, a Stop button, and — wherever the reader is — the failure. The
+  client also re-reads `GET /api/analysis/runs` every 8s while a run is live, so a dropped SSE
+  frame can make the screen a few seconds stale but never permanently wrong. `interface/cli/
+  runReporter.ts` narrates the same facts to the terminal. The rule behind all of it: **anything
+  prreview computes about a run has to reach a human without being asked** — three separate bugs
+  have now been "a mechanism ran correctly and its result went nowhere".
 - **Sessions live in `.prreview/`** at the reviewed repo's root (JSON, atomic temp+rename
   writes, ~500ms debounce, pidfile lock). Delete `.prreview/` to reset a session.
 - **Diff rendering**: `@pierre/diffs` (pinned) is imported by exactly three modules, and no

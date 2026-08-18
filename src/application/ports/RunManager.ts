@@ -1,3 +1,7 @@
+import type {
+	RunProgress,
+	RunProgressUpdate,
+} from "../../domain/analysis/RunProgress";
 import type { EngineErrorReason } from "../../domain/errors/EngineError";
 
 /**
@@ -14,6 +18,14 @@ import type { EngineErrorReason } from "../../domain/errors/EngineError";
 export interface RunManager {
 	/** returns immediately; the work runs in the background */
 	enqueue(request: RunRequest): EnqueueResult;
+	/**
+	 * The lane's job saying what it is doing, so the UI can say it too.
+	 *
+	 * Silent on a run that has already settled or never existed: progress
+	 * arriving after the result is a race the caller should not have to think
+	 * about, and a late tool event must never resurrect a finished run.
+	 */
+	report(runId: string, update: RunProgressUpdate): void;
 	/** false when no run has that id (already settled, or never existed) */
 	cancel(runId: string): boolean;
 	/** shutdown: stops every queued and running run in both lanes (SEC-002) */
@@ -45,6 +57,14 @@ export interface Run {
 	error?: RunFailure;
 	/** agent anchors that could not be placed and were dropped (TASK-032) */
 	skippedAnchors?: number;
+	/** what the run is doing, once it has done anything */
+	progress?: RunProgress;
+	/**
+	 * The budget this run will be stopped at. On the wire so the UI can say
+	 * "stops at 10 minutes" instead of leaving the reader to guess whether a
+	 * long run has any end at all.
+	 */
+	timeoutMs: number;
 }
 
 export interface RunFailure {
@@ -66,6 +86,7 @@ export interface RunEvent {
 export type RunEventType =
 	| "run.queued"
 	| "run.started"
+	| "run.progress"
 	| "run.succeeded"
 	| "run.failed"
 	| "run.cancelled";

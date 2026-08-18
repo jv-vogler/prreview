@@ -10,7 +10,6 @@ export type KeyAction =
 	| "toggle-findings"
 	| "toggle-chat"
 	| "toggle-diff-style"
-	| "go-overview"
 	| "go-diff"
 	| "go-understand"
 	| "go-comments"
@@ -58,9 +57,8 @@ const KEYMAP: Record<string, KeyAction> = {
 	"?": "open-help",
 };
 
-/** the second half of a `g` chord */
+/** the second half of a `g` chord, one per tab */
 const CHORD_KEYMAP: Record<string, KeyAction> = {
-	o: "go-overview",
 	d: "go-diff",
 	u: "go-understand",
 	c: "go-comments",

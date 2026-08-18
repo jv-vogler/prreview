@@ -5,7 +5,7 @@ import { deriveFeatureFlags } from "./deriveFeatureFlags";
 const ROWS: ReadonlyArray<{
 	name: string;
 	toolchain: ToolchainDto;
-	expected: { analysis: boolean; chat: boolean; walkthrough: boolean };
+	expected: { analysis: boolean; chat: boolean };
 }> = [
 	{
 		name: "claude present, gh present",
@@ -13,7 +13,7 @@ const ROWS: ReadonlyArray<{
 			agent: { kind: "claude", version: "2.1.233" },
 			github: { kind: "gh" },
 		},
-		expected: { analysis: true, chat: true, walkthrough: true },
+		expected: { analysis: true, chat: true },
 	},
 	{
 		name: "claude present, no github at all",
@@ -21,17 +21,17 @@ const ROWS: ReadonlyArray<{
 			agent: { kind: "claude", version: "2.1.233" },
 			github: { kind: "none" },
 		},
-		expected: { analysis: true, chat: true, walkthrough: true },
+		expected: { analysis: true, chat: true },
 	},
 	{
 		name: "no agent, gh present",
 		toolchain: { agent: { kind: "none" }, github: { kind: "gh" } },
-		expected: { analysis: false, chat: false, walkthrough: false },
+		expected: { analysis: false, chat: false },
 	},
 	{
 		name: "no toolchain at all",
 		toolchain: { agent: { kind: "none" }, github: { kind: "none" } },
-		expected: { analysis: false, chat: false, walkthrough: false },
+		expected: { analysis: false, chat: false },
 	},
 ];
 

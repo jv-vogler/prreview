@@ -3,7 +3,7 @@ import { useFeatureFlags } from "../session/useFeatureFlags";
 import styles from "./TabBar.module.css";
 
 /**
- * The four surfaces, and the promise each one makes about spending.
+ * The three surfaces, and the promise each one makes about spending.
  *
  * The diff is free and always present. Each AI tab is a separate, deliberate
  * trigger — nothing chains a second pass off the first, because "I clicked
@@ -23,9 +23,8 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-	{ to: "/overview", label: "Overview", alwaysAvailable: false },
-	{ to: "/diff", label: "Diff", alwaysAvailable: true },
 	{ to: "/understand", label: "Understanding", alwaysAvailable: false },
+	{ to: "/diff", label: "Diff", alwaysAvailable: true },
 	{ to: "/comments", label: "Suggested comments", alwaysAvailable: false },
 ];
 

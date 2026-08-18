@@ -16,7 +16,6 @@ export interface DiffViewer {
 export interface DiffViewportOptions {
 	/** files in rendered order; item ids are the file ids */
 	files: readonly FileDiffDto[];
-	onHunksViewed(hunkIds: readonly string[]): void;
 	onCursorFromScroll(cursor: DiffCursor): void;
 }
 
@@ -27,14 +26,6 @@ export interface DiffViewport {
 }
 
 const SYNC_THROTTLE_MS = 150;
-/** a row counts as read once at least half of its height has been on screen */
-const ROW_VIEWED_THRESHOLD = 0.5;
-/**
- * Notify on every crossing and as visibility grows; `isRowRead` applies the
- * real rule. A single ratio would not do: the observer measures intersected
- * *area*, which horizontal clipping alone can hold below any positive value.
- */
-const ROW_INTERSECTION_STEPS = [0, 0.25, 0.5, 0.75, 1];
 /** rows this close to the container top define the cursor position */
 const CURSOR_PROBE_OFFSET_PX = 2;
 
@@ -44,39 +35,24 @@ interface RowContext {
 }
 
 /**
- * Whether enough of a row has been on screen to count as read.
+ * Where the reader is in the diff, from where the diff is scrolled.
  *
- * Deliberately measured on the vertical axis alone: a row spans the widest
- * line in its file, so a single long line makes every row in that file many
- * times wider than the pane, and an area-based `threshold` would then be
- * capped below 0.5 by horizontal clipping no matter how the reader scrolls.
- * Row width is unbounded and outside our control; row height is what "seen"
- * actually means here.
- */
-function isRowRead(entry: IntersectionObserverEntry): boolean {
-	const rowHeight = entry.boundingClientRect.height;
-	if (rowHeight === 0) {
-		return false;
-	}
-	return entry.intersectionRect.height >= rowHeight * ROW_VIEWED_THRESHOLD;
-}
-
-/**
- * Watches Pierre's virtualized rows (TASK-048, TASK-050): an
- * IntersectionObserver marks hunks viewed as their rows become visible, and a
- * throttled scan of the same rows reports the topmost visible hunk as the
- * scroll-synced cursor. Rows mount and unmount with virtualization, so the
- * observed set is re-synced on every scroll/render pass; row → hunk
- * resolution goes through stable file line numbers (buildLineIndex), which
- * survive context expansion where rendered row indices do not.
+ * This used to do a second job: an IntersectionObserver marked hunks *viewed*
+ * as their rows crossed the viewport, so coverage measured scroll position.
+ * That was wrong twice over — scrolling past code is not reading it, and review
+ * is not linear, so a reader who jumped to the interesting file was told they
+ * had covered less than a reader who held page-down. Coverage is now only ever
+ * set deliberately, and this hook only tracks the cursor.
+ *
+ * Rows mount and unmount with virtualization, so the scanned set is re-read on
+ * every scroll/render pass; row → hunk resolution goes through stable file line
+ * numbers (buildLineIndex), which survive context expansion where rendered row
+ * indices do not.
  */
 export function useDiffViewport(options: DiffViewportOptions): DiffViewport {
-	const { files, onHunksViewed, onCursorFromScroll } = options;
+	const { files, onCursorFromScroll } = options;
 
 	const viewerRef = useRef<DiffViewer | null>(null);
-	const observerRef = useRef<IntersectionObserver | null>(null);
-	const observedRowsRef = useRef(new WeakSet<Element>());
-	const rowContextsRef = useRef(new WeakMap<Element, RowContext>());
 	const lastSyncAtRef = useRef(0);
 	const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,41 +94,11 @@ export function useDiffViewport(options: DiffViewportOptions): DiffViewport {
 		[fileIndexById, lineIndexes],
 	);
 
-	const onRowsIntersecting = useCallback(
-		(entries: IntersectionObserverEntry[]) => {
-			const viewedHunkIds: string[] = [];
-			for (const entry of entries) {
-				if (!entry.isIntersecting || !isRowRead(entry)) {
-					continue;
-				}
-				const context = rowContextsRef.current.get(entry.target);
-				if (context === undefined) {
-					continue;
-				}
-				const hunkId =
-					filesRef.current[context.fileIndex]?.hunks[context.hunkIndex]?.id;
-				if (hunkId !== undefined) {
-					viewedHunkIds.push(hunkId);
-				}
-			}
-			if (viewedHunkIds.length > 0) {
-				onHunksViewed(viewedHunkIds);
-			}
-		},
-		[onHunksViewed],
-	);
-
 	const syncNow = useCallback(() => {
 		const viewer = viewerRef.current;
 		const container = viewer?.getContainerElement();
 		if (viewer == null || container == null) {
 			return;
-		}
-		if (observerRef.current === null) {
-			observerRef.current = new IntersectionObserver(onRowsIntersecting, {
-				root: container,
-				threshold: ROW_INTERSECTION_STEPS,
-			});
 		}
 
 		const containerTop = container.getBoundingClientRect().top;
@@ -164,17 +110,8 @@ export function useDiffViewport(options: DiffViewportOptions): DiffViewport {
 				continue;
 			}
 			for (const row of shadowRoot.querySelectorAll("[data-line]")) {
-				let context = rowContextsRef.current.get(row);
-				if (!observedRowsRef.current.has(row)) {
-					context ??= resolveRow(row, item.id) ?? undefined;
-					if (context === undefined) {
-						continue;
-					}
-					rowContextsRef.current.set(row, context);
-					observedRowsRef.current.add(row);
-					observerRef.current.observe(row);
-				}
-				if (context === undefined) {
+				const context = resolveRow(row, item.id);
+				if (context === null) {
 					continue;
 				}
 				const rowRect = row.getBoundingClientRect();
@@ -195,7 +132,7 @@ export function useDiffViewport(options: DiffViewportOptions): DiffViewport {
 				hunkIndex: cursorCandidate.context.hunkIndex,
 			});
 		}
-	}, [onRowsIntersecting, resolveRow, onCursorFromScroll]);
+	}, [resolveRow, onCursorFromScroll]);
 
 	const scheduleSync = useCallback(() => {
 		const elapsed = Date.now() - lastSyncAtRef.current;
@@ -214,7 +151,6 @@ export function useDiffViewport(options: DiffViewportOptions): DiffViewport {
 
 	useEffect(
 		() => () => {
-			observerRef.current?.disconnect();
 			if (syncTimerRef.current !== null) {
 				clearTimeout(syncTimerRef.current);
 			}
@@ -229,9 +165,6 @@ export function useDiffViewport(options: DiffViewportOptions): DiffViewport {
 					return;
 				}
 				viewerRef.current = viewer;
-				observerRef.current?.disconnect();
-				observerRef.current = null;
-				observedRowsRef.current = new WeakSet();
 				if (viewer !== null) {
 					scheduleSync();
 				}

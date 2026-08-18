@@ -5,13 +5,15 @@
 > implications. From there, you curate grounded review comments into a markdown scratchfile or
 > a pending GitHub review.
 
-What ships today is four tabs. **Diff** is a local, GitHub-accurate diff for any PR, branch,
+What ships today is three tabs. **Diff** is a local, GitHub-accurate diff for any PR, branch,
 commit range, or your working tree — light and dark themes, keyboard navigation, a file list
-ordered by how much attention each file needs, and review coverage that survives restarts. It is
-free and works with no agent at all. **Overview** says what the change is for and whether the code
-appears to do it. **Understanding** retells the change as plain-language topics, each carrying the
-code that serves it. **Suggested comments** is a list of candidate review comments about problems
-this change introduces. Curating those comments and publishing them to GitHub are still ahead.
+ordered by how much attention each file needs, GitHub's per-file "Viewed" box (which folds the
+file away and is the only thing that moves the coverage number), and review coverage that
+survives restarts. It is free and works with no agent at all. **Understanding** says what the
+change is for and whether the code appears to do it, then retells the change as plain-language
+topics, each carrying the code that serves it. **Suggested comments** is a list of candidate
+review comments about problems this change introduces. Curating those comments and publishing
+them to GitHub are still ahead.
 
 ## Quickstart
 
