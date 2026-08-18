@@ -69,8 +69,10 @@ Key structural facts:
   `unseen` always wins, because unticking a box is a statement.
 - **A run always says what it is doing**: the engine's tool events reach `RunProgress` in the
   domain, the run manager coalesces them into `run.progress` (~2/s, never after a terminal
-  frame), and `view/analysis/RunStatusBar.tsx` renders activity, elapsed against the run's own
-  `timeoutMs`, a stall warning, a Stop button, and — wherever the reader is — the failure. The
+  frame), and `view/analysis/RunStatusBar.tsx` renders activity, elapsed, a stall warning, a Stop
+  button, and — wherever the reader is — the failure. That progress is also what a run is now
+  judged on: `idleTimeoutMs` is a budget for **silence**, rearmed by every report, so a run that
+  keeps working is never killed for taking a while. The
   client also re-reads `GET /api/analysis/runs` every 8s while a run is live, so a dropped SSE
   frame can make the screen a few seconds stale but never permanently wrong. `interface/cli/
   runReporter.ts` narrates the same facts to the terminal. The rule behind all of it: **anything
@@ -82,7 +84,13 @@ Key structural facts:
   others: `view/app/WorkerPoolHost.tsx` (the pool + theme, hoisted above the tabs so a tab switch
   does not terminate four workers), `view/diff/DiffWorkspace.tsx` (the Diff tab's virtualized
   `CodeView`), and `view/understanding/TopicBlock.tsx` (the Understanding tab's per-topic
-  `FileDiff` excerpts). The narrowing recipe lives in `domain/understanding/narrowToHunks.ts` —
+  `FileDiff` excerpts). Its chrome lives in a shadow root, so anything a stylesheet cannot reach
+  goes through the `unsafeCSS` option from `view/styling/pierreChromeCss.ts` (Primer tokens only —
+  custom properties inherit across the boundary), and anything a prop cannot reach goes through
+  one delegated listener reading `composedPath()` (`view/diff/useHeaderFoldClicks.ts`, which is
+  what makes the whole file header fold its file). Neither reaches into a shadow root, so a Pierre
+  upgrade breaks them into doing nothing rather than into doing something wrong.
+  The narrowing recipe lives in `domain/understanding/narrowToHunks.ts` —
   read its comment before touching it; filtering the `hunks` array does **not** work, and the
   failure renders nothing while logging a renderer error (`spikes/topic-render/VERDICT.md`).
 - **Engine layer**: the intelligence is the user's own `claude` CLI, driven as short-lived child

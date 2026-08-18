@@ -134,7 +134,7 @@ function taskSpec(overrides: Partial<TaskSpec> = {}): TaskSpec {
 		stage: "comprehension",
 		jsonSchema: '{"type":"object","additionalProperties":false}',
 		maxTurns: 30,
-		timeoutMs: 10_000,
+		idleTimeoutMs: 10_000,
 		systemContract: "contract clause 1",
 		outputSchema: ACCEPT_ANY,
 		...overrides,
@@ -150,7 +150,7 @@ function chatInput(overrides: Partial<ChatTurnInput> = {}): ChatTurnInput {
 		prompt: "what does this hunk do?",
 		workspaceDir: scratchDir,
 		maxTurns: 12,
-		timeoutMs: 10_000,
+		idleTimeoutMs: 10_000,
 		...overrides,
 	};
 }
@@ -459,6 +459,7 @@ describe("ClaudeEngine.chatTurn", () => {
 		expect(text.join("")).toContain(
 			"**Git merge** creates a new commit that combines two branches",
 		);
+		console.log(JSON.stringify(terminalOf(events)));
 		expect(terminalOf(events)).toMatchObject({ ok: true });
 	});
 
@@ -496,15 +497,38 @@ describe("ClaudeEngine.chatTurn", () => {
 });
 
 describe("ClaudeEngine cancellation and timeouts (SEC-002)", () => {
-	it("fails a run that outlives its budget with timed-out", async () => {
+	it("fails a run that goes silent past its idle budget with timed-out", async () => {
 		useFixture("understanding.jsonl", { FAKE_CLAUDE_DELAY_MS: "50" });
 		const events = await drain(
-			engine.runTask(taskSpec({ timeoutMs: 120 }), taskInput()),
+			engine.runTask(taskSpec({ idleTimeoutMs: 120 }), taskInput()),
 		);
 		expect(terminalOf(events)).toMatchObject({
 			ok: false,
 			reason: "timed-out",
 		});
+	});
+
+	/**
+	 * The point of an idle clock rather than a wall clock, stated as a test.
+	 *
+	 * This replay takes far longer than its own budget — 62 lines at 20ms is
+	 * over a second against a 400ms ceiling — and survives, because it never
+	 * stops talking for 400ms. Under the wall clock this replaced, it would have
+	 * been killed two thirds of the way through and its work discarded, which is
+	 * exactly what happened to real runs on large changes.
+	 */
+	it("does not stop a run that keeps working, however long it takes", async () => {
+		const idleTimeoutMs = 1200;
+		useFixture("understanding.jsonl", { FAKE_CLAUDE_DELAY_MS: "25" });
+		const started = Date.now();
+		const events = await drain(
+			engine.runTask(taskSpec({ idleTimeoutMs }), taskInput()),
+		);
+
+		// the run outlived what used to be its whole budget...
+		expect(Date.now() - started).toBeGreaterThan(idleTimeoutMs);
+		// ...and finished, because it never went quiet for that long
+		expect(terminalOf(events)).toMatchObject({ ok: true });
 	});
 
 	it("kills the child when the consumer stops iterating", async () => {
@@ -532,7 +556,7 @@ describe("ClaudeEngine cancellation and timeouts (SEC-002)", () => {
 		});
 
 		const events = await drain(
-			killer.runTask(taskSpec({ timeoutMs: 80 }), taskInput()),
+			killer.runTask(taskSpec({ idleTimeoutMs: 80 }), taskInput()),
 		);
 		expect(terminalOf(events)).toMatchObject({
 			ok: false,

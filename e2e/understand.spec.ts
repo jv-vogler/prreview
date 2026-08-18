@@ -138,9 +138,19 @@ test.describe("understand: one pass, two tabs, and a question", () => {
 		// a topic names intent and sizes itself against the whole change
 		const firstTopic = topics.first();
 		await expect(firstTopic).toContainText(/covers ~\d+% of the change/);
-		// collapsed by default: the page opens as a readable table of contents
+		/*
+		 * Collapsed by default: the page opens as a readable table of contents.
+		 *
+		 * Not shown is asserted as *not visible*, not as absent from the DOM. The
+		 * code is mounted whether the topic is open or not, because a height
+		 * cannot be eased from nothing — there is nothing to grow from until the
+		 * content exists — and Spike 7 measured that mounting it is close to free.
+		 * A collapsed block is a zero-height clip over code that is really there.
+		 */
 		await expect(firstTopic).toHaveAttribute("data-open", "false");
-		await expect(firstTopic.locator("diffs-container")).toHaveCount(0);
+		const code = firstTopic.locator("[data-topic-code]");
+		expect((await code.boundingBox())?.height).toBe(0);
+		await expect(code).toHaveAttribute("inert", "");
 
 		// ── the code is one click away, and it is the topic's own hunks ────────
 		await firstTopic.getByRole("button").first().click();

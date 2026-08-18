@@ -718,8 +718,13 @@ Two lanes, at most two `claude` children alive:
 Lifecycle: `queued → running → succeeded | failed | cancelled | timed-out`. Enqueue returns a
 runId with 202. A duplicate task type still queued collapses onto the same runId; one already
 running returns 409 with `{existingRunId}`, rendered in the UI as "cancel and re-run". Cancel is
-SIGTERM then SIGKILL after 5s; annotations that already streamed and validated are kept. Default
-timeout is 10 minutes per task. A crashed child produces a `failed` run with the stderr tail in
+SIGTERM then SIGKILL after 5s; annotations that already streamed and validated are kept. The
+default budget is **silence, not duration**: a run is stopped after 5 minutes with nothing to
+report (2 for a chat turn), and one that keeps reporting keeps running however long the change
+takes. The clock is armed at spawn and rearmed by every line the child emits and every
+`RunProgress` report, in both the engine and the run manager. It replaced a 10-minute wall clock,
+which could not tell a wedged run from a large change being read carefully and killed both. A
+crashed child produces a `failed` run with the stderr tail in
 `RunDto.error`; the server always survives. A restart does not resume runs: runs are ephemeral,
 session data is not.
 
@@ -878,9 +883,9 @@ inside inputs and dialogs.
 
 **A run is never a bare spinner.** `RunStatusBar` sits in the layout, not in a tab, and reports
 the running pass wherever the reader is: what the agent is doing right now (its own tool calls,
-forwarded through `RunProgress` and coalesced by the run manager into `run.progress`), elapsed
-against the run's own `timeoutMs` so the deadline is named, a stall warning when nothing has
-moved for 90s, a Stop button, and — the part that matters most — the failure, with a Try again.
+forwarded through `RunProgress` and coalesced by the run manager into `run.progress`), elapsed —
+counting towards nothing, because the run is not on a countdown — a stall warning when nothing has
+moved for 90s that names the idle deadline it is heading for, a Stop button, and — the part that matters most — the failure, with a Try again.
 Failures used to be reported only inside the invitation on the tab that started the pass, so a
 run that died while the reader was on the diff said nothing anywhere and the screen simply
 stopped changing. Alongside the channel the client re-reads `GET /api/analysis/runs` every 8s

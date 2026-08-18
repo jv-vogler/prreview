@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router";
 import {
 	annotationStops,
@@ -10,7 +10,9 @@ import { useDiffNavigation } from "../view/diff/DiffNavigationProvider";
 import { DiffWorkspace } from "../view/diff/DiffWorkspace";
 import { FileTreePanel } from "../view/diff/FileTreePanel";
 import type { KeyAction } from "../view/diff/resolveKeyAction";
+import { SidebarResizer } from "../view/diff/SidebarResizer";
 import { useKeymap } from "../view/diff/useKeymap";
+import { useSidebarWidth } from "../view/diff/useSidebarWidth";
 import { useFeatureFlags } from "../view/session/useFeatureFlags";
 import styles from "./DiffPage.module.css";
 import { cursorFromSearchParams, searchParamsForCursor } from "./diffUrl";
@@ -34,6 +36,7 @@ export function DiffPage() {
 	const navigate = useNavigate();
 	const annotations = useAnnotations();
 	const [searchParams] = useSearchParams();
+	const sidebar = useSidebarWidth();
 
 	const stops = useMemo(
 		() => annotationStops(annotations, navigation.files),
@@ -122,9 +125,10 @@ export function DiffPage() {
 
 	return (
 		<div className={styles.layout}>
-			<aside className={styles.sidebar}>
+			<aside className={styles.sidebar} style={{ width: sidebar.width }}>
 				<FileTreePanel />
 			</aside>
+			<SidebarResizer width={sidebar.width} onWidth={sidebar.setWidth} />
 			<div className={styles.main}>
 				{flags.analysis && <ReviewToolbar />}
 				<DiffWorkspace diffStyle={diffStyle} />

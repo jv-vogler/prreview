@@ -5,6 +5,16 @@
 	padding: var(--base-size-8) var(--base-size-16);
 	border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
 	font-size: var(--text-body-size-small);
+	/* it arrives above the page and pushes it down, so it eases in rather than
+	   snapping the whole layout a line lower between two frames */
+	animation: bar-enter var(--motion-duration-short) var(--motion-easing-enter);
+}
+
+@keyframes bar-enter {
+	from {
+		opacity: 0;
+		transform: translateY(calc(var(--base-size-4) * -1));
+	}
 }
 
 .bar[data-run-status="running"] {

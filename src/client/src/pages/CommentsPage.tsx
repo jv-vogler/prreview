@@ -159,8 +159,8 @@ function NoFindingsYet() {
 			<AnalysisInvitation
 				task="review"
 				title="Review this change for problems"
-				body="Several independent readings of the diff — correctness, security, edge cases, and more — merged into one list of comments worth making. Each one is checked against what the agent actually read before it is shown."
-				cost="Several passes running together, each reading files to ground its claims. The most expensive thing prreview does; minutes on a large change."
+				body="Reads the diff several times over, looking for a different kind of problem each time, and merges what it finds into one list. Every comment is checked against what the agent actually read."
+				cost="Several agent passes at once. The most expensive thing prreview does."
 				actionLabel="Review this change"
 			/>
 			<p className={styles.footnote}>

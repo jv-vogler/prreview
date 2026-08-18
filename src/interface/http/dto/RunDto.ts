@@ -65,8 +65,8 @@ export const runDtoSchema = z.object({
 	/** anchors the agent named that could not be placed and were dropped */
 	skippedAnchors: z.int().min(0).optional(),
 	progress: runProgressDtoSchema.optional(),
-	/** the budget this run is stopped at, so the UI can name the deadline */
-	timeoutMs: z.int().min(0),
+	/** how long this run may go silent before it is stopped; not a wall clock */
+	idleTimeoutMs: z.int().min(0),
 });
 
 export type RunDto = z.infer<typeof runDtoSchema>;

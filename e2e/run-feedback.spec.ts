@@ -92,11 +92,16 @@ test.describe("run feedback", () => {
 		// ── the bar exists, and it is not a spinner ────────────────────────────
 		const bar = page.locator('[data-run-status="running"]');
 		await expect(bar).toBeVisible({ timeout: APPEARS_TIMEOUT_MS });
-		// the deadline is named, so a long run is visibly bounded rather than
-		// open-ended: "10:00" is a promise the reader can hold the tool to
-		await expect(page.locator("[data-run-elapsed]")).toContainText(
-			/\d+:\d\d of/,
-		);
+		/*
+		 * The clock runs, and it counts up to nothing.
+		 *
+		 * It used to read "0:12 of 10:00", against a wall-clock budget that killed
+		 * a run at ten minutes whether or not it was working. The budget is now
+		 * silence, so there is no total to count towards, and printing one would
+		 * be a countdown the run is not on.
+		 */
+		await expect(page.locator("[data-run-elapsed]")).toContainText(/\d+:\d\d/);
+		await expect(page.locator("[data-run-elapsed]")).not.toContainText(" of ");
 		// and it can be stopped from wherever the reader is
 		await expect(bar.getByRole("button", { name: "Stop" })).toBeVisible();
 
@@ -188,6 +193,23 @@ test.describe("run feedback", () => {
 		await page.locator("[data-file-fold]").first().click();
 		await expect(page.getByText("excited").first()).toBeVisible();
 		await expect(box).toBeChecked();
+
+		/*
+		 * The whole header is the control, not just the chevron.
+		 *
+		 * This clicks the filename — inside the renderer's shadow root, which is
+		 * why the delegated listener has to read the composed path rather than
+		 * the event target. A bar carrying a name, a change count and two
+		 * controls, where only one small triangle does anything, wastes the
+		 * widest target on the screen.
+		 */
+		await page.locator("[data-diffs-header] [data-title]").first().click();
+		await expect(page.getByText("excited")).toHaveCount(0);
+		// and it is still a fold, not a state change: the record survives
+		await expect(box).toBeChecked();
+
+		await page.locator("[data-file-fold]").first().click();
+		await expect(page.getByText("excited").first()).toBeVisible();
 
 		// unticking is the only thing that gives the coverage back
 		await box.uncheck();

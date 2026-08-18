@@ -3,15 +3,21 @@
 	border-radius: var(--borderRadius-medium);
 	overflow: hidden;
 	background: var(--bgColor-default);
+	transition: border-color var(--motion-transition-hover);
+}
+
+.topic:hover {
+	border-color: var(--borderColor-muted);
 }
 
 .header {
 	padding: 12px 16px;
 	background: var(--bgColor-muted);
+	transition: background-color var(--motion-transition-hover);
 }
 
-.topic[data-open="true"] > .header {
-	border-bottom: 1px solid var(--borderColor-default);
+.header:hover {
+	background: var(--bgColor-neutral-muted);
 }
 
 .disclosure {
@@ -29,8 +35,14 @@
 }
 
 .caret {
+	display: inline-flex;
+	align-self: center;
 	color: var(--fgColor-muted);
-	font-size: var(--text-body-size-small);
+	transition: transform var(--motion-transition-stateChange);
+}
+
+.topic[data-open="false"] .caret {
+	transform: rotate(-90deg);
 }
 
 .title {
@@ -69,9 +81,35 @@
 	max-width: 68ch;
 }
 
+/*
+ * The fold, eased.
+ *
+ * A grid whose single row goes from `0fr` to `1fr` is the one way to animate to
+ * a height nobody knows in advance: `1fr` resolves to the content's own height,
+ * and unlike `height: auto` it is an interpolable value. The child does the
+ * clipping, which is why it needs `min-height: 0` — a grid item's default
+ * minimum is its content, and it would refuse to be squashed.
+ */
+.excerptsClip {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows var(--motion-transition-stateChange);
+}
+
+/*
+ * The separating rule is drawn on the panel below rather than under the header,
+ * so it arrives with the code instead of a beat ahead of it.
+ */
+.topic[data-open="true"] > .excerptsClip {
+	grid-template-rows: 1fr;
+	border-top: 1px solid var(--borderColor-default);
+}
+
 .excerpts {
 	display: flex;
 	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
 }
 
 .excerpt {

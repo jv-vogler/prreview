@@ -65,8 +65,8 @@ export function UnderstandPage() {
 		return (
 			<AnalysisInvitation
 				title="Understand this change"
-				body="prreview reads the code at this revision, works out what the change sets out to do, and retells it as a handful of plain-language topics — each one carrying the hunks that serve it."
-				cost="One pass over the diff, with the agent reading files to ground what it says. Minutes, not seconds, on a large change."
+				body="Reads the code, then explains the change one topic at a time with the diff under each topic."
+				cost="One agent pass. A few minutes on a large change."
 				actionLabel="Explain this change"
 			/>
 		);

@@ -2,9 +2,11 @@ import type { FileDiffDto } from "@dto/ChangesetDto";
 import type { TopicDto } from "@dto/TopicDto";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
+import { ChevronDownIcon } from "@primer/octicons-react";
 import { useMemo, useState } from "react";
 import { narrowToHunks } from "../../domain/understanding/narrowToHunks";
 import { PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
+import { PIERRE_EXCERPT_CHROME_CSS } from "../styling/pierreChromeCss";
 import styles from "./TopicBlock.module.css";
 
 /**
@@ -68,8 +70,9 @@ export function TopicBlock({
 					data-topic-toggle={topic.id}
 					onClick={() => setOpen((current) => !current)}
 				>
+					{/* one chevron that turns; two glyphs swapping cannot be eased */}
 					<span aria-hidden="true" className={styles.caret}>
-						{open ? "▾" : "▸"}
+						<ChevronDownIcon size={16} />
 					</span>
 					<span className={styles.title}>{topic.title}</span>
 				</button>
@@ -87,7 +90,26 @@ export function TopicBlock({
 				<p className={styles.summary}>{topic.summary}</p>
 			</header>
 
-			{open && (
+			{/*
+				The code stays mounted whether the topic is open or not, and the
+				block opens by growing rather than by appearing.
+
+				Mounting it always is what makes the animation possible at all: a
+				height cannot be eased from nothing, because there is no height to
+				ease from until the content exists. It is affordable because the
+				renderer materializes only what is on screen — Spike 7 measured 48
+				blocks mounted and expanded at 147 DOM nodes, 9.5 MB, and no long
+				tasks — and a collapsed block, being zero pixels tall, materializes
+				none of them.
+			*/}
+			<div
+				className={styles.excerptsClip}
+				data-topic-code={topic.id}
+				// clipped to nothing is not the same as gone: without this, a
+				// screen reader would read out the code of every collapsed topic
+				// on the page, and Tab would visit controls nobody can see
+				inert={!open}
+			>
 				<div className={styles.excerpts}>
 					{excerpts.length === 0 ? (
 						<p className={styles.empty}>
@@ -107,6 +129,7 @@ export function TopicBlock({
 										diffStyle: "unified",
 										hunkSeparators: "line-info",
 										stickyHeader: false,
+										unsafeCSS: PIERRE_EXCERPT_CHROME_CSS,
 										// deliberately no loadDiffFiles: the gaps between a
 										// topic's hunks stay collapsed and unexpandable, so a
 										// block is a curated excerpt rather than a doorway back
@@ -117,7 +140,7 @@ export function TopicBlock({
 						))
 					)}
 				</div>
-			)}
+			</div>
 		</section>
 	);
 }

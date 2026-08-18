@@ -103,7 +103,7 @@ describe("every task schema survives the CLI's own --json-schema gate", () => {
 					stage: "comprehension",
 					jsonSchema: toJsonSchema(schema),
 					maxTurns: 30,
-					timeoutMs: 10_000,
+					idleTimeoutMs: 10_000,
 					systemContract: "contract",
 					outputSchema: schema,
 				},

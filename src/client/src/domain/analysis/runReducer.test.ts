@@ -10,7 +10,7 @@ function run(overrides: Partial<RunDto> = {}): RunDto {
 		lane: "analysis",
 		status: "queued",
 		queuedAt: "2026-08-17T10:00:00.000Z",
-		timeoutMs: 600_000,
+		idleTimeoutMs: 600_000,
 		...overrides,
 	};
 }

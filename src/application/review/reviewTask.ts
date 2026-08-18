@@ -2,7 +2,7 @@ import { changesetIdFor } from "../../domain/changeset/ChangesetId";
 import type { ChangesetRef } from "../../domain/changeset/ChangesetRef";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { ReviewDepth, ReviewLens } from "../../domain/review/ReviewDepth";
-import { ANALYSIS_TIMEOUT_MS, REVIEW_MAX_TURNS } from "../analysis/limits";
+import { ANALYSIS_IDLE_TIMEOUT_MS, REVIEW_MAX_TURNS } from "../analysis/limits";
 import { serializeNud } from "../analysis/nud";
 import { toJsonSchema } from "../analysis/toJsonSchema";
 import type { SessionResume, TaskInput, TaskSpec } from "../ports/Engine";
@@ -63,7 +63,7 @@ export function buildLensTask(input: BuildLensTaskInput): {
 			stage: `review:${input.lens}`,
 			jsonSchema: toJsonSchema(schema),
 			maxTurns: REVIEW_MAX_TURNS,
-			timeoutMs: ANALYSIS_TIMEOUT_MS,
+			idleTimeoutMs: ANALYSIS_IDLE_TIMEOUT_MS,
 			systemContract: reviewContract(),
 			outputSchema: schema,
 			...(resume === undefined ? {} : { resume }),

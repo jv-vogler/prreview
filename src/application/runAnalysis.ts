@@ -10,7 +10,7 @@ import type { EngineErrorReason } from "../domain/errors/EngineError";
 import { EngineError } from "../domain/errors/EngineError";
 import type { RunMeta } from "../domain/session/RunMeta";
 import type { SessionManifest } from "../domain/session/SessionManifest";
-import { ANALYSIS_TIMEOUT_MS } from "./analysis/limits";
+import { ANALYSIS_IDLE_TIMEOUT_MS } from "./analysis/limits";
 import { buildUnderstandingOutSchema } from "./analysis/understandingSchemas";
 import { buildUnderstandingTask } from "./analysis/understandingTask";
 import { consumeEngineRun } from "./consumeEngineRun";
@@ -96,7 +96,7 @@ export function makeRunAnalysis(deps: RunAnalysisDeps): RunAnalysis {
 		return deps.runManager.enqueue({
 			lane: "analysis",
 			taskType: COMPREHENSION_TASK_TYPE,
-			timeoutMs: ANALYSIS_TIMEOUT_MS,
+			idleTimeoutMs: ANALYSIS_IDLE_TIMEOUT_MS,
 			job: (context) =>
 				runComprehension({ deps, input, context, engine, task, taskInput }),
 		});

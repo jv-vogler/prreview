@@ -84,7 +84,7 @@ export class ClaudeEngine implements Engine {
 			}),
 			prompt: input.prompt,
 			workspaceDir: input.workspaceDir,
-			timeoutMs: task.timeoutMs,
+			idleTimeoutMs: task.idleTimeoutMs,
 			outputSchema: task.outputSchema,
 			// a schema task's text is a by-product; its assistant blocks would
 			// duplicate what structured output already carries
@@ -100,7 +100,7 @@ export class ClaudeEngine implements Engine {
 			}),
 			prompt: input.prompt,
 			workspaceDir: input.workspaceDir,
-			timeoutMs: input.timeoutMs,
+			idleTimeoutMs: input.idleTimeoutMs,
 			// --include-partial-messages sends every token twice — once as a
 			// delta, once inside the completed block; the deltas are the stream
 			textSource: "deltas",
@@ -150,7 +150,7 @@ export class ClaudeEngine implements Engine {
 
 		const stderr = collectStderrTail(child);
 		const exited = waitForExit(child);
-		const lifetime = this.startLifetime(child, options.timeoutMs);
+		const lifetime = this.startLifetime(child, options.idleTimeoutMs);
 		writePrompt(child, options.prompt);
 
 		const recorder = createReadLogRecorder();
@@ -159,6 +159,9 @@ export class ClaudeEngine implements Engine {
 
 		try {
 			for await (const record of parseStreamJson(child.stdout)) {
+				// every line off stdout is proof the child is alive and working,
+				// whatever the line says — that is the whole basis of the idle clock
+				lifetime.touch();
 				recorder.accept(record);
 				switch (record.kind) {
 					case "init":
@@ -211,16 +214,25 @@ export class ClaudeEngine implements Engine {
 	}
 
 	/**
-	 * Owns the child's clock and its death: the task timeout fires SIGTERM and
+	 * Owns the child's clock and its death: the idle timeout fires SIGTERM and
 	 * escalates to SIGKILL after the grace period, and `stop()` does the same
 	 * on the way out of the generator for a child that is still running.
+	 *
+	 * The clock measures **silence, not duration**. It is armed at spawn and
+	 * rearmed by `touch()` on every line the child emits, so a child that is
+	 * working stays alive however long the work takes, and only one that has
+	 * genuinely stopped talking gets killed. A wall-clock budget cannot tell
+	 * those two apart, and the case it gets wrong is the expensive one: a large
+	 * change being read carefully, thrown away at the ceiling.
 	 */
 	private startLifetime(
 		child: ChildProcessWithoutNullStreams,
-		timeoutMs: number,
+		idleTimeoutMs: number,
 	): ChildLifetime {
 		let timedOut = false;
 		let killTimer: NodeJS.Timeout | undefined;
+		let idleTimer: NodeJS.Timeout | undefined;
+		let stopped = false;
 
 		const terminate = () => {
 			if (child.exitCode !== null || child.signalCode !== null) {
@@ -231,16 +243,29 @@ export class ClaudeEngine implements Engine {
 			killTimer.unref();
 		};
 
-		const timeoutTimer = setTimeout(() => {
-			timedOut = true;
-			terminate();
-		}, timeoutMs);
-		timeoutTimer.unref();
+		const arm = () => {
+			idleTimer = setTimeout(() => {
+				timedOut = true;
+				terminate();
+			}, idleTimeoutMs);
+			idleTimer.unref();
+		};
+		arm();
 
 		return {
 			timedOut: () => timedOut,
+			touch: () => {
+				// after stop() there is nothing left to wait for, and rearming here
+				// would resurrect a timer the teardown just cleared
+				if (stopped || timedOut) {
+					return;
+				}
+				clearTimeout(idleTimer);
+				arm();
+			},
 			stop: () => {
-				clearTimeout(timeoutTimer);
+				stopped = true;
+				clearTimeout(idleTimer);
 				terminate();
 				child.stdout.destroy();
 				child.stderr.destroy();
@@ -258,7 +283,7 @@ interface RunOptions {
 	argv: string[];
 	prompt: string;
 	workspaceDir: string;
-	timeoutMs: number;
+	idleTimeoutMs: number;
 	textSource: "blocks" | "deltas";
 	/** present on schema tasks only; its absence means "no structured output expected" */
 	outputSchema?: OutputParser;
@@ -266,6 +291,8 @@ interface RunOptions {
 
 interface ChildLifetime {
 	timedOut(): boolean;
+	/** proof of life: rearms the idle clock */
+	touch(): void;
 	stop(): void;
 }
 

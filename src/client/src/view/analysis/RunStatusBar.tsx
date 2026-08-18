@@ -45,7 +45,6 @@ function ActiveRun({ run }: { run: RunDto }) {
 	const stalled = sinceActivityMs !== null && sinceActivityMs > STALL_MS;
 
 	const label = STAGE_LABEL[run.stage] ?? run.stage;
-	const budget = formatElapsed(run.timeoutMs);
 
 	return (
 		<div className={styles.bar} data-run-status="running" role="status">
@@ -55,14 +54,21 @@ function ActiveRun({ run }: { run: RunDto }) {
 					<span className={styles.stage}>
 						{run.status === "queued" ? `${label} (queued)` : label}
 					</span>
+					{/*
+						Elapsed, and nothing it is counting towards. It used to read
+						"3m of 10m", which was true of a wall-clock budget and would be a
+						lie now: a run that keeps working is not on a countdown. The only
+						deadline left is silence, and that is named in the line below
+						once there is any silence to name.
+					*/}
 					{elapsedMs !== null && (
 						<span className={styles.clock} data-run-elapsed>
-							{formatElapsed(elapsedMs)} of {budget}
+							{formatElapsed(elapsedMs)}
 						</span>
 					)}
 				</p>
 				<p className={styles.detail} data-run-activity>
-					{describe(run, stalled)}
+					{describe(run, stalled, sinceActivityMs)}
 				</p>
 			</div>
 			<button
@@ -86,7 +92,11 @@ function ActiveRun({ run }: { run: RunDto }) {
  * difference between "reading a file" and "has been reading a file for four
  * minutes" is the whole question the reader is asking.
  */
-function describe(run: RunDto, stalled: boolean): string {
+function describe(
+	run: RunDto,
+	stalled: boolean,
+	sinceActivityMs: number | null,
+): string {
 	const progress = run.progress;
 	if (run.status === "queued") {
 		return "Waiting for the other run on this lane to finish.";
@@ -102,7 +112,14 @@ function describe(run: RunDto, stalled: boolean): string {
 			: ` · ${progress.partsDone ?? 0}/${progress.partsTotal} readings done`;
 
 	if (stalled) {
-		return `No activity for a while. Last move: ${progress.activity}. If this does not move again it will be stopped at the time budget — you can stop it now instead.`;
+		const silence =
+			sinceActivityMs === null ? "a while" : formatElapsed(sinceActivityMs);
+		const remaining = run.idleTimeoutMs - (sinceActivityMs ?? 0);
+		const deadline =
+			remaining > 0
+				? `It is stopped if the silence reaches ${formatElapsed(run.idleTimeoutMs)}.`
+				: "It is being stopped now.";
+		return `Nothing for ${silence}. Last move: ${progress.activity}. ${deadline} You can stop it yourself instead.`;
 	}
 	return `${progress.activity} · ${counted}${lenses}`;
 }

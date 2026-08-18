@@ -60,11 +60,13 @@ export interface Run {
 	/** what the run is doing, once it has done anything */
 	progress?: RunProgress;
 	/**
-	 * The budget this run will be stopped at. On the wire so the UI can say
-	 * "stops at 10 minutes" instead of leaving the reader to guess whether a
-	 * long run has any end at all.
+	 * How long this run may go **silent** before it is stopped. Not a wall
+	 * clock: a run that keeps reporting keeps running, however long it takes.
+	 *
+	 * On the wire so the screen can say how much silence is left rather than
+	 * leaving the reader to guess whether a quiet run has any end at all.
 	 */
-	timeoutMs: number;
+	idleTimeoutMs: number;
 }
 
 export interface RunFailure {
@@ -94,8 +96,8 @@ export type RunEventType =
 export interface RunRequest {
 	lane: RunLane;
 	taskType: string;
-	/** overrides the lane's default budget from limits.ts */
-	timeoutMs?: number;
+	/** overrides the lane's default silence budget from limits.ts */
+	idleTimeoutMs?: number;
 	job: RunJob;
 }
 

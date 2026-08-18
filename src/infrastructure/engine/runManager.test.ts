@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
 import type {
 	Run,
@@ -20,7 +21,7 @@ function harness(timeouts = LANE_TIMEOUTS): Harness {
 	const events: RunEvent[] = [];
 	const manager = createRunManager({
 		publish: (event) => events.push(event),
-		timeoutMsByLane: timeouts,
+		idleTimeoutMsByLane: timeouts,
 	});
 	return { manager, events, types: () => events.map((event) => event.type) };
 }
@@ -439,13 +440,49 @@ describe("runManager timeout", () => {
 		const enqueued = manager.enqueue({
 			lane: "analysis",
 			taskType: "comprehension",
-			timeoutMs: 20,
+			idleTimeoutMs: 20,
 			job: work.job,
 		});
 		if (enqueued.kind !== "accepted") {
 			throw new Error("expected an accepted run");
 		}
 		expect((await settled(manager, enqueued.runId)).status).toBe("timed-out");
+	});
+
+	/**
+	 * The clock measures silence, not duration.
+	 *
+	 * This job runs for roughly ten times its own budget and survives, because
+	 * it keeps saying what it is doing. Under the wall clock this replaced, a
+	 * large change being read carefully was indistinguishable from a hang and
+	 * was killed alongside it.
+	 */
+	it("keeps a run alive as long as it reports progress", async () => {
+		const idleTimeoutMs = 30;
+		const { manager } = harness({ analysis: idleTimeoutMs, chat: 60_000 });
+		let runId = "";
+		const enqueued = manager.enqueue({
+			lane: "analysis",
+			taskType: "comprehension",
+			job: async (context) => {
+				runId = context.runId;
+				for (let tick = 0; tick < 10; tick++) {
+					await sleep(idleTimeoutMs / 2);
+					manager.report(context.runId, {
+						kind: "activity",
+						activity: `still reading, tick ${tick}`,
+					});
+				}
+				return { ok: true };
+			},
+		});
+		if (enqueued.kind !== "accepted") {
+			throw new Error("expected an accepted run");
+		}
+
+		const run = await settled(manager, enqueued.runId);
+		expect(runId).toBe(enqueued.runId);
+		expect(run.status).toBe("succeeded");
 	});
 
 	it("does not fire the timeout for a run that finished in time", async () => {
@@ -536,7 +573,7 @@ describe("createRunManager progress", () => {
 			taskType: "comprehension",
 			job: async () => ({ ok: true }),
 		});
-		expect(events[0]?.run.timeoutMs).toBe(12_345);
+		expect(events[0]?.run.idleTimeoutMs).toBe(12_345);
 	});
 });
 

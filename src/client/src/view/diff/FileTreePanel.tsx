@@ -7,6 +7,7 @@ import {
 } from "@primer/octicons-react";
 import { useMemo } from "react";
 import { countNotesByFileId } from "../../domain/annotation/countNotesByFileId";
+import { directoryOf } from "../../domain/changeset/sortFilesByAttention";
 import { useAnnotations } from "../annotations/useAnnotations";
 import { useGuaranteedSession } from "../session/useGuaranteedSession";
 import { useDiffNavigation } from "./DiffNavigationProvider";
@@ -36,7 +37,23 @@ export function FileTreePanel() {
 			</h2>
 			<ul className={styles.list}>
 				{files.map((file, index) => (
-					<li key={file.id}>
+					<li
+						key={file.id}
+						/*
+							The attention order keeps a folder's files together, so a
+							directory change really is the boundary between two groups
+							rather than an accident of line counts. A little air is all it
+							takes to read the list as a handful of areas instead of one
+							long run of paths.
+						*/
+						data-group-start={
+							index > 0 &&
+							directoryOf(file.path) !==
+								directoryOf(files[index - 1]?.path ?? "")
+								? "true"
+								: undefined
+						}
+					>
 						<button
 							type="button"
 							className={styles.file}
@@ -109,11 +126,6 @@ function ChangedLines({ file }: { file: FileDiffDto }) {
 			)}
 		</span>
 	);
-}
-
-function directoryOf(path: string): string {
-	const lastSlash = path.lastIndexOf("/");
-	return lastSlash === -1 ? "" : path.slice(0, lastSlash);
 }
 
 function basenameOf(path: string): string {

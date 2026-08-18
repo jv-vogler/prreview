@@ -1,6 +1,6 @@
 import {
-	ANALYSIS_TIMEOUT_MS,
-	CHAT_TIMEOUT_MS,
+	ANALYSIS_IDLE_TIMEOUT_MS,
+	CHAT_IDLE_TIMEOUT_MS,
 } from "./application/analysis/limits";
 import { makeChatTurn } from "./application/chatTurn";
 import { makeDetectDrift } from "./application/detectDrift";
@@ -103,9 +103,9 @@ export function buildContainer(
 		overrides.runManager ??
 		createRunManager({
 			publish,
-			timeoutMsByLane: {
-				analysis: ANALYSIS_TIMEOUT_MS,
-				chat: CHAT_TIMEOUT_MS,
+			idleTimeoutMsByLane: {
+				analysis: ANALYSIS_IDLE_TIMEOUT_MS,
+				chat: CHAT_IDLE_TIMEOUT_MS,
 			},
 		});
 

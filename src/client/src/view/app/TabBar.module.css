@@ -18,10 +18,17 @@
 	text-decoration: none;
 	cursor: pointer;
 	white-space: nowrap;
+	/* the underline slides in rather than snapping; the tab bar is the one
+	   piece of chrome on every screen, so it is worth the two lines */
+	transition:
+		color var(--motion-transition-hover),
+		background-color var(--motion-transition-hover),
+		border-bottom-color var(--motion-transition-stateChange);
 }
 
 .tab:hover {
 	color: var(--fgColor-default);
+	background: var(--control-transparent-bgColor-hover);
 }
 
 .active {

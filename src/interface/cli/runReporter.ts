@@ -47,7 +47,7 @@ export function createRunReporter(options: RunReporterOptions): RunReporter {
 				case "run.started":
 					lastPrintedAt.set(run.id, now());
 					options.write(
-						`prreview: ${run.taskType} run started — stops after ${formatDuration(run.timeoutMs)} if it has not finished\n`,
+						`prreview: ${run.taskType} run started — runs as long as it keeps working, stops after ${formatDuration(run.idleTimeoutMs)} of silence\n`,
 					);
 					return;
 				case "run.progress": {

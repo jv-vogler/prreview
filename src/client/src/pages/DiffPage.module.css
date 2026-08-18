@@ -4,9 +4,9 @@
 	height: 100%;
 }
 
+/* the width is set inline from the remembered drag; this holds it there */
 .sidebar {
 	flex: 0 0 auto;
-	width: 280px;
 	min-width: 0;
 	border-right: 1px solid var(--borderColor-default);
 	overflow: auto;

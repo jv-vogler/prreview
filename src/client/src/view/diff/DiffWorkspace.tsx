@@ -26,13 +26,16 @@ import {
 	FindingBalloonGroup,
 } from "../findings/FindingBalloon";
 import { useGuaranteedSession } from "../session/useGuaranteedSession";
+import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import type { DiffCursor } from "./DiffNavigationProvider";
 import { useDiffNavigation } from "./DiffNavigationProvider";
 import styles from "./DiffWorkspace.module.css";
+import { FileFoldChevron } from "./FileFoldChevron";
 import { FileViewedToggle } from "./FileViewedToggle";
 import type { DiffStyle } from "./useDiffStyle";
 import { useDiffViewport } from "./useDiffViewport";
 import { useGuaranteedChangeset } from "./useGuaranteedChangeset";
+import { useHeaderFoldClicks } from "./useHeaderFoldClicks";
 
 /**
  * The Diff tab's renderer.
@@ -64,9 +67,10 @@ export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 	const changeset = useGuaranteedChangeset();
 	const session = useGuaranteedSession();
 	const navigation = useDiffNavigation();
-	const { isFolded, isFileViewed } = useCoverageActions();
+	const { isFolded, isFileViewed, toggleFold } = useCoverageActions();
 	const annotations = useAnnotations();
 	const handleRef = useRef<CodeViewHandle<AnnotationMetadata>>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
 
 	/*
 	 * Read state comes from the server's coverage summary, never from a local
@@ -199,6 +203,21 @@ export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 		[renderedFiles],
 	);
 
+	/**
+	 * The whole header folds its file, and the fold it applies is the *effective*
+	 * one — a file folded because it was ticked as viewed is folded, whatever the
+	 * explicit override says, so a click on it has to open it rather than fold
+	 * something that is already away.
+	 */
+	const toggleFileFold = useCallback(
+		(fileId: string) => {
+			const viewed = isFileViewed(fileId, viewedByFileId.has(fileId));
+			toggleFold(fileId, isFolded(fileId, viewed));
+		},
+		[toggleFold, isFolded, isFileViewed, viewedByFileId],
+	);
+	useHeaderFoldClicks(containerRef, toggleFileFold);
+
 	const scrollToCursor = useCallback(
 		(cursor: DiffCursor) => {
 			const file = navigation.files[cursor.fileIndex];
@@ -259,21 +278,31 @@ export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 	return (
 		<CodeView<AnnotationMetadata>
 			ref={handleRef}
+			containerRef={containerRef}
 			items={items}
 			className={styles.codeView}
 			onScroll={viewport.scheduleSync}
 			renderAnnotation={(annotation) => renderCard(annotation.metadata.card)}
-			renderHeaderMetadata={(item) => {
+			// the far-left slot, immediately before the change-type icon
+			renderHeaderPrefix={(item) => {
 				const file = filesById.get(item.id);
 				if (file === undefined) {
 					return null;
 				}
 				const viewed = isFileViewed(file.id, viewedByFileId.has(file.id));
 				return (
+					<FileFoldChevron file={file} folded={isFolded(file.id, viewed)} />
+				);
+			}}
+			renderHeaderMetadata={(item) => {
+				const file = filesById.get(item.id);
+				if (file === undefined) {
+					return null;
+				}
+				return (
 					<FileViewedToggle
 						file={file}
-						viewed={viewed}
-						folded={isFolded(file.id, viewed)}
+						viewed={isFileViewed(file.id, viewedByFileId.has(file.id))}
 					/>
 				);
 			}}
@@ -283,6 +312,7 @@ export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 				loadDiffFiles,
 				hunkSeparators: "line-info",
 				stickyHeaders: true,
+				unsafeCSS: PIERRE_DIFF_CHROME_CSS,
 				preferredHighlighter: HIGHLIGHTER.preferredHighlighter,
 				onPostRender: viewport.scheduleSync,
 			}}

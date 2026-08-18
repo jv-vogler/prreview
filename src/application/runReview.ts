@@ -6,7 +6,7 @@ import { EngineError } from "../domain/errors/EngineError";
 import type { ReviewDepth } from "../domain/review/ReviewDepth";
 import type { RunMeta } from "../domain/session/RunMeta";
 import type { SessionManifest } from "../domain/session/SessionManifest";
-import { ANALYSIS_TIMEOUT_MS } from "./analysis/limits";
+import { ANALYSIS_IDLE_TIMEOUT_MS } from "./analysis/limits";
 import { consumeEngineRun } from "./consumeEngineRun";
 import { materializeAnnotations } from "./materializeAnnotations";
 import type { Engine } from "./ports/Engine";
@@ -87,7 +87,7 @@ export function makeRunReview(deps: RunReviewDeps): RunReview {
 		return deps.runManager.enqueue({
 			lane: "analysis",
 			taskType: REVIEW_TASK_TYPE,
-			timeoutMs: ANALYSIS_TIMEOUT_MS,
+			idleTimeoutMs: ANALYSIS_IDLE_TIMEOUT_MS,
 			job: (context) =>
 				runLenses({
 					deps,

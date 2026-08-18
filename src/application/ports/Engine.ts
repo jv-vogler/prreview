@@ -34,7 +34,8 @@ export interface TaskSpec {
 	/** inline JSON Schema string handed to --json-schema (CON-005: < 85KB) */
 	jsonSchema: string;
 	maxTurns: number;
-	timeoutMs: number;
+	/** how long the child may emit nothing before it is killed */
+	idleTimeoutMs: number;
 	systemContract: string;
 	/**
 	 * The same schema that produced `jsonSchema`, used to re-validate
@@ -77,7 +78,7 @@ export interface ChatTurnInput {
 	prompt: string;
 	workspaceDir: string;
 	maxTurns: number;
-	timeoutMs: number;
+	idleTimeoutMs: number;
 	resume?: SessionResume;
 }
 

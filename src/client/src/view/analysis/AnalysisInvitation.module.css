@@ -37,7 +37,12 @@
 	padding: 6px 16px;
 	font-size: var(--text-body-size-medium);
 	font-weight: var(--base-text-weight-medium);
-	cursor: pointer;
+}
+
+.action:not(:disabled):hover {
+	background: var(--button-primary-bgColor-hover);
+	border-color: var(--button-primary-borderColor-hover);
+	box-shadow: var(--shadow-resting-medium);
 }
 
 .action:disabled {

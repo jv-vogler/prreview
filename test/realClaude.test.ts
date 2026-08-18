@@ -32,7 +32,7 @@ const CHEAPEST_MODEL = "haiku";
 
 /** hard ceilings for a smoke; the product's own budgets are minutes long */
 const TASK_TIMEOUT_MS = 120_000;
-const CHAT_TIMEOUT_MS = 60_000;
+const CHAT_IDLE_TIMEOUT_MS = 60_000;
 const TASK_MAX_TURNS = 8;
 const CHAT_MAX_TURNS = 3;
 const TEST_TIMEOUT_MS = 180_000;
@@ -95,7 +95,7 @@ describe.skipIf(!OPTED_IN)("the real claude CLI", () => {
 					{
 						...built.task,
 						maxTurns: TASK_MAX_TURNS,
-						timeoutMs: TASK_TIMEOUT_MS,
+						idleTimeoutMs: TASK_TIMEOUT_MS,
 					},
 					built.input,
 				),
@@ -145,7 +145,7 @@ describe.skipIf(!OPTED_IN)("the real claude CLI", () => {
 						"In one short sentence, what does the greet function in src/greeting.ts do?",
 					workspaceDir: repo.root,
 					maxTurns: CHAT_MAX_TURNS,
-					timeoutMs: CHAT_TIMEOUT_MS,
+					idleTimeoutMs: CHAT_IDLE_TIMEOUT_MS,
 				}),
 			);
 

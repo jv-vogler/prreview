@@ -4,7 +4,7 @@ import { changesetIdFor } from "../../domain/changeset/ChangesetId";
 import type { ChangesetRef } from "../../domain/changeset/ChangesetRef";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { TaskInput, TaskSpec } from "../ports/Engine";
-import { ANALYSIS_TIMEOUT_MS, COMPREHENSION_MAX_TURNS } from "./limits";
+import { ANALYSIS_IDLE_TIMEOUT_MS, COMPREHENSION_MAX_TURNS } from "./limits";
 import { serializeNud } from "./nud";
 import { comprehensionContract } from "./systemContract";
 import { toJsonSchema } from "./toJsonSchema";
@@ -62,7 +62,7 @@ export function buildUnderstandingTask(
 			stage: "comprehension",
 			jsonSchema: toJsonSchema(schema),
 			maxTurns: COMPREHENSION_MAX_TURNS,
-			timeoutMs: ANALYSIS_TIMEOUT_MS,
+			idleTimeoutMs: ANALYSIS_IDLE_TIMEOUT_MS,
 			systemContract: comprehensionContract(),
 			outputSchema: schema,
 		},
