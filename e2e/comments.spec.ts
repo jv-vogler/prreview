@@ -69,7 +69,7 @@ test.describe("suggested comments", () => {
 		});
 		servers.push(server);
 
-			/*
+		/*
 		 * Reached by URL, not by a tab. The findings surface is postponed — its
 		 * output is not good enough to put in front of someone yet — so the tab
 		 * and the trigger are gone from the UI while the pass itself, and this

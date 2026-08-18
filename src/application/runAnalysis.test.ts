@@ -34,7 +34,8 @@ index ${OLD_OID}..${NEW_OID} 100644
 `;
 
 const UNDERSTANDING: UnderstandingOut = {
-	summary: "greet() gains an optional excited flag",
+	headline: "greet() gains an optional excited flag.",
+	summary: ["Callers that pass nothing behave exactly as before."],
 	topics: [
 		{
 			title: "Add an excited greeting mode",
@@ -163,9 +164,12 @@ describe("runAnalysis on a successful comprehension run", () => {
 			review.manifest.changesetId,
 			review.roundId,
 		);
-		expect(analysis?.understanding.summary).toBe(
-			"greet() gains an optional excited flag",
+		expect(analysis?.understanding.headline).toBe(
+			"greet() gains an optional excited flag.",
 		);
+		expect(analysis?.understanding.summary).toEqual([
+			"Callers that pass nothing behave exactly as before.",
+		]);
 		expect(analysis?.understanding.topics).toHaveLength(1);
 		expect(analysis?.understanding.topics[0]?.id).toBe("t1");
 		expect(analysis?.engineSessionId).toBe("session-A");

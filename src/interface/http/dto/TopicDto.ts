@@ -73,7 +73,13 @@ const uncoveredHunkDtoSchema = z.object({
  * renders. 404 with reason `not-produced` until a pass has run.
  */
 export const understandingDtoSchema = z.object({
-	summary: z.string(),
+	/** one sentence: what the change now does that it did not before */
+	headline: z.string(),
+	/**
+	 * The rest of the overview, one point per line. A list rather than a
+	 * paragraph because the shape of the field decides the shape of the answer.
+	 */
+	summary: z.array(z.string()),
 	topics: z.array(topicDtoSchema),
 	suggestedEntryPoint: z.string(),
 	goalMatch: goalMatchDtoSchema,

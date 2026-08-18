@@ -15,6 +15,13 @@ import { TOPIC_SUMMARY_MAX, TOPIC_TITLE_MAX } from "./topicSchemas";
  *
  * - topics carry `hunkIds` and **no line numbers**, so narration has nowhere to
  *   drift into line-by-line commentary;
+ * - the overview is a `headline` plus a **list of lines**, never one string, so
+ *   there is no field a paragraph can live in. This replaced a single
+ *   `summary: string().max(600)`, which produced exactly what a 600-character
+ *   text box asks for: a dense block of three long sentences that had to be
+ *   decoded rather than read. The lesson was that the character budget was
+ *   never the lever — a shorter wall is still a wall — and that the cap worth
+ *   having is per *line*, because that is what forces a short sentence;
  * - `title` ≤ 60 and `summary` ≤ 280, so conciseness is a wall;
  * - `topics` is capped per round by `topicGranularity`, whose other half is what
  *   the prompt asks for — derived together so they cannot disagree;
@@ -44,7 +51,13 @@ const topicOutSchema = z.object({
 	refs: z.array(topicRefOutSchema),
 });
 
-const GOAL_MATCH_RATIONALE_MAX = 400;
+/** one sentence: what the change now does that it did not before */
+export const OVERVIEW_HEADLINE_MAX = 120;
+/** one point per line, and short enough that it has to be one sentence */
+export const OVERVIEW_POINT_MAX = 160;
+export const OVERVIEW_POINTS_MAX = 5;
+/** two sentences, not the four that 400 characters invited */
+const GOAL_MATCH_RATIONALE_MAX = 240;
 
 /**
  * Whether the code does what the change set out to do.
@@ -60,8 +73,17 @@ const goalMatchOutSchema = z.object({
 
 export function buildUnderstandingOutSchema(granularity: TopicGranularity) {
 	return z.object({
-		/** what this change is for, in one short paragraph */
-		summary: z.string().max(600),
+		/** one sentence: what the change now does that it did not before */
+		headline: z.string().max(OVERVIEW_HEADLINE_MAX),
+		/**
+		 * The rest of the overview, one point per line. An array rather than a
+		 * string because the shape of the field is what the answer takes: given a
+		 * text box, a model writes a text box.
+		 */
+		summary: z
+			.array(z.string().max(OVERVIEW_POINT_MAX))
+			.min(1)
+			.max(OVERVIEW_POINTS_MAX),
 		topics: z.array(topicOutSchema).max(granularity.maxTopics),
 		suggestedEntryPoint: z.string(),
 		goalMatch: goalMatchOutSchema,

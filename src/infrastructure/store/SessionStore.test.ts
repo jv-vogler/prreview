@@ -323,7 +323,8 @@ describe("round analysis", () => {
 		const { store, dataDir } = await makeStore();
 		const analysis = {
 			understanding: {
-				summary: "adds a flag",
+				headline: "The greeting gains a flag.",
+				summary: ["Callers that pass nothing are unaffected."],
 				topics: [
 					{
 						id: "t1",

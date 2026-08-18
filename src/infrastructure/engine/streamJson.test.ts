@@ -101,6 +101,7 @@ describe("parseStreamJson", () => {
 		expect(result.isError).toBe(false);
 		expect(Object.keys(result.structuredOutput).sort()).toEqual([
 			"goalMatch",
+			"headline",
 			"suggestedEntryPoint",
 			"summary",
 			"topics",

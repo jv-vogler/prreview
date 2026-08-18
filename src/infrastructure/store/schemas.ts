@@ -294,7 +294,8 @@ const goalMatchSchema = z.object({
 });
 
 const understandingSchema = z.object({
-	summary: z.string(),
+	headline: z.string(),
+	summary: z.array(z.string()),
 	topics: z.array(topicSchema),
 	suggestedEntryPoint: z.string(),
 	goalMatch: goalMatchSchema,

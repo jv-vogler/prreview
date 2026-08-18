@@ -35,7 +35,17 @@ describe("toJsonSchema", () => {
 		expect(parsed.properties.topics.items.properties.summary.maxLength).toBe(
 			280,
 		);
+		/*
+		 * The overview is an array of capped lines, not one capped string. The
+		 * cap that matters is per line, because that is what forces a short
+		 * sentence — a total budget only ever bought a shorter wall of text.
+		 */
+		expect(parsed.properties.summary.type).toBe("array");
+		expect(parsed.properties.summary.items.maxLength).toBe(160);
+		expect(parsed.properties.summary.maxItems).toBe(5);
+		expect(parsed.properties.headline.maxLength).toBe(120);
 		expect(parsed.required).toEqual([
+			"headline",
 			"summary",
 			"topics",
 			"suggestedEntryPoint",

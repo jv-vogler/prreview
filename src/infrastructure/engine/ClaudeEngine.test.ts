@@ -302,6 +302,7 @@ describe("ClaudeEngine.runTask results", () => {
 		}
 		expect(Object.keys(result.structuredOutput as object).sort()).toEqual([
 			"goalMatch",
+			"headline",
 			"suggestedEntryPoint",
 			"summary",
 			"topics",

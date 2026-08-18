@@ -39,7 +39,8 @@ const FILES: FileDiff[] = [
 
 function makeDraft(overrides: Partial<UnderstandingDraft> = {}) {
 	return {
-		summary: "adds a retry path",
+		headline: "Webhook deliveries now retry instead of dropping.",
+		summary: ["A failed delivery is retried with backoff."],
 		topics: [
 			{
 				title: "Retry webhook delivery",

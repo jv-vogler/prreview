@@ -78,7 +78,20 @@ export function UnderstandPage() {
 		<div className={styles.page}>
 			<header className={styles.intro}>
 				<h1 className={styles.heading}>What this change is for</h1>
-				<p className={styles.summary}>{understanding.summary}</p>
+				<p className={styles.headline}>{understanding.headline}</p>
+				{/*
+					A list, because the server sends a list. The overview used to be
+					one string and rendered as one paragraph, which is what made it a
+					wall — the same facts in the same number of characters are read
+					rather than decoded once each point is on its own line.
+				*/}
+				<ul className={styles.points}>
+					{understanding.summary.map((point) => (
+						<li key={point} data-overview-point>
+							{point}
+						</li>
+					))}
+				</ul>
 				{goalMatch.ticket !== null && <Ticket ticket={goalMatch.ticket} />}
 			</header>
 

@@ -238,7 +238,22 @@ export class SessionStore {
 		}
 		const parsed = roundAnalysisSchema.safeParse(raw);
 		if (!parsed.success) {
-			throw corrupt(path, "it does not match the analysis schema");
+			/*
+			 * Treated as "no pass has run", not as corruption.
+			 *
+			 * This file is derived output: it is a cache of one agent run, always
+			 * reproducible by running it again, and never the only copy of anything
+			 * a person wrote. Refusing to serve the session because the shape moved
+			 * under a stored round would cost the reader their whole session to
+			 * save them one re-run — and the shape does move, because the schema
+			 * that drives it is where conciseness is enforced and therefore where
+			 * changes land. Annotations stay strict: curation state is the
+			 * reviewer's own work and a mismatch there is worth stopping for.
+			 */
+			process.stderr.write(
+				`prreview: ${path} was written by an older prreview and cannot be read; the Understanding tab will offer a fresh pass.\n`,
+			);
+			return null;
 		}
 		return parsed.data;
 	}

@@ -27,7 +27,16 @@ export interface GoalMatch {
  * Understanding tabs render, from a single run.
  */
 export interface Understanding {
-	summary: string;
+	/** one sentence: what the change now does that it did not before */
+	headline: string;
+	/**
+	 * The rest of the overview, one point per line — never one paragraph.
+	 *
+	 * This was a single string, and what came back was a wall: three long
+	 * sentences a reader had to decode instead of scan. The field's shape is
+	 * what decides that, not its length, so the shape is a list.
+	 */
+	summary: string[];
 	topics: Topic[];
 	suggestedEntryPoint: string;
 	goalMatch: GoalMatch;
@@ -41,7 +50,8 @@ export interface Understanding {
 
 /** the agent's raw output, before ids, stamping, and derivation */
 export interface UnderstandingDraft {
-	summary: string;
+	headline: string;
+	summary: string[];
 	topics: {
 		title: string;
 		summary: string;
@@ -79,6 +89,7 @@ export function buildUnderstanding(
 	}));
 
 	return {
+		headline: input.draft.headline,
 		summary: input.draft.summary,
 		topics,
 		suggestedEntryPoint: input.draft.suggestedEntryPoint,

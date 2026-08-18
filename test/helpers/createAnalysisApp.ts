@@ -85,7 +85,11 @@ export function understandingFor(files: readonly FileDiff[]): UnderstandingOut {
 		throw new Error("the harness expects the two-file worktree diff");
 	}
 	return {
-		summary: "the greeting now names the reviewer, and a todo list appears",
+		headline: "The greeting names the reviewer and a todo list appears.",
+		summary: [
+			"The returned string now addresses whoever is reviewing.",
+			"A todo list is added alongside it.",
+		],
 		topics: [
 			{
 				title: "Greet the reviewer by name",

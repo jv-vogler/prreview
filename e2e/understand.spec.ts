@@ -158,6 +158,18 @@ test.describe("understand: one pass, two tabs, and a question", () => {
 			page.getByRole("heading", { name: "What this change is for" }),
 		).toBeVisible();
 		await expect(page.getByText("excited").first()).toBeVisible();
+
+		/*
+		 * The overview is a headline and a list, never one paragraph.
+		 *
+		 * It used to be a single `summary: string().max(600)`, and what came back
+		 * was what a 600-character text box asks for: a dense block of three long
+		 * sentences, correct in content and unreadable in form. The fix was the
+		 * field's shape, not its budget — a shorter wall is still a wall — so the
+		 * thing worth pinning here is that separate points render as separate
+		 * lines.
+		 */
+		await expect(page.locator("[data-overview-point]").first()).toBeVisible();
 		// no ticket was discoverable for a worktree review, so the verdict says
 		// plainly that it is judging internal coherence — never ticket language
 		await expect(page.locator("[data-goal-basis]")).toHaveAttribute(

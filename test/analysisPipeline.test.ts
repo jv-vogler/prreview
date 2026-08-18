@@ -150,7 +150,10 @@ describe("analysis over the real claude adapter", () => {
 			review.manifest.changesetId,
 			review.roundId,
 		);
-		expect(analysis?.understanding.summary).toContain("excited");
+		expect(analysis?.understanding.headline).toContain("excited");
+		// a list of lines, never one paragraph: the field's shape is what stops
+		// the overview coming back as a wall of text
+		expect(analysis?.understanding.summary.length).toBeGreaterThan(0);
 		expect(analysis?.understanding.topics.length).toBeGreaterThan(0);
 		expect(analysis?.understanding.topics[0]?.id).toBe("t1");
 		// no ticket was discovered for a worktree review, so the verdict can only
