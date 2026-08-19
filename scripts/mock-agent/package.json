@@ -1,0 +1,4 @@
+{
+	"//": "Pins the mock agent to CJS: node >= 23 otherwise applies the root \"type\": \"module\" to the extensionless `claude` script and its require() calls throw. Same reason as test/bin/package.json.",
+	"type": "commonjs"
+}

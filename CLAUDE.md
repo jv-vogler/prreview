@@ -35,6 +35,7 @@ gitignored — `plan/design-understanding-and-comments.md` is the current design
 | Command | Does |
 |---|---|
 | `npm run dev` | server via tsx watch (`--dev`, port 4973) + Vite client — open Vite's printed URL; it proxies `/api` |
+| `npm run dev:mock` | the same, with `scripts/mock-agent` on PATH as `claude` — real UI, generated answers, no spend |
 | `npm run build` | `dist/cli.js` (tsdown) + `dist/client/` (vite) — both targets |
 | `npm test` | vitest, two projects: `server` (node) and `client` (jsdom) |
 | `npx vitest run <path>` | a single test file (e.g. `npx vitest run src/domain/changeset/ids.test.ts`) |
@@ -138,6 +139,22 @@ the recorded code; `test/helpers/shimPath.ts` builds the stripped PATH it sits o
 test-only and never read by `src/`: `FAKE_CLAUDE_FIXTURE`, `FAKE_CLAUDE_FIXTURE_BY_TASK` (route
 by prompt substring, so one PATH serves the analysis and chat lanes), `FAKE_CLAUDE_LOG`,
 `FAKE_CLAUDE_DELAY_MS`, `FAKE_CLAUDE_EXIT`, `FAKE_CLAUDE_TRAP_SIGTERM`, `FAKE_CLAUDE_VERSION`.
+
+**For looking at the UI, use `npm run dev:mock`, not the test fake.** `scripts/mock-agent/claude`
+is a second fake that **generates** instead of replaying: it parses the file paths and hunk ids
+out of the NUD in the prompt it was handed and answers with topics wired to the hunks actually in
+front of it. That distinction is the whole point — a recording's hunk ids belong to the repo it
+was recorded against, so replaying one against any other changeset makes every topic fall back to
+a whole-file ref and the screen you are inspecting is not the screen users get. It reads its caps,
+its `kind` list and its topic count from the `--json-schema` it is passed, so it cannot drift out
+of agreement with `understandingSchemas.ts`. The comprehension pass is deliberately arranged to
+put every state of the tab on screen at once (overlapping topics so the percentages overshoot, a
+topic naming no code, a whole-file ref beside id-level refs, a title and summary at their caps,
+every `kind`, and hunks left over so the uncovered notice renders); every other task falls back to
+a schema-shaped lorem instance that is valid and meaningless. It goes on PATH as `claude`, so the
+run manager, progress events, SSE, the zod gates and the store all run the production path, and
+nothing in `src/` knows it exists. Knobs: `MOCK_AGENT_VERDICT`, `MOCK_AGENT_DELAY_MS`,
+`MOCK_AGENT_FAIL`, `MOCK_AGENT_SEED`.
 
 **Never run the real `claude` CLI from inside this repository.** Two opt-in escapes exist, both
 refusing to run without `PRREVIEW_REAL_CLAUDE=1`, both using `--model haiku` in a scratch repo
