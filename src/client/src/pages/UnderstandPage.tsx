@@ -2,7 +2,6 @@ import type { GoalMatchDto } from "@dto/TopicDto";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import { parsePatchFiles } from "@pierre/diffs";
 import { useMemo } from "react";
-import { Link } from "react-router";
 import { topicCoverageFractions } from "../domain/analysis/topicCoverage";
 import { buildPatchText } from "../domain/changeset/buildPatchText";
 import { AnalysisInvitation } from "../view/analysis/AnalysisInvitation";
@@ -97,31 +96,27 @@ export function UnderstandPage() {
 
 			<GoalMatchBlock goalMatch={goalMatch} />
 
-			<section className={styles.topicsSection}>
-				<h2 className={styles.subheading}>What it does, topic by topic</h2>
-				<p className={styles.hint}>
-					Topics overlap where one hunk does two things, so the percentages do
-					not add up to 100%.{" "}
-					<Link
-						to={`/diff?file=${encodeURIComponent(understanding.suggestedEntryPoint)}`}
-					>
-						Start reading at {understanding.suggestedEntryPoint}
-					</Link>
-					.
-				</p>
+			{/*
+				No label over the topics, and no note under it.
 
-				<div className={styles.topics}>
-					{understanding.topics.map((topic, index) => (
-						<TopicBlock
-							key={topic.id}
-							topic={topic}
-							coverage={coverage[index] ?? 0}
-							parsedByPath={parsedByPath}
-							filesByPath={filesByPath}
-						/>
-					))}
-				</div>
-			</section>
+				The heading restated what the blocks below it already are, and the
+				note explained the arithmetic of a number nobody asked to audit —
+				a reader who wonders why the percentages overshoot has understood
+				the overlap the moment they see one hunk under two topics. Copy
+				that defends a design decision to the reader is a sign the
+				decision needs no defending.
+			*/}
+			<div className={styles.topics}>
+				{understanding.topics.map((topic, index) => (
+					<TopicBlock
+						key={topic.id}
+						topic={topic}
+						coverage={coverage[index] ?? 0}
+						parsedByPath={parsedByPath}
+						filesByPath={filesByPath}
+					/>
+				))}
+			</div>
 
 			{understanding.uncoveredHunks.length > 0 && (
 				<UncoveredNotice count={understanding.uncoveredHunks.length} />

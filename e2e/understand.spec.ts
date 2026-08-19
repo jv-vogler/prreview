@@ -163,6 +163,79 @@ test.describe("understand: one pass, two tabs, and a question", () => {
 			firstTopic.locator("[data-block-key]").first(),
 		).toHaveAttribute("data-block-key", /^t\d+:/);
 
+		/*
+		 * ── the fold is eased, not cut to ──────────────────────────────────────
+		 *
+		 * Sampled the way the diff's file fold is: an instant open or close cannot
+		 * produce a height strictly between nothing and the height it settles at.
+		 *
+		 * This is asserted because the failure it catches is invisible everywhere
+		 * else. The panel grows by transitioning its grid row from `0fr` to `1fr`,
+		 * and that transition's duration is a Primer motion token — so when the
+		 * base token layer those resolve to was missing from `tokens.css`, the
+		 * shorthand was invalid at computed-value time, `transition` computed to
+		 * its initial `all 0s`, and every eased thing in the app died at once.
+		 * Nothing reported it: the stylesheet parsed, stylelint passed, the
+		 * screenshots were identical, and the fold still ended in the right state.
+		 * A test that watches the height mid-flight is the only witness.
+		 */
+		const clipHeight = () =>
+			firstTopic
+				.locator("[data-topic-code]")
+				.evaluate((node) => node.getBoundingClientRect().height);
+
+		/**
+		 * The open height, once it has stopped moving.
+		 *
+		 * Highlighting is asynchronous, so the panel keeps growing for a while
+		 * after the code is technically visible. Reading the height too early
+		 * would set the bar this test measures against below where the fold
+		 * actually plays, and the assertion would be about nothing.
+		 */
+		const settledHeight = async () => {
+			let previous = -1;
+			for (let attempt = 0; attempt < 40; attempt++) {
+				const height = await clipHeight();
+				if (height === previous && height > 0) {
+					return height;
+				}
+				previous = height;
+				await page.waitForTimeout(50);
+			}
+			throw new Error("the topic panel never settled to a stable height");
+		};
+
+		/** every height the panel passed through while a fold played */
+		const foldSamples = async (act: Promise<void>) => {
+			const seen: number[] = [];
+			await act;
+			for (let sample = 0; sample < 20; sample++) {
+				seen.push(await clipHeight());
+				await page.waitForTimeout(12);
+			}
+			return seen;
+		};
+
+		const openHeight = await settledHeight();
+		const partway = (seen: number[]) =>
+			seen.some((height) => height > 0 && height < openHeight);
+
+		const toggle = firstTopic.getByRole("button").first();
+		const closing = await foldSamples(toggle.click());
+		expect(
+			partway(closing),
+			`closing heights (open ${openHeight}): ${closing}`,
+		).toBe(true);
+		await expect(firstTopic).toHaveAttribute("data-open", "false");
+
+		// and open again, which has to grow from nothing rather than appear
+		const opening = await foldSamples(toggle.click());
+		expect(
+			partway(opening),
+			`opening heights (open ${openHeight}): ${opening}`,
+		).toBe(true);
+		await expect(firstTopic).toHaveAttribute("data-open", "true");
+
 		// ── the purpose, on the same screen and from the same pass ────────────
 		await expect(
 			page.getByRole("heading", { name: "What this change is for" }),

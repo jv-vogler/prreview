@@ -80,10 +80,7 @@ export function TopicBlock({
 					<span className={styles.kind} data-kind={topic.kind}>
 						{topic.kind}
 					</span>
-					<span
-						className={styles.coverage}
-						title="Share of the whole change this topic covers. Topics overlap, so these do not add up to 100%."
-					>
+					<span className={styles.coverage}>
 						covers ~{percent}% of the change
 					</span>
 				</div>

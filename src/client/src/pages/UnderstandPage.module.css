@@ -109,18 +109,6 @@
 	color: var(--fgColor-default);
 }
 
-.topicsSection {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.hint {
-	margin: 0 0 4px;
-	font-size: var(--text-body-size-small);
-	color: var(--fgColor-muted);
-}
-
 .topics {
 	display: flex;
 	flex-direction: column;
