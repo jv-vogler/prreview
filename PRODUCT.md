@@ -1,5 +1,14 @@
 # prreview: product specification (v1)
 
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+<!-- Unnumbered on purpose: the numbered sections below are the original
+     specification and their numbers are referenced elsewhere. -->
+
 ## 1. One-liner
 
 > `npx @jv-vogler/prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
@@ -81,31 +90,41 @@ Both are first-class.
 
 ## 6. The core loop
 
+Steps 2–4 are the product's three tabs, and each is a separate deliberate spend. Nothing chains
+one off another: reading about a change must never quietly pay for a review nobody asked for.
+
 1. **Open.** `npx @jv-vogler/prreview` auto-detects the changeset. Explicit forms: PR number/URL, branch
    vs base, commit range, working tree. The tool states what it resolved.
-2. **Understand.** One screen, one pass. It opens with what this change is for, the ticket when
-   one was cheap to find, and whether the code appears to do what it set out to do; then the
-   change retold as plain-language topics, each carrying the hunks that serve it. Topics overlap
-   where one hunk does two things — they name what the change does rather than partition it. Read
-   this before any diff.
-3. **Browse.** The plain diff, always available and free. Mark a file **Viewed** the way you do on
-   GitHub and it folds away; coverage counts what you ticked, never what scrolled past. A toggle
-   overlays suggested comments as balloons where they land.
-4. **Review.** *Suggested comments*: candidate comments about problems this change introduced, at
-   a depth you choose. A separate, deliberate spend — nothing chains it off step 2. Problems that
-   predate the change are kept in their own section and never mixed into review feedback.
-6. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"), and
+2. **Understand** — the *Understanding* tab, one comprehension pass. One screen, one pass. It
+   opens with what this change is for, the ticket when one was cheap to find, and whether the code
+   appears to do what it set out to do; then the change retold as plain-language topics, each
+   carrying the hunks that serve it. Topics overlap where one hunk does two things — they name what
+   the change does rather than partition it. Read this before any diff.
+3. **Browse** — the *Diff* tab, free. The plain diff, always available and costing nothing. Mark a
+   file **Viewed** the way you do on GitHub and it folds away; coverage counts what you ticked,
+   never what scrolled past. A toggle overlays suggested comments as balloons where they land.
+4. **Review** — the *Suggested comments* tab, its own pass. Candidate comments about problems this
+   change introduced, at a depth you choose. A separate, deliberate spend — nothing chains it off
+   step 2. Problems that predate the change are kept in their own section and never mixed into
+   review feedback.
+5. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"), and
    operations on the suggested comments themselves.
-7. **Curate.** Accept, edit, or dismiss comments. A dismissal is remembered, so a later pass does
+6. **Curate.** Accept, edit, or dismiss comments. A dismissal is remembered, so a later pass does
    not raise it again.
-8. **Ship.** Export the markdown scratchfile and/or publish a pending GitHub review. Authors can
+7. **Ship.** Export the markdown scratchfile and/or publish a pending GitHub review. Authors can
    generate the PR description.
-9. **Loop.** Hand accepted findings to a fixer agent as a fix brief. prreview detects that the
+8. **Loop.** Hand accepted findings to a fixer agent as a fix brief. prreview detects that the
    code changed and offers an incremental re-review.
 
-Steps 2–3 share one pass; step 5 is its own. Each AI surface states its own cost before spending
-anything, and with no agent installed those surfaces are absent rather than disabled — the diff
-viewer stands on its own.
+Each AI surface states its own cost before spending anything, and with no agent installed those
+surfaces are **absent** rather than disabled — the diff viewer stands on its own.
+
+Three tabs, not four: Understanding was briefly split into an Overview tab and a topics tab, and
+that was wrong. Both came out of the same pass and read as the same account, so the split charged
+a click for half a thought. `/overview` and `/orient` now redirect to `/understand`.
+
+Every pass triggers from inside the tab it fills. An analysis button lived in the header for one
+release, where it appeared beside every tab and belonged to none of them.
 
 ## 7. Functional requirements
 
