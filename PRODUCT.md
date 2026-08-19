@@ -1,8 +1,17 @@
 # prreview: product specification (v1)
 
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+<!-- Unnumbered on purpose: the numbered sections below are the original
+     specification and their numbers are referenced elsewhere. -->
+
 ## 1. One-liner
 
-> `npx prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
+> `npx @jv-vogler/prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
 > already have to explain what a changeset actually does: its intent, its mechanics, and its
 > implications. From there, you curate grounded review comments into a markdown scratchfile or
 > a pending GitHub review.
@@ -81,19 +90,41 @@ Both are first-class.
 
 ## 6. The core loop
 
-1. **Open.** `npx prreview` auto-detects the changeset. Explicit forms: PR number/URL, branch
+Steps 2–4 are the product's three tabs, and each is a separate deliberate spend. Nothing chains
+one off another: reading about a change must never quietly pay for a review nobody asked for.
+
+1. **Open.** `npx @jv-vogler/prreview` auto-detects the changeset. Explicit forms: PR number/URL, branch
    vs base, commit range, working tree. The tool states what it resolved.
-2. **Orient.** The intent map: what this change is for, clustered by purpose, ticket alignment,
-   risk overview. Read this before any diff.
-3. **Walk.** A guided walkthrough in logical reading order with narration, or free browsing.
-   Coverage is tracked either way.
-4. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"),
-   annotation edits, re-analysis lenses.
-5. **Curate.** Accept, edit, or dismiss findings.
-6. **Ship.** Export the markdown scratchfile and/or publish a pending GitHub review. Authors
-   can generate the PR description.
-7. **Loop.** Hand accepted findings to a fixer agent as a fix brief. prreview detects that the
+2. **Understand** — the *Understanding* tab, one comprehension pass. One screen, one pass. It
+   opens with what this change is for, the ticket when one was cheap to find, and whether the code
+   appears to do what it set out to do; then the change retold as plain-language topics, each
+   carrying the hunks that serve it. Topics overlap where one hunk does two things — they name what
+   the change does rather than partition it. Read this before any diff.
+3. **Browse** — the *Diff* tab, free. The plain diff, always available and costing nothing. Mark a
+   file **Viewed** the way you do on GitHub and it folds away; coverage counts what you ticked,
+   never what scrolled past. A toggle overlays suggested comments as balloons where they land.
+4. **Review** — the *Suggested comments* tab, its own pass. Candidate comments about problems this
+   change introduced, at a depth you choose. A separate, deliberate spend — nothing chains it off
+   step 2. Problems that predate the change are kept in their own section and never mixed into
+   review feedback.
+5. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"), and
+   operations on the suggested comments themselves.
+6. **Curate.** Accept, edit, or dismiss comments. A dismissal is remembered, so a later pass does
+   not raise it again.
+7. **Ship.** Export the markdown scratchfile and/or publish a pending GitHub review. Authors can
+   generate the PR description.
+8. **Loop.** Hand accepted findings to a fixer agent as a fix brief. prreview detects that the
    code changed and offers an incremental re-review.
+
+Each AI surface states its own cost before spending anything, and with no agent installed those
+surfaces are **absent** rather than disabled — the diff viewer stands on its own.
+
+Three tabs, not four: Understanding was briefly split into an Overview tab and a topics tab, and
+that was wrong. Both came out of the same pass and read as the same account, so the split charged
+a click for half a thought. `/overview` and `/orient` now redirect to `/understand`.
+
+Every pass triggers from inside the tab it fills. An analysis button lived in the header for one
+release, where it appeared beside every tab and belonged to none of them.
 
 ## 7. Functional requirements
 
@@ -122,8 +153,11 @@ progress is shown, and you are free to jump out to browsing and back.
 **F6. Risk/attention ranking.** Each hunk gets a needs-human-eyes score, rendered as subtle
 heat rather than more balloons. Files and hunks are sortable by attention.
 
-**F7. Coverage tracking.** Tracks which hunks were actually viewed or marked reviewed, per file
-and in total ("you've seen 70% of this change"). This is the guard against scroll-and-approve.
+**F7. Coverage tracking.** Tracks which files you marked **Viewed**, per file and in total
+("you've seen 70% of this change"). This is the guard against scroll-and-approve, so it is
+deliberately never inferred from scrolling — a percentage that counts rows crossing the viewport
+measures how far down the page you got, which is the very thing it was supposed to guard
+against.
 
 **F8. Chat assistant.** A full assistant: repo-grounded Q&A about the change, annotation
 operations (rephrase, redo, split, tone), and triggering re-analysis. It is context-aware of
@@ -228,7 +262,7 @@ Decided together with the architecture. Minimal on purpose: every form below has
 justification, and everything else was rejected.
 
 ```
-npx prreview [target] [base]
+prreview [target] [base]
 ```
 
 | Invocation | Reviews |

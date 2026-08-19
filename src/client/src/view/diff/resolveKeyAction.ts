@@ -7,11 +7,10 @@ export type KeyAction =
 	| "prev-annotation"
 	| "mark-hunk-reviewed"
 	| "mark-file-reviewed"
-	| "toggle-walkthrough"
 	| "toggle-chat"
 	| "toggle-diff-style"
-	| "go-orient"
 	| "go-diff"
+	| "go-understand"
 	| "open-help";
 
 /** the only chord prefix in the keymap: `g` for "go to" */
@@ -50,16 +49,15 @@ const KEYMAP: Record<string, KeyAction> = {
 	"[": "prev-annotation",
 	v: "mark-hunk-reviewed",
 	m: "mark-file-reviewed",
-	w: "toggle-walkthrough",
 	c: "toggle-chat",
 	s: "toggle-diff-style",
 	"?": "open-help",
 };
 
-/** the second half of a `g` chord */
+/** the second half of a `g` chord, one per tab */
 const CHORD_KEYMAP: Record<string, KeyAction> = {
-	o: "go-orient",
 	d: "go-diff",
+	u: "go-understand",
 };
 
 const NOTHING: KeyResolution = { kind: "none" };

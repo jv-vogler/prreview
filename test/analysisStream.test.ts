@@ -31,7 +31,7 @@ function eventTypes(frames: { data: string }[]): string[] {
 }
 
 describe("one analysis, watched from the SSE channel", () => {
-	it("streams run.started, an annotation per explanation, then run.succeeded", async () => {
+	it("streams the run lifecycle and the artifact announcement", async () => {
 		const app = await createAnalysisApp();
 		const events = await subscribe(app);
 
@@ -42,15 +42,14 @@ describe("one analysis, watched from the SSE channel", () => {
 		});
 		expect(accepted.status).toBe(202);
 
-		const frames = await readSseFrames(events, 5);
+		const frames = await readSseFrames(events, 4);
 		expect(eventTypes(frames)).toEqual([
 			"run.queued",
 			"run.started",
-			"annotation.upserted",
-			"annotation.upserted",
+			"understanding.updated",
 			"run.succeeded",
 		]);
-		const succeeded = serverEventSchema.parse(JSON.parse(frames[4].data));
+		const succeeded = serverEventSchema.parse(JSON.parse(frames[3].data));
 		if (succeeded.type !== "run.succeeded") {
 			throw new Error("expected the run to succeed");
 		}

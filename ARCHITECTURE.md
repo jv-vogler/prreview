@@ -17,7 +17,7 @@ Decisions already settled with the user, not up for relitigation:
   wants an API key, while the CLI runs on the user's own subscription auth.
 - All GitHub interaction goes through a **GithubService port** with swappable implementations;
   v1 ships a `gh`-backed one and a plain-git one (§4).
-- The CLI surface is deliberately minimal: `npx prreview [target] [base]` plus `--port` and
+- The CLI surface is deliberately minimal: `prreview [target] [base]` plus `--port` and
   `--no-open`. The full list of forms lives in PRODUCT.md §13.
 
 ---
@@ -47,7 +47,7 @@ Decisions already settled with the user, not up for relitigation:
 
 ## 1. System overview
 
-In plain terms: `npx prreview` starts one local program. It figures out what you want reviewed,
+In plain terms: `npx @jv-vogler/prreview` starts one local program. It figures out what you want reviewed,
 shows it in a browser UI, runs the claude CLI in the background to explain and review it, and,
 when you say so, publishes your curated comments to GitHub. Nothing leaves your machine except
 the agent's own traffic and explicit publishes.
@@ -257,7 +257,7 @@ then behaves according to that answer without re-checking.
 ### Surface
 
 The supported forms and flags are product scope and live in **PRODUCT.md §13**. Summary:
-`npx prreview [target] [base]`, where target is empty (auto-detect), a PR number, a PR URL, a
+`prreview [target] [base]`, where target is empty (auto-detect), a PR number, a PR URL, a
 branch name, a `from..to` commit range, or the keyword `working`. Flags: `--port` (default
 4973, walks upward if taken) and `--no-open`. There is deliberately no `--host`: the server
 binds `127.0.0.1` unconditionally, because the no-token security posture in §15 is only sound
@@ -718,8 +718,13 @@ Two lanes, at most two `claude` children alive:
 Lifecycle: `queued → running → succeeded | failed | cancelled | timed-out`. Enqueue returns a
 runId with 202. A duplicate task type still queued collapses onto the same runId; one already
 running returns 409 with `{existingRunId}`, rendered in the UI as "cancel and re-run". Cancel is
-SIGTERM then SIGKILL after 5s; annotations that already streamed and validated are kept. Default
-timeout is 10 minutes per task. A crashed child produces a `failed` run with the stderr tail in
+SIGTERM then SIGKILL after 5s; annotations that already streamed and validated are kept. The
+default budget is **silence, not duration**: a run is stopped after 5 minutes with nothing to
+report (2 for a chat turn), and one that keeps reporting keeps running however long the change
+takes. The clock is armed at spawn and rearmed by every line the child emits and every
+`RunProgress` report, in both the engine and the run manager. It replaced a 10-minute wall clock,
+which could not tell a wedged run from a large change being read carefully and killed both. A
+crashed child produces a `failed` run with the stderr tail in
 `RunDto.error`; the server always survives. A restart does not resume runs: runs are ephemeral,
 session data is not.
 
@@ -740,10 +745,10 @@ Everything lives under `/api`; the DTOs are in `interface/http/dto/`.
 | `GET /api/changeset` · `POST /api/changeset/refresh` | files, hunks, risk projection; re-resolve after drift |
 | `GET /api/blob?ref=&path=` | context expansion for Pierre's `loadDiffFiles` |
 | `GET /api/annotations` · `PATCH /api/annotations/:id` · `POST /api/annotations/batch` | full set; curation and edits; batch ops |
-| `GET /api/intent-map` · `GET /api/walkthrough` | 404 with a reason until produced |
+| `GET /api/understanding` | topics + overview from one comprehension pass; 404 `not-produced` until it has run |
 | `POST /api/analysis` · `GET /api/analysis/runs[/:id]` · `POST /api/analysis/runs/:id/cancel` | one run machine for every task type |
 | `GET /api/chat/messages` · `POST /api/chat/messages` | history; post a turn → 202 `{turnId}`, reply streams over SSE |
-| `PUT /api/coverage` · `PUT /api/walkthrough/progress` | batched, idempotent, set-semantics |
+| `PUT /api/coverage` | batched, idempotent, set-semantics |
 | `POST /api/export/markdown` | `{write, path?}` → `{content, path?}` |
 | `POST /api/publish/github` | synchronous, ≤ 30s |
 | `POST /api/fix-brief` | `channel: 'file' \| 'dispatch'` |
@@ -811,8 +816,10 @@ it.
 **domain/** No React, no URLs. `session` derives FeatureFlags from the toolchain. `changeset`
 holds `sortFilesByAttention` (F6). `annotation` has the three-species discriminated union, pure
 `applyCuration` transitions, and `checkIfPublishable`. `analysis` holds the run reducer, `chat`
-holds `reduceChatDelta`. `coverage` has a monotonic `upgradeHunkCoverage` (viewed never silently
-downgrades a hunk already marked reviewed) plus the percentage math for F7. Two flow machines
+holds `reduceChatDelta`. `coverage` has `applyHunkCoverage` — monotonic between the two seen states (viewed never
+silently downgrades a hunk already marked reviewed), while an explicit `unseen` always wins,
+because unticking the box is a statement and nothing infers coverage any more — plus the
+percentage math for F7. Two flow machines
 live here: walkthrough as `NotStarted | AtStep{index} | Detoured{fromStep} | Completed`, because
 jumping out and coming back is a transition rather than a boolean, and publish as
 `Idle → Preflight → Confirming{summary, skipped} → Publishing → Published{url} | Failed`. Errors
@@ -821,7 +828,9 @@ are typed with machine-readable reason unions that views map exhaustively.
 **State ownership.** Server state is authoritative via TanStack Query, with SSE events patching
 caches through `setQueryData` rather than blanket invalidation. `changeset.drifted` only raises
 a banner; refetching is a user action. Curation is optimistic through the echo protocol above.
-Viewed hunks come from an IntersectionObserver into a local set, flushed by a debounced PUT.
+Viewed state comes from a per-file "Viewed" box, flushed by a PUT. It used to come from an
+IntersectionObserver over the rendered rows, which meant scrolling past a file marked it read and
+the percentage measured scroll position rather than attention; the observer is gone.
 Walkthrough position is mirrored to the server. Cursor, scroll, panel sizes, and drafts stay
 client-only. Diff mode and theme live in localStorage.
 
@@ -848,17 +857,40 @@ client-only. Diff mode and theme live in localStorage.
   because focus trapping and dismissal are the highest-defect-density code in any UI, while the
   visuals stay 100% ours through tokens. The rest are plain styled elements.
 
-**pages/** `/` is the gate plus providers, redirecting to `/orient` when an intent map exists
-and coverage is 0, otherwise to `/diff`. Then `/orient`, and
-`/diff?file=&hunk=&walkthrough=<step>`. **The walkthrough is a mode over `/diff`, not a route.**
-Jumping out is a flow transition over one mounted workspace rather than a remount, and the URL
-parameter restores the step after a refresh.
+**pages/** `/` is the gate, redirecting to `/understand` when a comprehension pass has run and
+coverage is 0, otherwise to `/diff`. The three surfaces are **nested routes under one
+`ReviewLayout`**: `/understand?topic=`, `/diff?file=&hunk=&finding=`, `/comments`. `/orient` and
+`/overview` both redirect to `/understand` permanently, so a saved link still lands somewhere
+true. Overview shipped as its own tab for one release and was folded back in: it and the topics
+came from one comprehension pass and read as one account, so the split charged a click for half
+a thought.
+
+The layout owns everything that must survive a tab switch — the session and changeset gate,
+coverage, analysis, chat, the diff cursor, the drift banner, and **the highlight worker pool**.
+The pool in particular cannot live inside the diff: it is a singleton that terminates when its
+last provider unmounts, so a tab switch would kill four workers and the switch back would
+re-highlight everything. Hoisted, with content-derived cache keys, a remount is a cache hit.
+
+Without an agent the two AI routes redirect to `/diff`. Hiding the tabs is not enough — a
+saved link, the `/orient` redirect, or a typed URL all reach a route directly, and the page they
+would land on invites the reader to start a pass no agent can run.
 
 **Keyboard-first.** `DiffNavigationProvider` owns a `{fileIndex, hunkIndex}` cursor kept in sync
 with scrolling. Keymap: `j`/`k` files, `n`/`p` hunks, `]`/`[` annotations, `a`/`e`/`x`
-accept/edit/dismiss, `v`/`m` mark hunk/file reviewed, `w` walkthrough, `c` chat, `s`
-split/unified, `g o` and `g d` go to orient/diff, `?` help. All suppressed inside inputs and
-dialogs.
+accept/edit/dismiss, `v`/`m` mark hunk/file reviewed, `f` toggle finding balloons, `c` chat, `s`
+split/unified, `g d`/`g u`/`g c` go to diff/understanding/comments, `?` help. All suppressed
+inside inputs and dialogs.
+
+**A run is never a bare spinner.** `RunStatusBar` sits in the layout, not in a tab, and reports
+the running pass wherever the reader is: what the agent is doing right now (its own tool calls,
+forwarded through `RunProgress` and coalesced by the run manager into `run.progress`), elapsed —
+counting towards nothing, because the run is not on a countdown — a stall warning when nothing has
+moved for 90s that names the idle deadline it is heading for, a Stop button, and — the part that matters most — the failure, with a Try again.
+Failures used to be reported only inside the invitation on the tab that started the pass, so a
+run that died while the reader was on the diff said nothing anywhere and the screen simply
+stopped changing. Alongside the channel the client re-reads `GET /api/analysis/runs` every 8s
+while a run is live (`reconcileRuns`), which bounds how wrong a dropped frame can leave it, and
+`interface/cli/runReporter.ts` narrates the same facts to the terminal as a second witness.
 
 ---
 

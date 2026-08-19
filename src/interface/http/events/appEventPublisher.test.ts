@@ -17,6 +17,7 @@ const RUN: Run = {
 	status: "running",
 	queuedAt: "2026-08-17T10:00:00.000Z",
 	startedAt: "2026-08-17T10:00:01.000Z",
+	idleTimeoutMs: 600_000,
 };
 
 const ANNOTATION: StoredAnnotation = {
@@ -106,6 +107,7 @@ describe("createAppEventPublisher", () => {
 					status: "running",
 					queuedAt: RUN.queuedAt,
 					startedAt: RUN.startedAt,
+					idleTimeoutMs: RUN.idleTimeoutMs,
 				},
 			},
 		]);

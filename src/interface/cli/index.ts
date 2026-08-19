@@ -10,7 +10,10 @@ import { AppError } from "../../domain/errors/AppError";
 import { ChangesetError } from "../../domain/errors/ChangesetError";
 import type { Toolchain } from "../../domain/session/Toolchain";
 import { defaultEngineCacheDir } from "../../infrastructure/engine/workspace";
+import { exec } from "../../infrastructure/git/exec";
 import { GitClient } from "../../infrastructure/git/GitClient";
+import type { LoadedBrain } from "../../infrastructure/review/loadBrain";
+import { loadBrain } from "../../infrastructure/review/loadBrain";
 import { probeToolchain } from "../../infrastructure/toolchain/probe";
 import { createApp } from "../http/app";
 import { createAppEventPublisher } from "../http/events/appEventPublisher";
@@ -19,6 +22,7 @@ import { createLifecycle } from "../http/lifecycle";
 import { createReviewState } from "../http/reviewState";
 import { resolveClientDir } from "../http/static";
 import { type CliArgs, parseCliArgs } from "./args";
+import { createRunReporter } from "./runReporter";
 
 /** SEC-001: loopback only, unconditionally — there is no --host on purpose. */
 const BIND_HOST = "127.0.0.1";
@@ -34,9 +38,27 @@ async function main(): Promise<void> {
 
 	const repoRoot = await detectRepoRoot(process.cwd());
 	const toolchain = await probeToolchain(repoRoot);
+
+	// Loaded here, before anything else can start, and fatal on failure. A
+	// review that silently ignored the rules you pointed it at is worse than no
+	// review, and loading once means every lens shares one string in the cached
+	// prompt prefix rather than five copies — and that a mid-run fetch failure
+	// is structurally impossible.
+	const brain =
+		args.brain === undefined
+			? null
+			: await loadBrain(args.brain, args.brainMode, {
+					ghApi: (ghArgs) => exec("gh", ghArgs, { cwd: repoRoot }),
+				});
 	// built before the container because the container publishes through it, and
 	// connected to the channel below once the hub and the state exist
 	const publisher = createAppEventPublisher();
+	// the terminal is the second witness: whatever the browser shows about a
+	// run, the window prreview was started from shows too, so "is it working?"
+	// never needs a third tool to answer
+	const reporter = createRunReporter({
+		write: (line) => process.stdout.write(line),
+	});
 	const container = buildContainer(
 		{
 			repoRoot,
@@ -44,7 +66,13 @@ async function main(): Promise<void> {
 			cacheDir: defaultEngineCacheDir(),
 		},
 		toolchain,
-		{ publish: publisher.publish },
+		{
+			publish: (event) => {
+				reporter.observe(event);
+				publisher.publish(event);
+			},
+			...(brain === null ? {} : { brain }),
+		},
 	);
 
 	const review = await container.openReview({
@@ -101,7 +129,7 @@ async function main(): Promise<void> {
 	await listen(app, port);
 
 	const url = `http://${BIND_HOST}:${port}/`;
-	announce(review, toolchain, url, args);
+	announce(review, toolchain, url, args, brain);
 
 	container
 		.detectDrift({
@@ -148,6 +176,7 @@ function announce(
 	toolchain: Toolchain,
 	url: string,
 	args: CliArgs,
+	brain: LoadedBrain | null,
 ): void {
 	const sessionLine = review.resumed
 		? "session: resumed (coverage restored)"
@@ -162,6 +191,14 @@ function announce(
 			`  ${review.announce.overrideHint}`,
 			`  ${sessionLine}`,
 			`  toolchain: ${describeToolchain(toolchain)}`,
+			// The checksum echo is mandatory, not decorative. A round's findings
+			// have to trace to the exact document that produced them, and a
+			// changed sha has to be visible rather than silently adopted.
+			...(brain === null
+				? []
+				: [
+						`  brain: ${brain.manifest.source} (${brain.manifest.mode}, sha256 ${brain.manifest.sha256.slice(0, 12)}, ${brain.manifest.bytes} bytes)`,
+					]),
 			`  serving at ${url} — ${openLine}`,
 			"",
 		].join("\n"),

@@ -8,7 +8,6 @@ import {
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { RoundAnalysis } from "../../application/analysis/RoundAnalysis";
-import type { WalkthroughProgress } from "../../domain/analysis/Walkthrough";
 import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
@@ -239,7 +238,22 @@ export class SessionStore {
 		}
 		const parsed = roundAnalysisSchema.safeParse(raw);
 		if (!parsed.success) {
-			throw corrupt(path, "it does not match the analysis schema");
+			/*
+			 * Treated as "no pass has run", not as corruption.
+			 *
+			 * This file is derived output: it is a cache of one agent run, always
+			 * reproducible by running it again, and never the only copy of anything
+			 * a person wrote. Refusing to serve the session because the shape moved
+			 * under a stored round would cost the reader their whole session to
+			 * save them one re-run — and the shape does move, because the schema
+			 * that drives it is where conciseness is enforced and therefore where
+			 * changes land. Annotations stay strict: curation state is the
+			 * reviewer's own work and a mismatch there is worth stopping for.
+			 */
+			process.stderr.write(
+				`prreview: ${path} was written by an older prreview and cannot be read; the Understanding tab will offer a fresh pass.\n`,
+			);
+			return null;
 		}
 		return parsed.data;
 	}
@@ -282,37 +296,6 @@ export class SessionStore {
 			this.chatThreadPath(changesetId, threadId),
 			thread,
 		);
-	}
-
-	// ── walkthrough progress ──────────────────────────────────────────────
-
-	/**
-	 * Progress rides in the manifest (CON-012), so both sides go through it:
-	 * one file, one debounce window, and a session that resumes the walkthrough
-	 * exactly where the reader left it.
-	 */
-	async loadWalkthroughProgress(
-		changesetId: ChangesetId,
-	): Promise<WalkthroughProgress | null> {
-		const manifest = await this.loadSessionManifest(changesetId);
-		return manifest?.walkthroughProgress ?? null;
-	}
-
-	async saveWalkthroughProgress(
-		changesetId: ChangesetId,
-		progress: WalkthroughProgress,
-	): Promise<void> {
-		const manifest = await this.loadSessionManifest(changesetId);
-		if (manifest === null) {
-			throw new StoreError(
-				"corrupt",
-				`Cannot record walkthrough progress: session ${changesetId} has no manifest on disk.`,
-			);
-		}
-		await this.saveSessionManifest({
-			...manifest,
-			walkthroughProgress: progress,
-		});
 	}
 
 	// ── blobs ─────────────────────────────────────────────────────────────
@@ -447,7 +430,7 @@ export class SessionStore {
 
 	private async readJsonFile(absolutePath: string): Promise<unknown> {
 		// A read that ignored the debounce window would see the previous
-		// contents and a read-modify-write (walkthrough progress lands in the
+		// contents and a read-modify-write (the ticket hint lands in the
 		// manifest) would silently drop whatever is still pending.
 		const pending = this.pendingWrites.get(absolutePath);
 		const text =

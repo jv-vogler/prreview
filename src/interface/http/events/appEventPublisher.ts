@@ -132,6 +132,10 @@ function toServerEvent(
 			};
 		case "annotation.removed":
 			return { type: "annotation.removed", id: event.id };
+		case "understanding.updated":
+			return { type: "understanding.updated", roundId: event.roundId };
+		case "findings.updated":
+			return { type: "findings.updated", roundId: event.roundId };
 		case "chat.turn.started":
 			return { type: "chat.turn.started", turnId: event.turnId };
 		case "chat.turn.completed":
@@ -169,7 +173,10 @@ function invalidate(event: AppEvent, state: ReviewState | undefined): void {
 		state.applyAnnotations(null);
 		return;
 	}
-	if (event.type === "run.succeeded" && event.run.lane === "analysis") {
+	if (
+		event.type === "understanding.updated" ||
+		(event.type === "run.succeeded" && event.run.lane === "analysis")
+	) {
 		state.applyAnalysis(null);
 	}
 }

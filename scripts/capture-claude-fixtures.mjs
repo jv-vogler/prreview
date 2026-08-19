@@ -122,12 +122,13 @@ async function captureFixtures() {
 	process.stdout.write("== TASK-004: fixture captures ==\n");
 
 	const comprehensionPrompt = buildComprehensionPrompt();
+	const taskSchemas = await dumpTaskSchemas();
 	await capture({
 		name: "comprehension",
 		note:
-			"stage A shape: a real --json-schema run against the ComprehensionOut schema " +
-			"(hand-embedded in scripts/capture-claude-fixtures.mjs from ARCHITECTURE §7; " +
-			"Phase 3's zod schema must stay compatible), with Read/Grep/Glob tool use, exit 0.",
+			"stage A shape: a real --json-schema run against the ComprehensionOut schema, " +
+			"taken from src/application/analysis/ through the production toJsonSchema path " +
+			"(CON-014 — never hand-embedded here again), with Read/Grep/Glob tool use, exit 0.",
 		argv: [
 			...STREAM_FLAGS,
 			"--model",
@@ -136,7 +137,7 @@ async function captureFixtures() {
 			"--max-turns",
 			"16",
 			"--json-schema",
-			JSON.stringify(comprehensionOutJsonSchema()),
+			taskSchemas.comprehension,
 		],
 		stdin: comprehensionPrompt,
 		timeoutMs: COMPREHENSION_TIMEOUT_MS,
@@ -419,139 +420,24 @@ function buildComprehensionPrompt() {
 	].join("\n");
 }
 
-// Hoisted function declarations: the top-level run executes before any
-// top-level `const` written below it would initialize.
-function agentAnchorJsonSchema() {
-	return {
-		type: "object",
-		properties: {
-			path: { type: "string" },
-			side: { enum: ["old", "new"] },
-			startLine: { type: "integer", minimum: 0 },
-			endLine: { type: "integer", minimum: 0 },
-		},
-		required: ["path", "side", "startLine", "endLine"],
-		additionalProperties: false,
-	};
-}
-
-function comprehensionOutJsonSchema() {
-	return {
-		type: "object",
-		properties: {
-			intentMap: {
-				type: "object",
-				properties: {
-					summary: { type: "string" },
-					clusters: {
-						type: "array",
-						items: {
-							type: "object",
-							properties: {
-								name: { type: "string" },
-								kind: {
-									enum: [
-										"core",
-										"refactor",
-										"tests",
-										"config",
-										"docs",
-										"generated",
-										"chore",
-									],
-								},
-								description: { type: "string" },
-								members: {
-									type: "array",
-									items: {
-										type: "object",
-										properties: {
-											path: { type: "string" },
-											hunkIds: { type: "array", items: { type: "string" } },
-										},
-										required: ["path"],
-										additionalProperties: false,
-									},
-								},
-							},
-							required: ["name", "kind", "description", "members"],
-							additionalProperties: false,
-						},
-					},
-					suggestedEntryPoint: { type: "string" },
-				},
-				required: ["summary", "clusters", "suggestedEntryPoint"],
-				additionalProperties: false,
-			},
-			walkthrough: {
-				type: "object",
-				properties: {
-					steps: {
-						type: "array",
-						items: {
-							type: "object",
-							properties: {
-								title: { type: "string" },
-								narration: { type: "string" },
-								focus: {
-									type: "array",
-									items: {
-										type: "object",
-										properties: {
-											path: { type: "string" },
-											hunkIds: { type: "array", items: { type: "string" } },
-										},
-										required: ["path", "hunkIds"],
-										additionalProperties: false,
-									},
-								},
-							},
-							required: ["title", "narration", "focus"],
-							additionalProperties: false,
-						},
-					},
-				},
-				required: ["steps"],
-				additionalProperties: false,
-			},
-			explanations: {
-				type: "array",
-				maxItems: 60,
-				items: {
-					type: "object",
-					properties: {
-						anchor: agentAnchorJsonSchema(),
-						kind: { enum: ["intent", "mechanism", "implication"] },
-						body: { type: "string" },
-					},
-					required: ["anchor", "kind", "body"],
-					additionalProperties: false,
-				},
-			},
-			risk: {
-				type: "object",
-				properties: {
-					hunkRisks: {
-						type: "array",
-						items: {
-							type: "object",
-							properties: {
-								hunkId: { type: "string" },
-								score: { enum: [2, 3, 4, 5] },
-								reason: { type: "string" },
-							},
-							required: ["hunkId", "score", "reason"],
-							additionalProperties: false,
-						},
-					},
-				},
-				required: ["hunkRisks"],
-				additionalProperties: false,
-			},
-		},
-		required: ["intentMap", "walkthrough", "explanations", "risk"],
-		additionalProperties: false,
-	};
+/**
+ * CON-014: the task schemas come from `src/application/analysis/` through the
+ * production `toJsonSchema`, never from a copy living in this file.
+ *
+ * A hand-embedded copy is what made the draft-2020-12 outage invisible — the
+ * capture proved the CLI accepted a schema prreview never actually sent, so a
+ * green fixture and a broken product coexisted happily. This file is `.mjs`
+ * and cannot import TypeScript, hence the tsx hop.
+ */
+async function dumpTaskSchemas() {
+	const dumper = fileURLToPath(
+		new URL("./dump-task-schemas.ts", import.meta.url),
+	);
+	const tsx = fileURLToPath(
+		new URL("../node_modules/.bin/tsx", import.meta.url),
+	);
+	const { stdout } = await execFile(tsx, [dumper], { maxBuffer: 10_000_000 });
+	return JSON.parse(stdout);
 }
 
 function maxTurnsProbeJsonSchema() {

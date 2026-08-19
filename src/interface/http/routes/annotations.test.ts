@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	analyze,
 	createAnalysisApp,
+	seedFindings,
 } from "../../../../test/helpers/createAnalysisApp";
 import { createTestApp } from "../../../../test/helpers/createTestApp";
 import { annotationDtoSchema } from "../dto/AnnotationDto";
@@ -15,9 +16,10 @@ describe("GET /api/annotations", () => {
 		expect(await response.json()).toEqual([]);
 	});
 
-	it("serves the explanations an analysis produced, anchored", async () => {
+	it("serves the findings a run produced, anchored", async () => {
 		const app = await createAnalysisApp();
 		await analyze(app);
+		await seedFindings(app);
 
 		const response = await app.app.request("/api/annotations");
 		expect(response.status).toBe(200);
@@ -27,16 +29,16 @@ describe("GET /api/annotations", () => {
 
 		expect(annotations).toHaveLength(2);
 		expect(annotations.map((annotation) => annotation.species)).toEqual([
-			"explanation",
-			"explanation",
+			"finding",
+			"finding",
 		]);
 		expect(annotations.map((annotation) => annotation.anchor.path)).toEqual([
 			"src/greeting.ts",
 			"notes/todo.md",
 		]);
 		expect(annotations.map((annotation) => annotation.category)).toEqual([
-			"intent",
-			"mechanism",
+			"correctness",
+			"design",
 		]);
 		expect(annotations[0].anchor.placement).toBe("in-diff");
 		expect(annotations[0].anchorStatus).toBe("anchored");
@@ -46,6 +48,7 @@ describe("GET /api/annotations", () => {
 	it("keeps the anchor snapshot off the wire", async () => {
 		const app = await createAnalysisApp();
 		await analyze(app);
+		await seedFindings(app);
 
 		const [annotation] = (await (
 			await app.app.request("/api/annotations")

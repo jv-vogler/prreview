@@ -134,7 +134,7 @@ function taskSpec(overrides: Partial<TaskSpec> = {}): TaskSpec {
 		stage: "comprehension",
 		jsonSchema: '{"type":"object","additionalProperties":false}',
 		maxTurns: 30,
-		timeoutMs: 10_000,
+		idleTimeoutMs: 10_000,
 		systemContract: "contract clause 1",
 		outputSchema: ACCEPT_ANY,
 		...overrides,
@@ -150,7 +150,7 @@ function chatInput(overrides: Partial<ChatTurnInput> = {}): ChatTurnInput {
 		prompt: "what does this hunk do?",
 		workspaceDir: scratchDir,
 		maxTurns: 12,
-		timeoutMs: 10_000,
+		idleTimeoutMs: 10_000,
 		...overrides,
 	};
 }
@@ -194,7 +194,7 @@ describe("ClaudeEngine.probe", () => {
 
 describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 	it("invokes the §7 baseline exactly, with the schema inline and no --model", async () => {
-		const logPath = useFixture("comprehension.jsonl");
+		const logPath = useFixture("understanding.jsonl");
 		await drain(engine.runTask(taskSpec(), taskInput()));
 
 		const [invocation] = await readInvocations(logPath);
@@ -223,7 +223,7 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 	});
 
 	it("keeps the inline schema under the argv budget (CON-005)", async () => {
-		const logPath = useFixture("comprehension.jsonl");
+		const logPath = useFixture("understanding.jsonl");
 		const jsonSchema = JSON.stringify({
 			type: "object",
 			description: "x".repeat(80_000),
@@ -237,7 +237,7 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 	});
 
 	it("delivers the prompt on stdin, byte-for-byte, and never in argv (SEC-002)", async () => {
-		const logPath = useFixture("comprehension.jsonl");
+		const logPath = useFixture("understanding.jsonl");
 		const prompt = `${"line of numbered diff\n".repeat(500)}anchor on the new side`;
 		await drain(engine.runTask(taskSpec(), taskInput({ prompt })));
 
@@ -250,14 +250,14 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 	});
 
 	it("runs the child in the engine workspace (REQ-005)", async () => {
-		const logPath = useFixture("comprehension.jsonl");
+		const logPath = useFixture("understanding.jsonl");
 		await drain(engine.runTask(taskSpec(), taskInput()));
 		const [invocation] = await readInvocations(logPath);
 		expect(invocation?.cwd).toBe(scratchDir);
 	});
 
 	it("forks a resumed session when asked, and only then (CON-004)", async () => {
-		const forkLog = useFixture("comprehension.jsonl");
+		const forkLog = useFixture("understanding.jsonl");
 		await drain(
 			engine.runTask(
 				taskSpec(),
@@ -270,7 +270,7 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 			"--fork-session",
 		]);
 
-		const plainLog = useFixture("comprehension.jsonl");
+		const plainLog = useFixture("understanding.jsonl");
 		await drain(
 			engine.runTask(
 				taskSpec(),
@@ -285,7 +285,7 @@ describe("ClaudeEngine.runTask argv and prompt delivery", () => {
 
 describe("ClaudeEngine.runTask results", () => {
 	it("succeeds on a real comprehension capture, with structured output and a read log", async () => {
-		useFixture("comprehension.jsonl");
+		useFixture("understanding.jsonl");
 		const events = await drain(engine.runTask(taskSpec(), taskInput()));
 
 		const session = events[0];
@@ -301,10 +301,11 @@ describe("ClaudeEngine.runTask results", () => {
 			throw new Error("expected a successful run");
 		}
 		expect(Object.keys(result.structuredOutput as object).sort()).toEqual([
-			"explanations",
-			"intentMap",
-			"risk",
-			"walkthrough",
+			"goalMatch",
+			"headline",
+			"suggestedEntryPoint",
+			"summary",
+			"topics",
 		]);
 		expect(result.model).toBe("claude-haiku-4-5-20251001");
 		expect(result.numTurns).toBe(8);
@@ -323,7 +324,7 @@ describe("ClaudeEngine.runTask results", () => {
 	});
 
 	it("reports every tool call as a tool event, including the schema self-retries (CON-006)", async () => {
-		useFixture("comprehension.jsonl");
+		useFixture("understanding.jsonl");
 		const events = await drain(engine.runTask(taskSpec(), taskInput()));
 		const tools = events.filter((event) => event.type === "tool");
 		expect(tools.map((tool) => (tool as { name: string }).name)).toEqual([
@@ -351,16 +352,33 @@ describe("ClaudeEngine.runTask results", () => {
 		expect(result).toMatchObject({ ok: true });
 	});
 
-	it("fails a run whose result says subtype success but is_error true (CON-003)", async () => {
+	/**
+	 * An API failure and a malformed answer both leave a schema task with no
+	 * structured output, but they mean opposite things: one is the agent
+	 * answering badly, the other is the agent never being reached. Reporting the
+	 * first as `schema-violation` told users their model produced bad output
+	 * when the truth was a 404 on the model name.
+	 */
+	it("reports an API failure as api-error, not as a schema violation (CON-003)", async () => {
 		useFixture("badmodel.jsonl");
 		const events = await drain(engine.runTask(taskSpec(), taskInput()));
 		expect(terminalOf(events)).toMatchObject({
 			ok: false,
-			// no structured output on a schema task is a schema violation, and
-			// the api_error terminal reason rides along for the UI
-			reason: "schema-violation",
+			reason: "api-error",
 			terminalReason: "api_error",
 		});
+	});
+
+	/** the CLI's own explanation is what a user can act on, so it is kept */
+	it("carries the API status and the CLI's explanation through", async () => {
+		useFixture("badmodel.jsonl");
+		const events = await drain(engine.runTask(taskSpec(), taskInput()));
+		const result = terminalOf(events);
+		if ("ok" in result && result.ok) {
+			throw new Error("expected a failure");
+		}
+		expect(result.stderrTail).toContain("HTTP 404");
+		expect(result.stderrTail).toContain("selected model");
 	});
 
 	it("maps an exhausted turn budget to schema-violation (CON-006, no retry loop)", async () => {
@@ -374,7 +392,7 @@ describe("ClaudeEngine.runTask results", () => {
 	});
 
 	it("re-validates structured output on receipt and rejects it (REQ-007)", async () => {
-		useFixture("comprehension.jsonl");
+		useFixture("understanding.jsonl");
 		const rejecting = {
 			parse: () => {
 				throw new Error("intentMap.summary: expected string");
@@ -441,6 +459,7 @@ describe("ClaudeEngine.chatTurn", () => {
 		expect(text.join("")).toContain(
 			"**Git merge** creates a new commit that combines two branches",
 		);
+		console.log(JSON.stringify(terminalOf(events)));
 		expect(terminalOf(events)).toMatchObject({ ok: true });
 	});
 
@@ -478,15 +497,38 @@ describe("ClaudeEngine.chatTurn", () => {
 });
 
 describe("ClaudeEngine cancellation and timeouts (SEC-002)", () => {
-	it("fails a run that outlives its budget with timed-out", async () => {
-		useFixture("comprehension.jsonl", { FAKE_CLAUDE_DELAY_MS: "50" });
+	it("fails a run that goes silent past its idle budget with timed-out", async () => {
+		useFixture("understanding.jsonl", { FAKE_CLAUDE_DELAY_MS: "50" });
 		const events = await drain(
-			engine.runTask(taskSpec({ timeoutMs: 120 }), taskInput()),
+			engine.runTask(taskSpec({ idleTimeoutMs: 120 }), taskInput()),
 		);
 		expect(terminalOf(events)).toMatchObject({
 			ok: false,
 			reason: "timed-out",
 		});
+	});
+
+	/**
+	 * The point of an idle clock rather than a wall clock, stated as a test.
+	 *
+	 * This replay takes far longer than its own budget — 62 lines at 20ms is
+	 * over a second against a 400ms ceiling — and survives, because it never
+	 * stops talking for 400ms. Under the wall clock this replaced, it would have
+	 * been killed two thirds of the way through and its work discarded, which is
+	 * exactly what happened to real runs on large changes.
+	 */
+	it("does not stop a run that keeps working, however long it takes", async () => {
+		const idleTimeoutMs = 1200;
+		useFixture("understanding.jsonl", { FAKE_CLAUDE_DELAY_MS: "25" });
+		const started = Date.now();
+		const events = await drain(
+			engine.runTask(taskSpec({ idleTimeoutMs }), taskInput()),
+		);
+
+		// the run outlived what used to be its whole budget...
+		expect(Date.now() - started).toBeGreaterThan(idleTimeoutMs);
+		// ...and finished, because it never went quiet for that long
+		expect(terminalOf(events)).toMatchObject({ ok: true });
 	});
 
 	it("kills the child when the consumer stops iterating", async () => {
@@ -514,7 +556,7 @@ describe("ClaudeEngine cancellation and timeouts (SEC-002)", () => {
 		});
 
 		const events = await drain(
-			killer.runTask(taskSpec({ timeoutMs: 80 }), taskInput()),
+			killer.runTask(taskSpec({ idleTimeoutMs: 80 }), taskInput()),
 		);
 		expect(terminalOf(events)).toMatchObject({
 			ok: false,

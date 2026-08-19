@@ -1,0 +1,129 @@
+.topic {
+	border: 1px solid var(--borderColor-default);
+	border-radius: var(--borderRadius-medium);
+	overflow: hidden;
+	background: var(--bgColor-default);
+	transition: border-color var(--motion-transition-hover);
+}
+
+.topic:hover {
+	border-color: var(--borderColor-muted);
+}
+
+.header {
+	padding: 12px 16px;
+	background: var(--bgColor-muted);
+	transition: background-color var(--motion-transition-hover);
+}
+
+.header:hover {
+	background: var(--bgColor-neutral-muted);
+}
+
+.disclosure {
+	appearance: none;
+	background: none;
+	border: none;
+	padding: 0;
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	cursor: pointer;
+	color: inherit;
+	text-align: left;
+	width: 100%;
+}
+
+.caret {
+	display: inline-flex;
+	align-self: center;
+	color: var(--fgColor-muted);
+	transition: transform var(--motion-transition-stateChange);
+}
+
+.topic[data-open="false"] .caret {
+	transform: rotate(-90deg);
+}
+
+.title {
+	font-size: var(--text-body-size-large);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-default);
+}
+
+.meta {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 6px;
+	margin-left: 22px;
+}
+
+.kind {
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+	border: 1px solid var(--borderColor-muted);
+	border-radius: var(--borderRadius-full);
+	padding: 0 8px;
+	text-transform: lowercase;
+}
+
+.coverage {
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+}
+
+.summary {
+	margin: 8px 0 0 22px;
+	font-size: var(--text-body-size-medium);
+	color: var(--fgColor-default);
+	line-height: var(--text-body-lineHeight-medium);
+	max-width: 68ch;
+}
+
+/*
+ * The fold, eased.
+ *
+ * A grid whose single row goes from `0fr` to `1fr` is the one way to animate to
+ * a height nobody knows in advance: `1fr` resolves to the content's own height,
+ * and unlike `height: auto` it is an interpolable value. The child does the
+ * clipping, which is why it needs `min-height: 0` — a grid item's default
+ * minimum is its content, and it would refuse to be squashed.
+ */
+.excerptsClip {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows var(--motion-transition-stateChange);
+}
+
+/*
+ * The separating rule is drawn on the panel below rather than under the header,
+ * so it arrives with the code instead of a beat ahead of it.
+ */
+.topic[data-open="true"] > .excerptsClip {
+	grid-template-rows: 1fr;
+	border-top: 1px solid var(--borderColor-default);
+}
+
+.excerpts {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.excerpt {
+	border-top: 1px solid var(--borderColor-muted);
+	overflow-x: auto;
+}
+
+.excerpt:first-child {
+	border-top: none;
+}
+
+.empty {
+	margin: 0;
+	padding: 16px;
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+}

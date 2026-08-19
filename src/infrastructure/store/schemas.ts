@@ -1,8 +1,6 @@
 import { z } from "zod";
 import type { RoundAnalysis } from "../../application/analysis/RoundAnalysis";
-import { comprehensionOutSchema } from "../../application/analysis/schemas";
 import type { ReadLog } from "../../application/ports/Engine";
-import type { WalkthroughProgress } from "../../domain/analysis/Walkthrough";
 import type { Anchor, AnchorStatus } from "../../domain/anchor/Anchor";
 import type {
 	Citation,
@@ -81,11 +79,6 @@ const runMetaSchema: z.ZodType<RunMeta> = z.object({
 	reason: z.string().optional(),
 });
 
-const walkthroughProgressSchema: z.ZodType<WalkthroughProgress> = z.object({
-	position: z.number(),
-	completed: z.boolean(),
-});
-
 export const sessionManifestSchema: z.ZodType<SessionManifest> = z.object({
 	schemaVersion: z.number(),
 	changesetId: z.string(),
@@ -106,8 +99,13 @@ export const sessionManifestSchema: z.ZodType<SessionManifest> = z.object({
 			z.object({ id: z.string(), engineSessionId: z.string() }),
 		),
 	}),
-	ticket: z.object({ key: z.string(), source: z.string() }).optional(),
-	walkthroughProgress: walkthroughProgressSchema.optional(),
+	ticket: z
+		.object({
+			key: z.string(),
+			source: z.enum(["branch", "title", "body"]),
+			url: z.string().optional(),
+		})
+		.optional(),
 });
 
 const blobRefSchema: z.ZodType<BlobRef> = z.discriminatedUnion("kind", [
@@ -211,6 +209,23 @@ const storedAnnotationSchema: z.ZodType<StoredAnnotation> = z.object({
 	title: z.string().optional(),
 	originalBody: z.string().optional(),
 	category: z.string().optional(),
+	severity: z.string().optional(),
+	proof: z
+		.object({
+			mode: z.enum(["traced", "inferred"]),
+			how: z.string(),
+			stale: z.boolean().optional(),
+		})
+		.optional(),
+	editTrail: z
+		.array(
+			z.object({
+				at: z.string(),
+				by: z.enum(["user", "chat"]),
+				previousBody: z.string(),
+			}),
+		)
+		.optional(),
 	confidence: z.enum(["high", "medium", "low"]).optional(),
 	citations: z.array(citationSchema).optional(),
 	groundingVerified: z.boolean().optional(),
@@ -244,13 +259,57 @@ const readLogSchema: z.ZodType<ReadLog> = z.object({
 	searchHits: z.array(z.string()),
 });
 
+const topicRefSchema = z.object({
+	path: z.string(),
+	hunkIds: z.array(z.string()),
+});
+
+const topicSchema = z.object({
+	id: z.string(),
+	title: z.string(),
+	summary: z.string(),
+	kind: z.enum([
+		"core",
+		"refactor",
+		"tests",
+		"config",
+		"docs",
+		"generated",
+		"chore",
+	]),
+	refs: z.array(topicRefSchema),
+});
+
+const goalMatchSchema = z.object({
+	verdict: z.enum(["matches", "partly", "diverges", "unclear"]),
+	rationale: z.string(),
+	basis: z.enum(["ticket", "inferred"]),
+	ticket: z
+		.object({
+			key: z.string(),
+			source: z.enum(["branch", "title", "body"]),
+			url: z.string().optional(),
+		})
+		.nullable(),
+});
+
+const understandingSchema = z.object({
+	headline: z.string(),
+	summary: z.array(z.string()),
+	topics: z.array(topicSchema),
+	suggestedEntryPoint: z.string(),
+	goalMatch: goalMatchSchema,
+	uncoveredHunks: z.array(z.object({ path: z.string(), hunkId: z.string() })),
+});
+
 /**
- * rounds/<roundId>/analysis.json — the raw stage output. `comprehension` is
- * validated by the very schema the agent was handed (application/analysis), so
- * a stored analysis and a fresh one answer to the same contract.
+ * rounds/<roundId>/analysis.json — the comprehension pass's output, stored in
+ * the built domain shape (ids assigned, basis stamped, omissions derived)
+ * rather than as the agent's raw draft, so what a reload serves is exactly what
+ * the run served and no derivation has to be repeated or kept in sync.
  */
 export const roundAnalysisSchema: z.ZodType<RoundAnalysis> = z.object({
-	comprehension: comprehensionOutSchema,
+	understanding: understandingSchema,
 	readLog: readLogSchema,
 	runId: z.string(),
 	engineSessionId: z.string(),

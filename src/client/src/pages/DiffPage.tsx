@@ -1,114 +1,43 @@
-import {
-	Suspense,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
-} from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useNavigate, useOutletContext, useSearchParams } from "react-router";
 import {
 	annotationStops,
 	nextAnnotationStop,
 } from "../domain/annotation/annotationStops";
-import { sortFilesByAttention } from "../domain/changeset/sortFilesByAttention";
-import { AnalysisProvider } from "../view/analysis/AnalysisProvider";
-import { AnalysisTray } from "../view/analysis/AnalysisTray";
 import { useAnnotations } from "../view/annotations/useAnnotations";
-import { AppShell } from "../view/app/AppShell";
-import { TopBar } from "../view/app/TopBar";
-import { ChatDock } from "../view/chat/ChatDock";
-import { ChatProvider } from "../view/chat/ChatProvider";
-import {
-	CoverageProvider,
-	useCoverageActions,
-} from "../view/coverage/CoverageProvider";
-import type { DiffCursor } from "../view/diff/DiffNavigationProvider";
-import {
-	DiffNavigationProvider,
-	useDiffNavigation,
-} from "../view/diff/DiffNavigationProvider";
+import { useCoverageActions } from "../view/coverage/CoverageProvider";
+import { useDiffNavigation } from "../view/diff/DiffNavigationProvider";
 import { DiffWorkspace } from "../view/diff/DiffWorkspace";
 import { FileTreePanel } from "../view/diff/FileTreePanel";
-import { HelpDialog } from "../view/diff/HelpDialog";
 import type { KeyAction } from "../view/diff/resolveKeyAction";
-import { useDiffStyle } from "../view/diff/useDiffStyle";
-import { useGuaranteedChangeset } from "../view/diff/useGuaranteedChangeset";
+import { SidebarResizer } from "../view/diff/SidebarResizer";
 import { useKeymap } from "../view/diff/useKeymap";
-import { LoadingScreen } from "../view/general/LoadingScreen";
-import { ChangesDetectedBanner } from "../view/session/ChangesDetectedBanner";
-import { useDriftBanner } from "../view/session/useDriftBanner";
+import { useSidebarWidth } from "../view/diff/useSidebarWidth";
 import { useFeatureFlags } from "../view/session/useFeatureFlags";
-import { ViewerOnlyNotice } from "../view/session/ViewerOnlyNotice";
-import { WalkthroughOverlay } from "../view/walkthrough/WalkthroughOverlay";
-import {
-	useWalkthroughMode,
-	WalkthroughProvider,
-} from "../view/walkthrough/WalkthroughProvider";
+import styles from "./DiffPage.module.css";
 import { cursorFromSearchParams, searchParamsForCursor } from "./diffUrl";
+import type { ReviewOutletContext } from "./ReviewLayout";
 
-/** `/diff` — the review workspace behind the suspense gate (TASK-049/051). */
+/**
+ * `/diff` — the plain GitHub-style diff, free and always available.
+ *
+ * Findings appear here as balloons, and there is no longer a switch for that:
+ * a review you paid for that renders only if you also find and flip a checkbox
+ * is a review that is hidden by default. Explanations never appear here at all
+ * — narration belongs beside the code it describes on the Understanding tab,
+ * not scattered through the margin where a reader has to reassemble it.
+ */
 export function DiffPage() {
-	return (
-		<Suspense fallback={<LoadingScreen />}>
-			<DiffPageContent />
-		</Suspense>
-	);
-}
-
-function DiffPageContent() {
-	const changeset = useGuaranteedChangeset();
-	const [searchParams] = useSearchParams();
-
-	const sortedFiles = useMemo(
-		() => sortFilesByAttention(changeset.files),
-		[changeset.files],
-	);
-
-	// the URL is read once, at entry — afterwards the cursor writes the URL
-	const initialCursorRef = useRef<DiffCursor | undefined>(undefined);
-	const initialCursorReadRef = useRef(false);
-	if (!initialCursorReadRef.current) {
-		initialCursorReadRef.current = true;
-		initialCursorRef.current = cursorFromSearchParams(
-			searchParams,
-			sortedFiles,
-		);
-	}
-
-	return (
-		<CoverageProvider>
-			<AnalysisProvider>
-				<ChatProvider>
-					<DiffNavigationProvider
-						files={sortedFiles}
-						initialCursor={initialCursorRef.current}
-					>
-						<WalkthroughProvider>
-							<DiffPageBody initialCursor={initialCursorRef.current} />
-						</WalkthroughProvider>
-					</DiffNavigationProvider>
-				</ChatProvider>
-			</AnalysisProvider>
-		</CoverageProvider>
-	);
-}
-
-interface DiffPageBodyProps {
-	initialCursor: DiffCursor | undefined;
-}
-
-function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
+	const { diffStyle, toggleDiffStyle } =
+		useOutletContext<ReviewOutletContext>();
 	const navigation = useDiffNavigation();
 	const { markReviewed } = useCoverageActions();
-	const [diffStyle, toggleDiffStyle] = useDiffStyle();
-	const [helpOpen, setHelpOpen] = useState(false);
-	const [chatOpen, setChatOpen] = useState(false);
 	const flags = useFeatureFlags();
-	const walkthrough = useWalkthroughMode();
-	const drift = useDriftBanner();
 	const navigate = useNavigate();
 	const annotations = useAnnotations();
+	const [searchParams] = useSearchParams();
+	const sidebar = useSidebarWidth();
+
 	const stops = useMemo(
 		() => annotationStops(annotations, navigation.files),
 		[annotations, navigation.files],
@@ -116,16 +45,19 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 
 	useCursorUrlSync();
 
-	// restore the URL's position once the workspace has registered its
-	// scroll executor (child effects run before this one)
+	// restore the URL's position once the workspace has registered its scroll
+	// executor (child effects run before this one)
 	const restoredRef = useRef(false);
 	useEffect(() => {
-		if (restoredRef.current || initialCursor === undefined) {
+		if (restoredRef.current) {
 			return;
 		}
 		restoredRef.current = true;
-		navigation.jumpTo(initialCursor);
-	}, [initialCursor, navigation.jumpTo]);
+		const initial = cursorFromSearchParams(searchParams, navigation.files);
+		if (initial !== undefined) {
+			navigation.jumpTo(initial);
+		}
+	}, [searchParams, navigation.files, navigation.jumpTo]);
 
 	const reviewedHunkIdsFor = useCallback(
 		(scope: "hunk" | "file") => {
@@ -155,18 +87,14 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 	const onKeyAction = useCallback(
 		(action: KeyAction) => {
 			switch (action) {
-				case "toggle-walkthrough":
-					return walkthrough.toggle();
-				case "toggle-chat":
-					// absent, not disabled, without an agent (F12): the key belongs to
-					// the surface, and with no agent there is no surface
-					return flags.chat ? setChatOpen((open) => !open) : undefined;
 				case "next-annotation":
 					return jumpToStop("next");
 				case "prev-annotation":
 					return jumpToStop("previous");
-				case "go-orient":
-					return navigate("/orient");
+				case "go-understand":
+					return navigate("/understand");
+				case "go-diff":
+					return undefined;
 				case "next-file":
 					return navigation.nextFile();
 				case "prev-file":
@@ -181,8 +109,6 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 					return markReviewed(reviewedHunkIdsFor("file"));
 				case "toggle-diff-style":
 					return toggleDiffStyle();
-				case "open-help":
-					return setHelpOpen(true);
 			}
 		},
 		[
@@ -192,50 +118,22 @@ function DiffPageBody({ initialCursor }: DiffPageBodyProps) {
 			toggleDiffStyle,
 			jumpToStop,
 			navigate,
-			walkthrough,
-			flags.chat,
 		],
 	);
 
-	useKeymap({ dialogOpen: helpOpen, onAction: onKeyAction });
+	useKeymap({ dialogOpen: false, onAction: onKeyAction });
 
 	return (
-		<>
-			<AppShell
-				topBar={
-					<TopBar
-						diffStyle={diffStyle}
-						onToggleDiffStyle={toggleDiffStyle}
-						onToggleWalkthrough={
-							walkthrough.available ? walkthrough.toggle : undefined
-						}
-						walkthroughActive={walkthrough.flow.state === "at-step"}
-						onOpenHelp={() => setHelpOpen(true)}
-					/>
-				}
-				banner={
-					<>
-						{drift.driftDetected && (
-							<ChangesDetectedBanner
-								refreshing={drift.refreshing}
-								onRefresh={drift.refresh}
-							/>
-						)}
-						<AnalysisTray />
-						<ViewerOnlyNotice />
-					</>
-				}
-				sidebar={<FileTreePanel />}
-				workspace={<DiffWorkspace diffStyle={diffStyle} />}
-				workspaceFooter={<WalkthroughOverlay />}
-				dock={
-					flags.chat && chatOpen ? (
-						<ChatDock onClose={() => setChatOpen(false)} />
-					) : undefined
-				}
-			/>
-			<HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
-		</>
+		<div className={styles.layout}>
+			<aside className={styles.sidebar} style={{ width: sidebar.width }}>
+				<FileTreePanel />
+			</aside>
+			<SidebarResizer width={sidebar.width} onWidth={sidebar.setWidth} />
+			<div className={styles.main}>
+				{flags.analysis && <ReviewToolbar />}
+				<DiffWorkspace diffStyle={diffStyle} />
+			</div>
+		</div>
 	);
 }
 
@@ -247,7 +145,32 @@ function useCursorUrlSync(): void {
 	useEffect(() => {
 		setSearchParams(
 			(current) => searchParamsForCursor(current, files, cursor),
-			{ replace: true },
+			{
+				replace: true,
+			},
 		);
 	}, [files, cursor, setSearchParams]);
+}
+
+/**
+ * The findings pass, where its output lands — and honest about not being ready.
+ *
+ * The trigger used to be a tab of its own. The pass works end to end, but its
+ * output is not good enough to put in front of someone yet, and a tab you
+ * cannot use is worse than no tab: a standing invitation to click something
+ * that goes nowhere. Disabled and labelled beats hidden, because hidden also
+ * hides the plan.
+ */
+function ReviewToolbar() {
+	return (
+		<div className={styles.toolbar}>
+			<button type="button" className={styles.review} disabled>
+				Review this change
+			</button>
+			<span className={styles.reviewNote}>
+				Not ready yet — suggested review comments are being reworked. Findings
+				appear here in the margin once this is switched on.
+			</span>
+		</div>
+	);
 }

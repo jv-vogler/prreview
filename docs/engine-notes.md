@@ -35,3 +35,76 @@ in `src/infrastructure/engine/promptDelivery.ts`.
 Corollaries baked into the adapter: the prompt is never an argv member (SEC-002 — nothing
 user-sized or user-authored is interpolated into argv), and `--json-schema` stays the only
 large argv value, capped at 85KB by a build-time assertion (CON-005).
+
+## What `--max-budget-usd` actually does (CON-015)
+
+In plain terms: the spend limit is a stopping rule, not a ceiling. The run halts once it has
+already gone over.
+
+Measured 2026-08-17 against `claude` 2.1.233 with `--model haiku`
+(`spikes/depth-and-fanout/VERDICT.md`). The budget is evaluated **between turns**, so the first
+turn always runs and always bills:
+
+| `--max-budget-usd` | actual `total_cost_usd` | turns |
+|---|---|---|
+| `0.0001` | 0.0125 (**125× over**) | 1 |
+| `0.01` | 0.0132 | 4 |
+
+Exhaustion is at least a clean typed failure, parallel to `error_max_turns`:
+`subtype: "error_max_budget_usd"`, `terminal_reason: "budget_exhausted"`, `is_error: true`,
+`structured_output: null`, **exit 1**.
+
+Consequences: never render the number as a cap ("stops once it has spent about $X", not "will not
+exceed"); budget N concurrent children as `N × (ceiling + one turn)`; and enforce a floor in the
+dialog, since a ceiling below one turn's cost does not prevent the run, only makes it fail after
+paying. The flag also `only works with --print`, which prreview always passes.
+
+`--effort` takes `low, medium, high, xhigh, max` and is accepted alongside prreview's full flag
+set, but showed no measurable turn/cost/duration difference on a trivial one-turn prompt — so no
+depth preset should claim it buys "more thinking" until that is shown on a real review task.
+
+## What JSON Schema dialect `--json-schema` accepts (CON-014)
+
+In plain terms: the CLI checks the schema you hand it before it does anything, and it only
+understands the older dialect. Give it the newer one and the run dies at startup.
+
+The CLI validates `--json-schema` with **Ajv 8 in draft-07 mode**. Ajv 8 has no draft-2020-12
+meta-schema registered, so a schema carrying
+`"$schema": "https://json-schema.org/draft/2020-12/schema"` makes `validateSchema` *throw*, and
+the CLI refuses the run with
+
+```
+--json-schema is not a valid JSON Schema: no schema with key or ref "https://json-schema.org/draft/2020-12/schema"
+```
+
+Reproduced directly against `ajv@8.20.0`, the version pinned as a devDependency here for exactly
+this reason:
+
+| schema handed to Ajv 8 | `validateSchema` |
+|---|---|
+| `target: "draft-2020-12"` (what prreview used to emit) | **throws**, unresolvable `$schema` ref |
+| `target: "draft-7"`, `$schema` kept | `true` |
+| `target: "draft-7"`, `$schema` stripped | `true` |
+
+**What prreview does:** `toJsonSchema` converts at `target: "draft-7"` and strips `$schema`
+entirely, so no meta-schema ever has to resolve.
+
+**Why it went unnoticed, and what now prevents a repeat.** Every analysis run failed at spawn
+while the whole suite stayed green, because all three places that could have caught it were
+looking away: the fixture capture script hand-embedded its own schema (no `$schema` key, so the
+recording proved the CLI accepted a value prreview never sent), `test/bin/claude` treated
+`--json-schema` as an opaque string it never validated, and the unit test asserted the buggy
+`$schema` value as if it were the contract. All three are closed:
+
+- `src/application/analysis/taskSchemas.ts` registers every task schema, and
+  `toJsonSchema.test.ts` puts each one through a real Ajv 8 `validateSchema`;
+- `test/bin/claude` validates `--json-schema` the same way and fails the run at argv time, so the
+  failure is now a red unit test rather than a broken product;
+- `test/taskSchemaGate.test.ts` runs a real task spec end to end through the engine and the fake,
+  which is the arrangement nothing tested before;
+- `scripts/capture-claude-fixtures.mjs` obtains schemas from `scripts/dump-task-schemas.ts`, i.e.
+  through the production `toJsonSchema`, so a recording can only be made against the real value.
+
+The fake's exact stderr wording is modeled on the observed production failure rather than a
+byte-faithful capture; the behavior tests depend on is *reject before running*, and the prose is
+re-checked by the opt-in `test/realClaude.test.ts`.

@@ -1,4 +1,3 @@
-import type { WalkthroughProgress } from "../../domain/analysis/Walkthrough";
 import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
@@ -62,18 +61,6 @@ export interface SessionStore {
 		changesetId: ChangesetId,
 		threadId: string,
 		thread: ChatThread,
-	): Promise<void>;
-	/**
-	 * Walkthrough position lives in the manifest as an optional field, not in a
-	 * file of its own (CON-012: additive optional fields never bump the schema
-	 * version). Null means the walkthrough was never entered.
-	 */
-	loadWalkthroughProgress(
-		changesetId: ChangesetId,
-	): Promise<WalkthroughProgress | null>;
-	saveWalkthroughProgress(
-		changesetId: ChangesetId,
-		progress: WalkthroughProgress,
 	): Promise<void>;
 	writeBlob(oid: string, content: Buffer): Promise<void>;
 	readBlob(oid: string): Promise<Buffer | null>;

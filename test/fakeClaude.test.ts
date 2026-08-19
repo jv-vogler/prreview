@@ -25,7 +25,8 @@ const FIXTURE_NAMES = [
 	"schema",
 	"tooluse",
 	"badmodel",
-	"comprehension",
+	"understanding",
+	"review",
 	"chat-stream",
 	"hooknoise",
 	"maxturns",
@@ -101,6 +102,92 @@ describe("fake claude on the stripped PATH", () => {
 			"Error: When using --print, --output-format=stream-json requires --verbose",
 		);
 		expect(run.stdout).toBe("");
+	});
+
+	/**
+	 * CON-014. These are the tests that would have caught the outage: the fake
+	 * now validates `--json-schema` with the same Ajv 8 draft-07 the real CLI
+	 * uses, so a schema the CLI would reject fails here too — at argv time,
+	 * before a fixture is ever consulted, with nothing on stdout.
+	 */
+	describe("--json-schema validation (CON-014)", () => {
+		const validSchema = JSON.stringify({
+			type: "object",
+			properties: { summary: { type: "string" } },
+			required: ["summary"],
+			additionalProperties: false,
+		});
+
+		it("replays normally when the schema is a valid draft-07 schema", async () => {
+			const run = await runClaude(
+				[...STREAM_ARGV, "--json-schema", validSchema],
+				{
+					FAKE_CLAUDE_FIXTURE: join(FIXTURES_DIR, "schema.jsonl"),
+					stdin: "replay",
+				},
+			);
+			expect(run.exitCode).toBe(0);
+			expect(run.stdout).not.toBe("");
+		});
+
+		it("rejects a draft-2020-12 $schema the way the real CLI did", async () => {
+			const run = await runClaude(
+				[
+					...STREAM_ARGV,
+					"--json-schema",
+					JSON.stringify({
+						$schema: "https://json-schema.org/draft/2020-12/schema",
+						type: "object",
+					}),
+				],
+				{
+					FAKE_CLAUDE_FIXTURE: join(FIXTURES_DIR, "schema.jsonl"),
+					stdin: "replay",
+				},
+			);
+			expect(run.exitCode).toBe(1);
+			expect(run.stdout).toBe("");
+			expect(run.stderr).toContain("--json-schema is not a valid JSON Schema");
+			expect(run.stderr).toContain("2020-12");
+		});
+
+		it("rejects a value that is not JSON at all", async () => {
+			const run = await runClaude([...STREAM_ARGV, "--json-schema", "{oops"], {
+				FAKE_CLAUDE_FIXTURE: join(FIXTURES_DIR, "schema.jsonl"),
+				stdin: "replay",
+			});
+			expect(run.exitCode).toBe(1);
+			expect(run.stdout).toBe("");
+			expect(run.stderr).toContain("--json-schema is not valid JSON");
+		});
+
+		it("rejects a structurally invalid schema", async () => {
+			const run = await runClaude(
+				[...STREAM_ARGV, "--json-schema", JSON.stringify({ type: "objekt" })],
+				{
+					FAKE_CLAUDE_FIXTURE: join(FIXTURES_DIR, "schema.jsonl"),
+					stdin: "replay",
+				},
+			);
+			expect(run.exitCode).toBe(1);
+			expect(run.stdout).toBe("");
+			expect(run.stderr).toContain("--json-schema is not a valid JSON Schema");
+		});
+
+		it("rejects before the fixture is consulted, so argv wins over replay", async () => {
+			const run = await runClaude(
+				[
+					...STREAM_ARGV,
+					"--json-schema",
+					JSON.stringify({
+						$schema: "https://json-schema.org/draft/2020-12/schema",
+					}),
+				],
+				{ FAKE_CLAUDE_FIXTURE: join(FIXTURES_DIR, "does-not-exist.jsonl") },
+			);
+			expect(run.exitCode).toBe(1);
+			expect(run.stderr).not.toContain("no fixture for this invocation");
+		});
 	});
 
 	it("exits 2 when no fixture is configured or the file is missing", async () => {

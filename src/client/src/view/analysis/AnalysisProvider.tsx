@@ -1,3 +1,4 @@
+import type { AnalysisRequest, ReviewDepthRequest } from "@dto/AnalysisRequest";
 import type { RunDto, RunFailureReasonDto } from "@dto/RunDto";
 import { runFailureReasonDtoSchema } from "@dto/RunDto";
 import { useMutation } from "@tanstack/react-query";
@@ -15,6 +16,8 @@ import { useRunEvents } from "./useRunEvents";
 export interface AnalysisFailure {
 	reason: RunFailureReasonDto;
 	message: string;
+	/** which pass failed, so the retry runs that one and not the other */
+	stage: string;
 }
 
 export interface Analysis {
@@ -25,10 +28,26 @@ export interface Analysis {
 	conflictRunId: string | null;
 	/** the trigger request itself is in flight — not the run */
 	starting: boolean;
+	/** the comprehension pass: fills the Understanding tab, purpose and topics alike */
 	startAnalysis(): void;
+	/**
+	 * The findings pass: fills Suggested comments.
+	 *
+	 * A separate trigger, never chained off the comprehension one — reading
+	 * about a change must not quietly spend on a review nobody asked for.
+	 */
+	startReview(depth?: ReviewDepthRequest): void;
 	cancelRun(runId: string): void;
 	/** the 409's way out: stop the run that is in the way, then start ours */
 	cancelAndRestart(runId: string): void;
+	/** run whichever pass just failed, again */
+	retry(stage: string): void;
+	/**
+	 * Stop showing the current complaint. Dismissal is per run, never a blanket
+	 * mute: the next failure raises the banner again, because a reader who hid
+	 * one error has not asked to stop being told about the next one.
+	 */
+	dismissFailure(): void;
 }
 
 const AnalysisContext = createContext<Analysis | null>(null);
@@ -55,9 +74,16 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
 	useAnalysisArtifactSync();
 
 	const [conflictRunId, setConflictRunId] = useState<string | null>(null);
+	// which pass the in-flight request is for, so a request that fails before it
+	// ever became a run still names the right thing to retry
+	const [startingTask, setStartingTask] = useState<string>("comprehension");
+	const [dismissedRunId, setDismissedRunId] = useState<string | null>(null);
 
 	const start = useMutation({
-		mutationFn: () => postAnalysis(api, { task: "comprehension" }),
+		mutationFn: (request: AnalysisRequest) => {
+			setStartingTask(request.task);
+			return postAnalysis(api, request);
+		},
 		onSuccess: (result) => {
 			setConflictRunId(
 				result.kind === "conflict" ? result.existingRunId : null,
@@ -72,19 +98,35 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
 	const value = useMemo<Analysis>(() => {
 		const activeRun =
 			runs.activeRunId === null ? null : (runs.byId[runs.activeRunId] ?? null);
+		const runFailure =
+			runs.lastError !== null && runs.lastError.runId === dismissedRunId
+				? null
+				: runs.lastError;
+		const startRunTask = (task: "comprehension" | "review") =>
+			start.mutate({ task });
 		return {
 			activeRun,
-			failure: toFailure(start.error) ?? runs.lastError,
+			failure: toFailure(start.error, startingTask) ?? runFailure,
 			conflictRunId,
 			starting: start.isPending,
-			startAnalysis: () => start.mutate(),
+			startAnalysis: () => start.mutate({ task: "comprehension" }),
+			startReview: (depth) =>
+				start.mutate({
+					task: "review",
+					...(depth === undefined ? {} : { depth }),
+				}),
 			cancelRun: (runId) => cancel.mutate(runId),
 			// sequential on purpose: starting before the cancel lands would race
 			// the lane and earn a second 409
 			cancelAndRestart: (runId) =>
-				cancel.mutate(runId, { onSuccess: () => start.mutate() }),
+				cancel.mutate(runId, {
+					onSuccess: () => start.mutate({ task: "comprehension" }),
+				}),
+			retry: (stage) =>
+				startRunTask(stage === "review" ? "review" : "comprehension"),
+			dismissFailure: () => setDismissedRunId(runs.lastError?.runId ?? null),
 		};
-	}, [runs, conflictRunId, start, cancel]);
+	}, [runs, conflictRunId, dismissedRunId, startingTask, start, cancel]);
 
 	return (
 		<AnalysisContext.Provider value={value}>
@@ -107,15 +149,16 @@ export function useAnalysis(): Analysis {
  * reported through the same closed union; anything else is `internal`, which
  * the copy table already answers for.
  */
-function toFailure(error: unknown): AnalysisFailure | null {
+function toFailure(error: unknown, stage: string): AnalysisFailure | null {
 	if (!(error instanceof HttpError)) {
 		return error instanceof Error
-			? { reason: "internal", message: error.message }
+			? { reason: "internal", message: error.message, stage }
 			: null;
 	}
 	const reason = runFailureReasonDtoSchema.safeParse(error.reason);
 	return {
 		reason: reason.success ? reason.data : "internal",
 		message: error.message,
+		stage,
 	};
 }

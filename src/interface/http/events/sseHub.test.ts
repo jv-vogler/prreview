@@ -10,6 +10,7 @@ const RUN_DTO = {
 	lane: "analysis" as const,
 	status: "running" as const,
 	queuedAt: "2026-08-17T10:00:00.000Z",
+	idleTimeoutMs: 600_000,
 };
 
 const WAIT_STEP_MS = 5;

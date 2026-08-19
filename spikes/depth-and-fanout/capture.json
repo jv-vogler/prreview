@@ -1,0 +1,209 @@
+{
+	"claudeVersion": "2.1.233 (Claude Code)",
+	"model": "haiku",
+	"probedAt": "2026-08-17T21:04:15.408Z",
+	"budget": {
+		"0.0001": {
+			"exitCode": 1,
+			"timedOut": false,
+			"eventTypes": [
+				"system:hook_started",
+				"system:hook_response",
+				"system:init",
+				"system:thinking_tokens",
+				"assistant",
+				"result:error_max_budget_usd"
+			],
+			"stderrHead": "",
+			"result": {
+				"subtype": "error_max_budget_usd",
+				"isError": true,
+				"terminalReason": "budget_exhausted",
+				"numTurns": 1,
+				"costUsd": 0.0125343,
+				"durationMs": 2066,
+				"hasStructuredOutput": false,
+				"textHead": null
+			}
+		},
+		"0.01": {
+			"exitCode": 1,
+			"timedOut": false,
+			"eventTypes": [
+				"system:hook_started",
+				"system:hook_response",
+				"system:init",
+				"system:thinking_tokens",
+				"assistant",
+				"user",
+				"rate_limit_event",
+				"result:error_max_budget_usd"
+			],
+			"stderrHead": "",
+			"result": {
+				"subtype": "error_max_budget_usd",
+				"isError": true,
+				"terminalReason": "budget_exhausted",
+				"numTurns": 4,
+				"costUsd": 0.0132423,
+				"durationMs": 4509,
+				"hasStructuredOutput": false,
+				"textHead": null
+			}
+		}
+	},
+	"effort": {
+		"low": {
+			"accepted": true,
+			"exitCode": 0,
+			"wallMs": 4961,
+			"stderrHead": "",
+			"result": {
+				"subtype": "success",
+				"isError": false,
+				"terminalReason": "completed",
+				"numTurns": 1,
+				"costUsd": 0.0102319,
+				"durationMs": 3151,
+				"hasStructuredOutput": false,
+				"textHead": "A mutex allows only one thread to acquire it at a time (binary lock), while a semaphore maintains a counter that permits a configurable number of threads to access a resource concurrently."
+			}
+		},
+		"medium": {
+			"accepted": true,
+			"exitCode": 0,
+			"wallMs": 4446,
+			"stderrHead": "",
+			"result": {
+				"subtype": "success",
+				"isError": false,
+				"terminalReason": "completed",
+				"numTurns": 1,
+				"costUsd": 0.0025699,
+				"durationMs": 2757,
+				"hasStructuredOutput": false,
+				"textHead": "A mutex is a binary lock that allows only one thread to access a resource at a time, while a semaphore is a counter that permits up to N threads to access a resource simultaneously."
+			}
+		},
+		"high": {
+			"accepted": true,
+			"exitCode": 0,
+			"wallMs": 5053,
+			"stderrHead": "",
+			"result": {
+				"subtype": "success",
+				"isError": false,
+				"terminalReason": "completed",
+				"numTurns": 1,
+				"costUsd": 0.0030699,
+				"durationMs": 3396,
+				"hasStructuredOutput": false,
+				"textHead": "A mutex restricts access to a resource to one thread at a time, while a semaphore uses a counter to allow a specified number of threads to access a resource concurrently."
+			}
+		}
+	},
+	"fanout": {
+		"parentSessionId": "f090d48a-d149-49a4-ac1e-d15793062b7a",
+		"sessionFile": "/home/jvogler/.claude/projects/-tmp-prreview-depth-hL8CnO-miniweb/f090d48a-d149-49a4-ac1e-d15793062b7a.jsonl",
+		"parentSessionLinesBefore": 10,
+		"parentSessionLinesAfter": 10,
+		"parentSessionGrew": 0,
+		"parentSessionStillValidJsonl": true,
+		"allExitedZero": true,
+		"allForkedAway": true,
+		"allDistinctSessionIds": true,
+		"allSawParentContext": true,
+		"perFork": [
+			{
+				"lens": "correctness",
+				"exitCode": 0,
+				"newSessionId": "113ed29a-8ef0-4d3f-a7c4-9cacad2fbf07",
+				"forkedAway": true,
+				"sawParentContext": true,
+				"stderrHead": "",
+				"result": {
+					"subtype": "success",
+					"isError": false,
+					"terminalReason": "completed",
+					"numTurns": 1,
+					"costUsd": 0.009721899999999999,
+					"durationMs": 4598,
+					"hasStructuredOutput": false,
+					"textHead": "kumquat correctness"
+				}
+			},
+			{
+				"lens": "security",
+				"exitCode": 0,
+				"newSessionId": "fb09c12d-f5e9-459e-8695-9d152bcde900",
+				"forkedAway": true,
+				"sawParentContext": true,
+				"stderrHead": "",
+				"result": {
+					"subtype": "success",
+					"isError": false,
+					"terminalReason": "completed",
+					"numTurns": 1,
+					"costUsd": 0.0097979,
+					"durationMs": 2323,
+					"hasStructuredOutput": false,
+					"textHead": "kumquat security"
+				}
+			},
+			{
+				"lens": "edge-cases",
+				"exitCode": 0,
+				"newSessionId": "6337c477-8619-4fc2-90f9-247dc206fee0",
+				"forkedAway": true,
+				"sawParentContext": true,
+				"stderrHead": "",
+				"result": {
+					"subtype": "success",
+					"isError": false,
+					"terminalReason": "completed",
+					"numTurns": 1,
+					"costUsd": 0.0097859,
+					"durationMs": 1697,
+					"hasStructuredOutput": false,
+					"textHead": "kumquat edge-cases"
+				}
+			},
+			{
+				"lens": "design",
+				"exitCode": 0,
+				"newSessionId": "190303f2-a630-412b-97af-a5a1e802454a",
+				"forkedAway": true,
+				"sawParentContext": true,
+				"stderrHead": "",
+				"result": {
+					"subtype": "success",
+					"isError": false,
+					"terminalReason": "completed",
+					"numTurns": 1,
+					"costUsd": 0.010181899999999999,
+					"durationMs": 1648,
+					"hasStructuredOutput": false,
+					"textHead": "kumquat design"
+				}
+			},
+			{
+				"lens": "impact",
+				"exitCode": 0,
+				"newSessionId": "723220a3-adff-46d1-b805-7c44bcaea0c1",
+				"forkedAway": true,
+				"sawParentContext": true,
+				"stderrHead": "",
+				"result": {
+					"subtype": "success",
+					"isError": false,
+					"terminalReason": "completed",
+					"numTurns": 1,
+					"costUsd": 0.009817900000000001,
+					"durationMs": 2239,
+					"hasStructuredOutput": false,
+					"textHead": "kumquat impact"
+				}
+			}
+		]
+	}
+}

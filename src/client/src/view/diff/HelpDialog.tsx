@@ -21,10 +21,9 @@ const KEY_ROWS: readonly KeyRow[] = [
 	{ keys: ["]", "["], label: "Next / previous note", flag: "analysis" },
 	{ keys: ["v"], label: "Mark current hunk reviewed" },
 	{ keys: ["m"], label: "Mark current file reviewed" },
-	{ keys: ["w"], label: "Guided walkthrough", flag: "walkthrough" },
 	{ keys: ["c"], label: "Ask about this change", flag: "chat" },
 	{ keys: ["s"], label: "Toggle split / unified view" },
-	{ keys: ["g", "o"], label: "Go to the orientation page", flag: "analysis" },
+	{ keys: ["g", "u"], label: "Go to Understanding", flag: "analysis" },
 	{ keys: ["g", "d"], label: "Go back to the diff", flag: "analysis" },
 	{ keys: ["?"], label: "This help" },
 ];

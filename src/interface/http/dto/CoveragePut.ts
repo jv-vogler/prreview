@@ -1,12 +1,17 @@
 import { z } from "zod";
 
 /**
- * Only upgrades travel: `unseen` is the absence of a record, never a state a
- * client can put back (coverage is monotonic, ARCHITECTURE §8).
+ * A hunk's reading state, as the reader set it.
+ *
+ * `unseen` is on the wire because unticking "Viewed" has to mean something.
+ * It did not used to be: coverage was fed by a scroll observer, and letting a
+ * client put a hunk back would have made an out-of-order event able to erase
+ * deliberate work. Nothing infers coverage now — a person ticks a box — so a
+ * request to clear one is a request, not a race.
  */
 export const coverageUpdateDtoSchema = z.object({
 	hunkId: z.string().min(1),
-	state: z.enum(["viewed", "reviewed"]),
+	state: z.enum(["unseen", "viewed", "reviewed"]),
 });
 
 export type CoverageUpdateDto = z.infer<typeof coverageUpdateDtoSchema>;

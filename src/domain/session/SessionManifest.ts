@@ -1,4 +1,4 @@
-import type { WalkthroughProgress } from "../analysis/Walkthrough";
+import type { TicketHint } from "../analysis/discoverTicket";
 import type { ChangesetId } from "../changeset/ChangesetId";
 import type { ChangesetRef } from "../changeset/ChangesetRef";
 import type { ChangesetSource } from "../changeset/ChangesetSource";
@@ -18,10 +18,6 @@ export interface SessionManifest {
 		analysisSessionId?: string;
 		chatThreads: { id: string; engineSessionId: string }[];
 	};
-	ticket?: { key: string; source: string };
-	/**
-	 * Where the guided walkthrough left off. Optional and defaulted by the
-	 * store, so adding it costs no schema bump (CON-012).
-	 */
-	walkthroughProgress?: WalkthroughProgress;
+	/** discovered opportunistically at open time; absent is normal, not a gap */
+	ticket?: TicketHint;
 }

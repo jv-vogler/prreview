@@ -28,12 +28,20 @@ export interface AnnotationTriage {
 }
 
 /**
- * The §12 bucket table at the M2 level: `anchored`/`moved` with an untouched
- * target carry silently under the new anchor; `fuzzy`, or a target inside the
- * delta, carries marked `touchedByDelta`; orphaned explanations retire
- * automatically — they are cheap to regenerate. Findings never reach this
- * function in M2 (none exist); it throws on any other species so M3's
- * adjudication buckets have to opt in deliberately.
+ * The §12 bucket table: `anchored`/`moved` with an untouched target carry
+ * silently under the new anchor; `fuzzy`, or a target inside the delta, carries
+ * marked `touchedByDelta`; an orphaned annotation retires.
+ *
+ * Findings and explanations are triaged the same way, and the asymmetry that
+ * used to justify separating them is gone: explanations no longer survive a
+ * round at all — they are narration attached to a topic, regenerated whole by
+ * the next comprehension pass. What reaches this function is a finding, whose
+ * anchor is the whole point of it, so carrying it correctly across a moved tree
+ * is the behavior that matters.
+ *
+ * `touchedByDelta` is the honest hedge: the annotation still points somewhere
+ * real, but the code under it changed since the claim was made, so a surface
+ * showing it must say so rather than present it as freshly true.
  */
 export function triageAnnotations(
 	reanchored: ReanchoredAnnotation[],
@@ -42,12 +50,6 @@ export function triageAnnotations(
 	const carried: StoredAnnotation[] = [];
 	const retired: string[] = [];
 	for (const { annotation, reanchor, targetHunkIds } of reanchored) {
-		if (annotation.species !== "explanation") {
-			throw new Error(
-				`triageAnnotations handles only explanations in M2; got species "${annotation.species}" ` +
-					`(id ${annotation.id}) — finding adjudication is M3's to wire in deliberately`,
-			);
-		}
 		if (reanchor.status === "orphaned") {
 			retired.push(annotation.id);
 			continue;

@@ -1,53 +1,62 @@
-import type { SessionAnalysisDto, SessionDto } from "@dto/SessionDto";
+import type { SessionDto } from "@dto/SessionDto";
 import { describe, expect, it } from "vitest";
 import { chooseLanding } from "./chooseLanding";
 
-function session(
-	analysis: Partial<SessionAnalysisDto>,
-	coverageTotal: number,
-): SessionDto {
-	return {
-		changesetId: "worktree",
-		source: { kind: "worktree" },
-		roundId: "r1",
-		resumed: false,
-		toolchain: {
-			agent: { kind: "claude", version: "2.1.233" },
-			github: { kind: "none" },
-		},
-		announce: { resolved: "working tree", overrideHint: "" },
-		coverage: { total: coverageTotal, byFile: {} },
-		analysis: {
-			intentMapAvailable: false,
-			walkthroughAvailable: false,
-			annotationCount: 0,
-			...analysis,
-		},
-	};
-}
+const SESSION: SessionDto = {
+	changesetId: "worktree",
+	source: { kind: "worktree" },
+	roundId: "r1",
+	resumed: false,
+	toolchain: {
+		agent: { kind: "claude", version: "2.1.233" },
+		github: { kind: "gh" },
+	},
+	announce: { resolved: "working tree changes", overrideHint: "" },
+	coverage: { total: 0, byFile: {} },
+	analysis: {
+		understandingAvailable: true,
+		findingsAvailable: false,
+		annotationCount: 0,
+	},
+};
 
 describe("chooseLanding", () => {
-	it("sends a fresh reader with an intent map to the orientation", () => {
-		expect(chooseLanding(session({ intentMapAvailable: true }, 0))).toBe(
-			"orient",
-		);
+	it("sends a reader who has seen nothing to the comprehension pass", () => {
+		expect(chooseLanding(SESSION)).toBe("understand");
 	});
 
-	it("keeps a review already under way on the diff", () => {
-		expect(chooseLanding(session({ intentMapAvailable: true }, 12))).toBe(
-			"diff",
-		);
+	it("does not interrupt a review already under way", () => {
+		expect(
+			chooseLanding({ ...SESSION, coverage: { total: 40, byFile: {} } }),
+		).toBe("diff");
 	});
 
-	it("goes to the diff when no intent map exists yet", () => {
-		expect(chooseLanding(session({ intentMapAvailable: false }, 0))).toBe(
-			"diff",
-		);
+	it("sends them to the diff when no pass has run", () => {
+		const analysis = { ...SESSION.analysis, understandingAvailable: false };
+		expect(chooseLanding({ ...SESSION, analysis })).toBe("diff");
 	});
 
-	it("goes to the diff with neither a map nor coverage to speak of", () => {
-		expect(chooseLanding(session({ intentMapAvailable: false }, 40))).toBe(
-			"diff",
-		);
+	/*
+	 * A server older than the client, which is what `npm run dev` against a stale
+	 * checkout produces. `parseLogged` logs the drift and lets the payload
+	 * through (CON-004), so this function receives a SessionDto with fields its
+	 * type says are always there. It used to throw, which made the gate route
+	 * render a stack trace instead of the app — the exact blank screen the
+	 * log-don't-block boundary exists to prevent.
+	 */
+	it("falls back to the diff when the server predates a field it reads", () => {
+		const drifted = {
+			...SESSION,
+			analysis: undefined,
+		} as unknown as SessionDto;
+		expect(chooseLanding(drifted)).toBe("diff");
+	});
+
+	it("falls back to the diff when coverage is missing too", () => {
+		const drifted = {
+			...SESSION,
+			coverage: undefined,
+		} as unknown as SessionDto;
+		expect(chooseLanding(drifted)).toBe("diff");
 	});
 });

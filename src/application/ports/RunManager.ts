@@ -1,3 +1,7 @@
+import type {
+	RunProgress,
+	RunProgressUpdate,
+} from "../../domain/analysis/RunProgress";
 import type { EngineErrorReason } from "../../domain/errors/EngineError";
 
 /**
@@ -14,6 +18,14 @@ import type { EngineErrorReason } from "../../domain/errors/EngineError";
 export interface RunManager {
 	/** returns immediately; the work runs in the background */
 	enqueue(request: RunRequest): EnqueueResult;
+	/**
+	 * The lane's job saying what it is doing, so the UI can say it too.
+	 *
+	 * Silent on a run that has already settled or never existed: progress
+	 * arriving after the result is a race the caller should not have to think
+	 * about, and a late tool event must never resurrect a finished run.
+	 */
+	report(runId: string, update: RunProgressUpdate): void;
 	/** false when no run has that id (already settled, or never existed) */
 	cancel(runId: string): boolean;
 	/** shutdown: stops every queued and running run in both lanes (SEC-002) */
@@ -45,6 +57,16 @@ export interface Run {
 	error?: RunFailure;
 	/** agent anchors that could not be placed and were dropped (TASK-032) */
 	skippedAnchors?: number;
+	/** what the run is doing, once it has done anything */
+	progress?: RunProgress;
+	/**
+	 * How long this run may go **silent** before it is stopped. Not a wall
+	 * clock: a run that keeps reporting keeps running, however long it takes.
+	 *
+	 * On the wire so the screen can say how much silence is left rather than
+	 * leaving the reader to guess whether a quiet run has any end at all.
+	 */
+	idleTimeoutMs: number;
 }
 
 export interface RunFailure {
@@ -66,6 +88,7 @@ export interface RunEvent {
 export type RunEventType =
 	| "run.queued"
 	| "run.started"
+	| "run.progress"
 	| "run.succeeded"
 	| "run.failed"
 	| "run.cancelled";
@@ -73,8 +96,8 @@ export type RunEventType =
 export interface RunRequest {
 	lane: RunLane;
 	taskType: string;
-	/** overrides the lane's default budget from limits.ts */
-	timeoutMs?: number;
+	/** overrides the lane's default silence budget from limits.ts */
+	idleTimeoutMs?: number;
 	job: RunJob;
 }
 

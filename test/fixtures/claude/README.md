@@ -47,7 +47,7 @@ The CON-003 trap: nonexistent model → result event with **`subtype:"success"` 
 
 ## Capture log (appended by `scripts/capture-claude-fixtures.mjs`)
 
-### comprehension.jsonl
+### understanding.jsonl
 
 Captured 2026-08-17 against 2.1.233 (Claude Code). stage A shape: a real --json-schema run against the ComprehensionOut schema (hand-embedded in scripts/capture-claude-fixtures.mjs from ARCHITECTURE §7; Phase 3's zod schema must stay compatible), with Read/Grep/Glob tool use, exit 0.
 Prompt delivered on stdin (1246 bytes, TASK-005's primary path).
@@ -74,3 +74,16 @@ Prompt delivered on stdin (115 bytes, TASK-005's primary path).
 ### crash.jsonl
 
 Captured 2026-08-17 against 2.1.233 (Claude Code). the hooknoise capture hand-trimmed to end before any result event, plus `#exit 1`: the stream a crashed child leaves behind (adapter must map it to 'crashed'). Derived from hooknoise.jsonl, not a separate CLI run.
+
+### understanding.jsonl — structured_output edited by hand, 2026-08-18
+
+The captured envelope is untouched: the same event sequence, the same tool
+calls, the same `result` shape, so the digest this fixture exists to defend
+still measures exactly what it measured before. Only the payload inside
+`structured_output` was rewritten, from the old `summary: string` to the
+`headline` + `summary: string[]` the schema now asks for.
+
+Edited rather than re-captured because the digest asserts the CLI's *envelope*
+contract and not its payload, so a re-run would cost a real API call to change
+bytes the assertions never look at. Re-record with
+`scripts/capture-claude-fixtures.mjs` when the envelope itself may have moved.

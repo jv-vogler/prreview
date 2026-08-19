@@ -216,19 +216,6 @@ describe("hostile requests against the M2 endpoints (SEC-003)", () => {
 		expect(response.status).toBe(403);
 	});
 
-	it("403s a cross-origin PUT /api/walkthrough/progress", async () => {
-		const { app } = await createTestApp();
-		const response = await app.request("/api/walkthrough/progress", {
-			method: "PUT",
-			headers: {
-				origin: "https://attacker.example",
-				"content-type": "application/json",
-			},
-			body: JSON.stringify({ position: 0, completed: false }),
-		});
-		expect(response.status).toBe(403);
-	});
-
 	it("413s a chat question over 1MB before it reaches the agent", async () => {
 		const { app } = await createTestApp();
 		const oversizedBody = JSON.stringify({
@@ -260,18 +247,6 @@ describe("hostile requests against the M2 endpoints (SEC-003)", () => {
 			// an encoded one arrives as a run id that names no run — both 404, and
 			// neither one ever becomes a path
 			expect(response.status, path).toBe(404);
-		}
-	});
-
-	it("rejects a walkthrough position that is not a whole number", async () => {
-		const { app } = await createTestApp();
-		for (const position of [1.5, "2", null, Number.MAX_SAFE_INTEGER + 2]) {
-			const response = await app.request("/api/walkthrough/progress", {
-				method: "PUT",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ position, completed: false }),
-			});
-			expect(response.status, String(position)).toBe(400);
 		}
 	});
 });

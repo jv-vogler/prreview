@@ -8,9 +8,34 @@ import { z } from "zod";
  */
 const ARGV_SAFE_SCHEMA_BYTES = 85_000;
 
-/** the inline JSON Schema string handed to `--json-schema` */
+/**
+ * CON-014: the CLI validates `--json-schema` with **Ajv 8 in draft-07 mode**,
+ * and Ajv 8 has no draft-2020-12 meta-schema registered. A schema carrying
+ * `$schema: "https://json-schema.org/draft/2020-12/schema"` makes
+ * `validateSchema` throw before the run starts, and the CLI reports
+ *
+ *   --json-schema is not a valid JSON Schema:
+ *   no schema with key or ref "https://json-schema.org/draft/2020-12/schema"
+ *
+ * so *every* analysis run failed at spawn. Two rules follow, and both are
+ * asserted in the colocated test against a real Ajv 8:
+ *
+ * 1. convert at `target: "draft-7"`, not `"draft-2020-12"`;
+ * 2. drop `$schema` entirely rather than emit the draft-07 URI — the value the
+ *    validator resolves is then never ours to get wrong, whatever meta-schemas
+ *    a future CLI happens to have registered.
+ *
+ * The whole class of bug was invisible to the suite because the fixture
+ * capture script hand-wrote its schema and `test/bin/claude` treated
+ * `--json-schema` as an opaque string. Both now go through this function and
+ * validate it, respectively.
+ */
 export function toJsonSchema(schema: z.ZodType): string {
-	return JSON.stringify(z.toJSONSchema(schema, { target: "draft-2020-12" }));
+	const { $schema, ...body } = z.toJSONSchema(schema, {
+		target: "draft-7",
+	}) as Record<string, unknown>;
+	void $schema;
+	return JSON.stringify(body);
 }
 
 export function assertSchemaFitsArgv(json: string): void {

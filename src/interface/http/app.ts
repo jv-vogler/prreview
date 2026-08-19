@@ -18,9 +18,8 @@ import { changesetRoute } from "./routes/changeset";
 import { chatRoute } from "./routes/chat";
 import { coverageRoute } from "./routes/coverage";
 import { goodbyeRoute } from "./routes/goodbye";
-import { intentMapRoute } from "./routes/intentMap";
 import { sessionRoute } from "./routes/session";
-import { walkthroughRoute } from "./routes/walkthrough";
+import { understandingRoute } from "./routes/understanding";
 import { registerStatic } from "./static";
 
 /** The Vite dev server's port — allowlisted only under --dev (ARCHITECTURE §15, §16). */
@@ -55,6 +54,8 @@ const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	"gh-unauthenticated": 403,
 	"agent-missing": 503,
 	"schema-violation": 502,
+	// also a gateway failure: the upstream API refused, not prreview
+	"api-error": 502,
 	"timed-out": 504,
 	crashed: 500,
 };
@@ -144,19 +145,19 @@ export function createApp(deps: AppDeps): Hono {
 		analysisRoute({
 			state: deps.state,
 			runAnalysis: deps.container.runAnalysis,
+			runReview: deps.container.runReview,
 			runManager: deps.container.runManager,
 		}),
 	);
-	app.route("/api/annotations", annotationsRoute({ state: deps.state }));
-	app.route("/api/intent-map", intentMapRoute({ state: deps.state }));
 	app.route(
-		"/api/walkthrough",
-		walkthroughRoute({
+		"/api/annotations",
+		annotationsRoute({
 			state: deps.state,
-			updateWalkthroughProgress: deps.container.updateWalkthroughProgress,
-			hub: deps.hub,
+			store: deps.container.store,
+			publish: deps.container.publish,
 		}),
 	);
+	app.route("/api/understanding", understandingRoute({ state: deps.state }));
 	app.route(
 		"/api/chat",
 		chatRoute({

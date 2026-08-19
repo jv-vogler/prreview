@@ -1,33 +1,59 @@
 # prreview
 
-> `npx prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
+> `npx @jv-vogler/prreview` spins up a GitHub-style diff viewer on localhost that uses the agent CLI you
 > already have to explain what a changeset actually does: its intent, its mechanics, and its
 > implications. From there, you curate grounded review comments into a markdown scratchfile or
 > a pending GitHub review.
 
-That's the destination. What ships today is the viewer and the explaining. The viewer is a local,
-GitHub-accurate diff for any PR, branch, commit range, or your working tree, with light and dark
-themes, keyboard navigation, a file list ordered by how much attention each file needs, and review
-coverage that survives restarts. The explaining is what the agent adds when you ask for it:
-orientation, notes in the margin, a guided walkthrough, and a chat dock. Writing review comments,
-curating them, and publishing them to GitHub are still ahead.
+What ships today is three tabs. **Diff** is a local, GitHub-accurate diff for any PR, branch,
+commit range, or your working tree — light and dark themes, keyboard navigation, a file list
+ordered by how much attention each file needs, GitHub's per-file "Viewed" box (which folds the
+file away and is the only thing that moves the coverage number), and review coverage that
+survives restarts. It is free and works with no agent at all. **Understanding** says what the
+change is for and whether the code appears to do it, then retells the change as plain-language
+topics, each carrying the code that serves it. **Suggested comments** is a list of candidate
+review comments about problems this change introduces. Curating those comments and publishing
+them to GitHub are still ahead.
 
 ## Quickstart
 
-Run it inside a git repository:
+Inside any git repository:
 
 ```sh
-npx prreview
+npx @jv-vogler/prreview
+```
+
+The package is scoped; the command it installs is not. However you get it, the thing on your
+PATH is `prreview`.
+
+To work on prreview itself, link the checkout onto your PATH instead:
+
+```sh
+git clone https://github.com/jv-vogler/prreview && cd prreview
+npm install
+npm run link          # builds, then npm-links `prreview` globally
+```
+
+The link points at the checkout rather than a copy, so `npm run build` is enough to pick up
+changes afterwards — no relinking. `npm run unlink` removes it.
+
+Either way, inside any git repository:
+
+```sh
+prreview
 ```
 
 It auto-detects what to review, starts a local server bound to `127.0.0.1`, and opens your
 browser. Close the tab and the server shuts itself down. Press `?` in the browser for the
 keyboard shortcuts.
 
+If you use a version manager (nvm, mise, fnm), the link belongs to the Node version that was
+active when you made it — switch versions and you will need `npm run link` again.
+
 ## What you can review
 
 ```
-npx prreview [target] [base]
+prreview [target] [base]
 ```
 
 | Invocation | Reviews |
@@ -54,22 +80,35 @@ The intelligence comes from the `claude` CLI you already have installed and sign
 no API key to add and no service in between: the analysis runs on your machine, under your own
 login and your own limits.
 
-Nothing runs on its own. Press **Explain this change** and prreview makes one pass over the
-change, which produces four things:
+Nothing runs on its own, and **nothing chains**. There are two passes, each with its own button
+on its own tab, because reading about a change should never quietly spend on a review you did not
+ask for.
 
-- **An orientation page** — what this change is for, broken into named parts sized against each
-  other, plus a suggested place to start reading.
-- **Notes in the margin** — short explanations anchored to specific lines, saying what a line
-  intends, how it works, or what it implies. They aren't review comments, and there is nothing to
-  accept or dismiss.
-- **A guided walkthrough** — the change in reading order, one narrated step at a time. Reading a
-  step counts it as reviewed, so coverage moves along with you.
-- **A chat dock** — ask about the hunk you're looking at. Answers come from the repository at the
-  revision under review, so it can tell you who calls a function the diff never shows.
+**Explain this change** makes one pass and fills two tabs:
 
-One click is one pass, billed to your own `claude` account; the cost of each run is recorded in
-`.prreview/`. Without `claude` on your PATH none of this appears: you get the viewer and one
-notice explaining why.
+- **Overview** — what this change is for, in a paragraph. If a ticket reference was cheap to find
+  in the branch name, the PR title, or its body, it is linked. Then a verdict on whether the code
+  does what it set out to do. When no ticket was found, the verdict says plainly that it is
+  judging the change's internal coherence rather than conformance to a requirement — it will not
+  dress up a guess in ticket language.
+- **Understanding** — the change as a handful of named topics, each with the hunks that serve it,
+  collapsed until you open one. A hunk that does two things appears under both topics, so the
+  percentages describe how much of the change each topic covers and do not add up to 100. If some
+  hunks belong to no topic, the page says so instead of implying it covered everything.
+
+**Review this change** is a separate pass that fills **Suggested comments**: several independent
+readings of the diff — correctness, security, edge cases, and more — merged into one list. Each
+comment is checked before you see it: its citations must be files the agent actually opened, its
+prose must be short enough to paste, and a confidently-worded blocker that cites something unread
+is dropped rather than shown. Problems that were already there sit in their own section and never
+mix into feedback about someone's change.
+
+A chat dock (`c`) answers questions from the repository at the revision under review, so it can
+tell you who calls a function the diff never shows.
+
+Each pass is billed to your own `claude` account, and the cost of every run is recorded in
+`.prreview/`. Without `claude` on your PATH the three AI tabs do not appear at all: you get the
+diff and one notice explaining why.
 
 ### What the agent may touch
 
@@ -83,14 +122,15 @@ removes the ones it created on the way out.
 
 prreview stores your progress in `.prreview/` at the repository root, and excludes it from git via
 `.git/info/exclude`, never your `.gitignore`. That covers which hunks you've seen, the
-explanations and their anchors, the orientation, where you are in the walkthrough, and the chat
-history. Kill the server, rerun the same invocation, and all of it resumes. Delete `.prreview/`
+the topics and the overview, the suggested comments and their anchors, and the chat history. Kill the server, rerun the same invocation, and all of it resumes. Delete `.prreview/`
 to reset.
 
 ## Not here yet
 
-- review findings, comment curation, and the `.prreview/review-*.md` export
-- checking the change against its ticket, the fix brief, and publishing a pending GitHub review
+- accepting, editing, and dismissing suggested comments, and the `.prreview/review-*.md` export
+- asking chat to reword or drop a comment
+- `--brain`, for pointing prreview at your own review guidelines
+- the fix brief, and publishing a pending GitHub review
 
 If you're looking for those, they aren't in this version.
 

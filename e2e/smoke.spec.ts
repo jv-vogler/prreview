@@ -62,9 +62,24 @@ test.describe("smoke: built artifact end to end", () => {
 		).toContainText("greeting.ts");
 		await expect(page.getByText(SMOKE_MARKER).first()).toBeVisible();
 
-		// having the (fully visible) hunk on screen marks it viewed; the
-		// server-fed ring moves from the 0 asserted above to fully covered
+		/*
+		 * Coverage moves only when a person says so.
+		 *
+		 * Scrolling used to do this: an IntersectionObserver marked hunks viewed
+		 * as their rows crossed the pane, so the percentage measured how far down
+		 * the page you had got. Ticking GitHub's "Viewed" box is the only writer
+		 * now, and the ring — which is always the server's number, never a local
+		 * one — has to follow it.
+		 */
 		const coverageRing = page.getByRole("meter", { name: "Review coverage" });
+		await expect(coverageRing).toHaveAttribute("aria-valuenow", "0");
+
+		const viewedBoxes = page.locator("[data-file-viewed]");
+		await expect(viewedBoxes.first()).toBeVisible();
+		for (const box of await viewedBoxes.all()) {
+			await box.check();
+		}
+
 		await expect(coverageRing).toHaveAttribute(
 			"aria-valuenow",
 			String(FULLY_COVERED),
@@ -75,7 +90,7 @@ test.describe("smoke: built artifact end to end", () => {
 		// kill abruptly (SIGKILL): resume must survive a crash, not a clean exit
 		await expect
 			.poll(() => coverageStatesOnDisk(), { timeout: DISK_PERSIST_TIMEOUT_MS })
-			.toContain("viewed");
+			.toContain("reviewed");
 		await stopServer(firstRun);
 		await page.goto("about:blank");
 

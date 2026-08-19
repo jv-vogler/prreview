@@ -116,7 +116,6 @@ describe("the container shape (ARCHITECTURE §2)", () => {
 		expect(container.detectDrift).toBeTypeOf("function");
 		expect(container.runAnalysis).toBeTypeOf("function");
 		expect(container.chatTurn).toBeTypeOf("function");
-		expect(container.updateWalkthroughProgress).toBeTypeOf("function");
 	});
 
 	it("drops published events when no interface layer supplied a sink", () => {
@@ -142,6 +141,7 @@ describe("the container shape (ARCHITECTURE §2)", () => {
 	it("an injected run manager is used as-is (PAT-001)", () => {
 		const runManager: RunManager = {
 			enqueue: () => ({ kind: "accepted", runId: "run-1" }),
+			report: () => {},
 			cancel: () => false,
 			cancelAll: () => {},
 			get: () => undefined,

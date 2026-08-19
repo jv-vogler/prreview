@@ -31,25 +31,42 @@ export interface Explanation extends AnnotationBase {
 	kind: ExplanationKind | null;
 }
 
-/** M3's species. Modelled now so the wire shape needs no change then. */
-export interface Finding extends AnnotationBase {
-	species: "finding";
+/** where a finding sits in the reviewer's triage */
+export type CurationState = "proposed" | "accepted" | "edited" | "dismissed";
+
+interface FindingFields {
 	category: string | null;
+	/** blocker | should-fix | consider | nitpick */
+	severity: string | null;
+	/** how the claim was established; `stale` once a rewrite changed it */
+	proof: { mode: "traced" | "inferred"; how: string; stale: boolean } | null;
 	confidence: "high" | "medium" | "low" | null;
+	/** absent until the reviewer has touched it: an untouched finding is `proposed` */
+	curation: { state: CurationState; dismissReason: string | null } | null;
+	/**
+	 * Whether every file this finding cites was actually read by the agent.
+	 * A checked program property, not a claim — see the grounding cross-check.
+	 */
+	groundingVerified: boolean | null;
 }
 
-/** M3's species: a problem that predates this change (F3, F5). */
-export interface RelatedFinding extends AnnotationBase {
+/** A candidate review comment about a problem this change introduced. */
+export interface Finding extends AnnotationBase, FindingFields {
+	species: "finding";
+}
+
+/** A problem that predates this change, noticed nearby. Never review feedback. */
+export interface RelatedFinding extends AnnotationBase, FindingFields {
 	species: "related-finding";
-	category: string | null;
-	confidence: "high" | "medium" | "low" | null;
 }
 
 /**
- * The three species the UI must tell apart. M2 only ever receives
- * explanations; the union exists because "is this an explanation or a finding?"
- * is the question that decides how a note looks, and it is answered from one
- * field rather than from where the note came from.
+ * The three species the UI must tell apart, answered from one field rather
+ * than from where a note came from.
+ *
+ * The distinction is not cosmetic: a finding may be pasted onto someone's pull
+ * request, a related finding must never be, and an explanation is never
+ * published at all.
  */
 export type Annotation = Explanation | Finding | RelatedFinding;
 

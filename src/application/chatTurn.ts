@@ -1,3 +1,4 @@
+import { describeToolActivity } from "../domain/analysis/RunProgress";
 import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import type { Hunk } from "../domain/changeset/Hunk";
@@ -10,7 +11,7 @@ import { newChatTurnId } from "../domain/chat/newChatTurnId";
 import type { EngineErrorReason } from "../domain/errors/EngineError";
 import { EngineError } from "../domain/errors/EngineError";
 import type { SessionManifest } from "../domain/session/SessionManifest";
-import { CHAT_MAX_TURNS, CHAT_TIMEOUT_MS } from "./analysis/limits";
+import { CHAT_IDLE_TIMEOUT_MS, CHAT_MAX_TURNS } from "./analysis/limits";
 import { serializeNud } from "./analysis/nud";
 import { consumeEngineRun } from "./consumeEngineRun";
 import type { Engine, SessionResume } from "./ports/Engine";
@@ -109,7 +110,7 @@ export function makeChatTurn(deps: ChatTurnDeps): ChatTurn {
 		const run = deps.runManager.enqueue({
 			lane: "chat",
 			taskType: CHAT_TASK_TYPE,
-			timeoutMs: CHAT_TIMEOUT_MS,
+			idleTimeoutMs: CHAT_IDLE_TIMEOUT_MS,
 			job: (context) =>
 				runTurn({
 					deps,
@@ -243,12 +244,19 @@ async function runTurn(run: TurnRun): Promise<RunOutcome> {
 			prompt: run.prompt,
 			workspaceDir: run.workspaceDir,
 			maxTurns: CHAT_MAX_TURNS,
-			timeoutMs: CHAT_TIMEOUT_MS,
+			idleTimeoutMs: CHAT_IDLE_TIMEOUT_MS,
 			...(run.resume === undefined ? {} : { resume: run.resume }),
 		}),
 		{
 			signal: run.context.signal,
 			onText: (text) => deps.publish({ type: "chat.turn.delta", turnId, text }),
+			// a question that sends the agent off to read six files goes quiet for
+			// a while; saying which file keeps that from reading as a hang
+			onTool: (event) =>
+				deps.runManager.report(run.context.runId, {
+					kind: "activity",
+					activity: describeToolActivity(event.name, event.target),
+				}),
 		},
 	);
 

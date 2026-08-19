@@ -2,7 +2,7 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, type Locator, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
 	createFixtureRepo,
 	type FixtureRepo,
@@ -16,16 +16,17 @@ import {
 } from "./helpers/prreviewServer";
 
 /**
- * The explanations milestone against the BUILT artifact (TASK-065): analyze,
- * read the intent map, walk the change, ask a question, then prove all four
- * survive a kill. The agent is the fake `claude` replaying real captured
- * streams on a stripped PATH, so the test spends nothing and cannot reach the
- * network (REQ-009) — everything between the child process and `.prreview/` is
- * production code.
+ * The understanding surfaces against the BUILT artifact: run one comprehension
+ * pass, read the Overview, read the change as topics with their code, ask a
+ * question, then prove it all survives a kill.
+ *
+ * The agent is the fake `claude` replaying a real captured stream on a stripped
+ * PATH, so the test spends nothing and cannot reach the network (REQ-009) —
+ * everything between the child process and `.prreview/` is production code.
  */
 
 const COMPREHENSION_CAPTURE = fileURLToPath(
-	new URL("../test/fixtures/claude/comprehension.jsonl", import.meta.url),
+	new URL("../test/fixtures/claude/understanding.jsonl", import.meta.url),
 );
 const CHAT_CAPTURE = fileURLToPath(
 	new URL("../test/fixtures/claude/chat-stream.jsonl", import.meta.url),
@@ -47,8 +48,9 @@ const REPLAY_DELAY_MS = "25";
 const CHAT_QUESTION = "What does the excited flag change for callers?";
 
 const EXPLANATION_NOTE = '[data-annotation-species="explanation"]';
+const TOPIC_BLOCK = "[data-topic-id]";
 
-test.describe("understand: analysis, orientation, walkthrough, and chat", () => {
+test.describe("understand: one pass, two tabs, and a question", () => {
 	test.setTimeout(UNDERSTAND_TEST_TIMEOUT_MS);
 
 	let repo: FixtureRepo;
@@ -86,7 +88,7 @@ test.describe("understand: analysis, orientation, walkthrough, and chat", () => 
 		]);
 	});
 
-	test("explains the change, guides a reading of it, answers a question, and resumes all three", async ({
+	test("explains the change, shows topics with their code, answers a question, and resumes", async ({
 		page,
 	}) => {
 		const firstRun = await launchServer();
@@ -95,99 +97,180 @@ test.describe("understand: analysis, orientation, walkthrough, and chat", () => 
 		// nothing has been analyzed, because analysis is user-triggered (REQ-003)
 		const freshSession = await fetchSession(firstRun.url);
 		expect(freshSession.toolchain.agent.kind).toBe("claude");
-		expect(freshSession.analysis.intentMapAvailable).toBe(false);
-		expect(freshSession.analysis.walkthroughAvailable).toBe(false);
+		expect(freshSession.analysis.understandingAvailable).toBe(false);
 		expect(freshSession.analysis.annotationCount).toBe(0);
 
 		await writeTailoredComprehensionFixture(firstRun.url);
 
 		await page.goto(firstRun.url);
-		await expect(
-			page.getByRole("navigation", { name: "Changed files" }),
-		).toContainText("plumbing.ts");
-		// no agent output anywhere until the reader asks for it
+		await expect(page.locator('[data-tab="diff"]')).toBeVisible();
+		// the AI tab exists because an agent does, but holds nothing yet
+		await expect(page.locator('[data-tab="understand"]')).toBeVisible();
+		/*
+		 * Two tabs, not four. Overview was folded into Understanding — same pass,
+		 * one account — and Suggested comments is postponed, its trigger moved to
+		 * the diff and plainly marked as not ready. Both old routes still resolve
+		 * for anyone who bookmarked them.
+		 */
+		await expect(page.locator('[data-tab="overview"]')).toHaveCount(0);
+		await expect(page.locator('[data-tab="comments"]')).toHaveCount(0);
+		// and nothing agent-produced is in the margin before the reader asks
 		await expect(page.locator(EXPLANATION_NOTE)).toHaveCount(0);
-		await expect(page.getByRole("link", { name: "Orientation" })).toHaveCount(
-			0,
-		);
 
-		// ── one analysis ───────────────────────────────────────────────────────
-		await page.getByRole("button", { name: "Explain this change" }).click();
-		// the tray carries the run while it lasts, and says what is happening
+		// ── the invitation states its cost and spends nothing on its own ───────
+		await page.locator('[data-tab="understand"]').click();
 		await expect(
-			page.getByText(/Reading the change|Waiting for the agent/).first(),
+			page.getByRole("heading", { name: "Understand this change" }),
 		).toBeVisible();
-		// the run landed: the header offers the orientation the server now has
-		const orientationLink = page.getByRole("link", { name: "Orientation" });
-		await expect(orientationLink).toBeVisible({
+		await expect(page.locator(TOPIC_BLOCK)).toHaveCount(0);
+
+		// ── one comprehension pass ─────────────────────────────────────────────
+		// the tab's own invitation, not the header menu: this is the surface that
+		// states the cost of the pass it is about to spend
+		await page.locator("[data-analysis-start]").click();
+
+		const topics = page.locator(TOPIC_BLOCK);
+		await expect(topics.first()).toBeVisible({
 			timeout: RUN_SETTLE_TIMEOUT_MS,
 		});
-		// ...and the tray is gone, because a finished run leaves no banner behind
-		await expect(page.getByText(/Reading the change/)).toHaveCount(0);
+		expect(await topics.count()).toBeGreaterThan(0);
 
-		// ── the intent map at /orient ──────────────────────────────────────────
-		await orientationLink.click();
+		// a topic names intent and sizes itself against the whole change
+		const firstTopic = topics.first();
+		await expect(firstTopic).toContainText(/covers ~\d+% of the change/);
+		/*
+		 * Collapsed by default: the page opens as a readable table of contents.
+		 *
+		 * Not shown is asserted as *not visible*, not as absent from the DOM. The
+		 * code is mounted whether the topic is open or not, because a height
+		 * cannot be eased from nothing — there is nothing to grow from until the
+		 * content exists — and Spike 7 measured that mounting it is close to free.
+		 * A collapsed block is a zero-height clip over code that is really there.
+		 */
+		await expect(firstTopic).toHaveAttribute("data-open", "false");
+		const code = firstTopic.locator("[data-topic-code]");
+		expect((await code.boundingBox())?.height).toBe(0);
+		await expect(code).toHaveAttribute("inert", "");
+
+		// ── the code is one click away, and it is the topic's own hunks ────────
+		await firstTopic.getByRole("button").first().click();
+		await expect(firstTopic).toHaveAttribute("data-open", "true");
+		await expect(firstTopic.locator("diffs-container").first()).toBeVisible({
+			timeout: RUN_SETTLE_TIMEOUT_MS,
+		});
+		// every block is keyed composite, never by hunk alone
+		await expect(
+			firstTopic.locator("[data-block-key]").first(),
+		).toHaveAttribute("data-block-key", /^t\d+:/);
+
+		/*
+		 * ── the fold is eased, not cut to ──────────────────────────────────────
+		 *
+		 * Sampled the way the diff's file fold is: an instant open or close cannot
+		 * produce a height strictly between nothing and the height it settles at.
+		 *
+		 * This is asserted because the failure it catches is invisible everywhere
+		 * else. The panel grows by transitioning its grid row from `0fr` to `1fr`,
+		 * and that transition's duration is a Primer motion token — so when the
+		 * base token layer those resolve to was missing from `tokens.css`, the
+		 * shorthand was invalid at computed-value time, `transition` computed to
+		 * its initial `all 0s`, and every eased thing in the app died at once.
+		 * Nothing reported it: the stylesheet parsed, stylelint passed, the
+		 * screenshots were identical, and the fold still ended in the right state.
+		 * A test that watches the height mid-flight is the only witness.
+		 */
+		const clipHeight = () =>
+			firstTopic
+				.locator("[data-topic-code]")
+				.evaluate((node) => node.getBoundingClientRect().height);
+
+		/**
+		 * The open height, once it has stopped moving.
+		 *
+		 * Highlighting is asynchronous, so the panel keeps growing for a while
+		 * after the code is technically visible. Reading the height too early
+		 * would set the bar this test measures against below where the fold
+		 * actually plays, and the assertion would be about nothing.
+		 */
+		const settledHeight = async () => {
+			let previous = -1;
+			for (let attempt = 0; attempt < 40; attempt++) {
+				const height = await clipHeight();
+				if (height === previous && height > 0) {
+					return height;
+				}
+				previous = height;
+				await page.waitForTimeout(50);
+			}
+			throw new Error("the topic panel never settled to a stable height");
+		};
+
+		/** every height the panel passed through while a fold played */
+		const foldSamples = async (act: Promise<void>) => {
+			const seen: number[] = [];
+			await act;
+			for (let sample = 0; sample < 20; sample++) {
+				seen.push(await clipHeight());
+				await page.waitForTimeout(12);
+			}
+			return seen;
+		};
+
+		const openHeight = await settledHeight();
+		const partway = (seen: number[]) =>
+			seen.some((height) => height > 0 && height < openHeight);
+
+		const toggle = firstTopic.getByRole("button").first();
+		const closing = await foldSamples(toggle.click());
+		expect(
+			partway(closing),
+			`closing heights (open ${openHeight}): ${closing}`,
+		).toBe(true);
+		await expect(firstTopic).toHaveAttribute("data-open", "false");
+
+		// and open again, which has to grow from nothing rather than appear
+		const opening = await foldSamples(toggle.click());
+		expect(
+			partway(opening),
+			`opening heights (open ${openHeight}): ${opening}`,
+		).toBe(true);
+		await expect(firstTopic).toHaveAttribute("data-open", "true");
+
+		// ── the purpose, on the same screen and from the same pass ────────────
 		await expect(
 			page.getByRole("heading", { name: "What this change is for" }),
 		).toBeVisible();
-		await expect(page.getByText("excited parameter").first()).toBeVisible();
-		// F4's entry point, resolved out of the agent's prose into a real target
-		await expect(page.getByRole("link", { name: /Start with/ })).toContainText(
-			"src/greeting.ts",
-		);
-		// relative sizing: the one cluster is sized, so it named hunk ids this
-		// round actually has — the whole point of the map's bars (F4)
-		const cluster = page
-			.getByRole("listitem")
-			.filter({ hasText: "Add excited greeting mode" });
-		await expect(cluster).toContainText("behaviour change");
-		await expect(cluster).toContainText("100%");
+		await expect(page.getByText("excited").first()).toBeVisible();
 
-		await page.getByRole("link", { name: "Diff" }).click();
+		/*
+		 * The overview is a headline and a list, never one paragraph.
+		 *
+		 * It used to be a single `summary: string().max(600)`, and what came back
+		 * was what a 600-character text box asks for: a dense block of three long
+		 * sentences, correct in content and unreadable in form. The fix was the
+		 * field's shape, not its budget — a shorter wall is still a wall — so the
+		 * thing worth pinning here is that separate points render as separate
+		 * lines.
+		 */
+		await expect(page.locator("[data-overview-point]").first()).toBeVisible();
+		// no ticket was discoverable for a worktree review, so the verdict says
+		// plainly that it is judging internal coherence — never ticket language
+		await expect(page.locator("[data-goal-basis]")).toHaveAttribute(
+			"data-goal-basis",
+			"inferred",
+		);
 		await expect(
-			page.getByRole("button", { name: "Explain this change" }),
+			page.getByText(/No ticket was found for this change/),
 		).toBeVisible();
 
-		// ── the guided walkthrough ─────────────────────────────────────────────
-		const coverageRing = page.getByRole("meter", { name: "Review coverage" });
-		await expect
-			.poll(() => ringPercent(coverageRing), {
-				timeout: RUN_SETTLE_TIMEOUT_MS,
-			})
-			.toBeGreaterThan(0);
-		const coverageBeforeWalkthrough = await ringPercent(coverageRing);
-
-		await page.getByRole("button", { name: "Walkthrough" }).click();
-		const rail = page.getByRole("region", { name: "Guided walkthrough" });
-		await expect(rail).toContainText("Step 1 of 3");
-		await expect(rail).toContainText("Function signature enhancement");
-		await expect(rail).toContainText("backward compatible");
-
-		// the step scrolled the diff to its file, so the notes anchored there are
-		// now on screen — muted margin notes, not review comments
-		const notes = page.locator(EXPLANATION_NOTE);
-		await expect(notes.first()).toBeVisible();
-		await expect(
-			page.getByLabel("Explanation: Intent", { exact: true }).first(),
-		).toContainText("optional parameter");
-
-		await rail.getByRole("button", { name: "Next" }).click();
-		await expect(rail).toContainText("Step 2 of 3");
-		await expect(rail).toContainText("conditional logic");
-
-		// reading a step is reviewing it: the server-fed ring moved
-		await expect
-			.poll(() => ringPercent(coverageRing), {
-				timeout: RUN_SETTLE_TIMEOUT_MS,
-			})
-			.toBeGreaterThan(coverageBeforeWalkthrough);
+		// ── the diff is still free, and still free of narration ────────────────
+		await page.locator('[data-tab="diff"]').click();
+		await expect(page.locator(EXPLANATION_NOTE)).toHaveCount(0);
 
 		// ── one chat turn ──────────────────────────────────────────────────────
 		await page.keyboard.press("c");
 		const dock = page.getByRole("region", { name: "Ask about this change" });
 		await expect(dock).toBeVisible();
-		// the question is framed by where the reader is, and says so on screen
-		await expect(dock).toContainText("greeting.ts");
 
 		await page.getByLabel("Your question").fill(CHAT_QUESTION);
 		await page.getByLabel("Your question").press("Enter");
@@ -236,23 +319,18 @@ test.describe("understand: analysis, orientation, walkthrough, and chat", () => 
 		// from disk, because nothing has re-run the agent
 		const resumedSession = await fetchSession(secondRun.url);
 		expect(resumedSession.resumed).toBe(true);
-		expect(resumedSession.analysis.intentMapAvailable).toBe(true);
-		expect(resumedSession.analysis.walkthroughAvailable).toBe(true);
-		expect(resumedSession.analysis.annotationCount).toBe(3);
-		expect(resumedSession.analysis.walkthroughProgress).toEqual({
-			position: 1,
-			completed: false,
-		});
+		expect(resumedSession.analysis.understandingAvailable).toBe(true);
+		// the comprehension pass writes nothing to the margin
+		expect(resumedSession.analysis.annotationCount).toBe(0);
 
+		// the saved /orient link still lands somewhere true rather than 404ing
 		await page.goto(`${secondRun.url}orient`);
-		await expect(page.getByText("excited parameter").first()).toBeVisible();
-
-		await page.getByRole("link", { name: "Diff" }).click();
-		// F13: the walkthrough comes back where it was left, not at the start
-		await page.getByRole("button", { name: "Walkthrough" }).click();
 		await expect(
-			page.getByRole("region", { name: "Guided walkthrough" }),
-		).toContainText("Step 2 of 3");
+			page.getByRole("heading", { name: "What this change is for" }),
+		).toBeVisible();
+
+		await page.locator('[data-tab="understand"]').click();
+		await expect(page.locator(TOPIC_BLOCK).first()).toBeVisible();
 
 		await page.keyboard.press("c");
 		const resumedDock = page.getByRole("region", {
@@ -352,10 +430,9 @@ interface SessionSnapshot {
 	readonly resumed: boolean;
 	readonly toolchain: { readonly agent: { readonly kind: string } };
 	readonly analysis: {
-		readonly intentMapAvailable: boolean;
-		readonly walkthroughAvailable: boolean;
+		readonly understandingAvailable: boolean;
+		readonly findingsAvailable: boolean;
 		readonly annotationCount: number;
-		readonly walkthroughProgress?: { position: number; completed: boolean };
 	};
 }
 
@@ -370,10 +447,6 @@ function firstHunkId(changeset: ChangesetSnapshot, path: string): string {
 		throw new Error(`the round has no hunk for ${path}`);
 	}
 	return hunkId;
-}
-
-async function ringPercent(ring: Locator): Promise<number> {
-	return Number(await ring.getAttribute("aria-valuenow"));
 }
 
 const COMMITTED_GREETING = [

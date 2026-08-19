@@ -4,7 +4,7 @@ import { FakeGit, type FakeGitState } from "../../test/helpers/FakeGit";
 import { InMemorySessionStore } from "../../test/helpers/InMemorySessionStore";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import { parseDiff } from "../domain/changeset/parseDiff";
-import type { ComprehensionOut } from "./analysis/schemas";
+import type { AnnotationDraft } from "./materializeAnnotations";
 import { materializeAnnotations } from "./materializeAnnotations";
 
 const OLD_OID = "1".repeat(40);
@@ -53,10 +53,10 @@ function deps(state: FakeGitState = {}) {
 }
 
 function explanation(
-	anchor: ComprehensionOut["explanations"][number]["anchor"],
+	anchor: AnnotationDraft["anchor"],
 	body = "the signature gained an optional flag",
-): ComprehensionOut["explanations"][number] {
-	return { anchor, kind: "intent", body };
+): AnnotationDraft {
+	return { anchor, body, species: "explanation", category: "intent" };
 }
 
 const PROVENANCE = {
@@ -68,12 +68,12 @@ const PROVENANCE = {
 const CREATED_AT = "2026-08-17T10:00:00.000Z";
 
 async function materialize(
-	explanations: ComprehensionOut["explanations"],
+	drafts: readonly AnnotationDraft[],
 	overrides: { files?: FileDiff[]; deps?: ReturnType<typeof deps> } = {},
 ) {
 	const dependencies = overrides.deps ?? deps();
 	const result = await materializeAnnotations(dependencies, {
-		explanations,
+		drafts,
 		files: overrides.files ?? files(),
 		provenance: PROVENANCE,
 		createdAt: CREATED_AT,

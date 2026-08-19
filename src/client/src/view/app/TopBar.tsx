@@ -1,34 +1,22 @@
+import type { ChangesetSourceDto } from "@dto/ChangesetDto";
 import {
 	ColumnsIcon,
-	FileDiffIcon,
-	MilestoneIcon,
+	LinkExternalIcon,
 	MoonIcon,
-	QuestionIcon,
 	RowsIcon,
 	SunIcon,
-	TelescopeIcon,
 } from "@primer/octicons-react";
-import { Link, useLocation } from "react-router";
-import { AnalyzeMenu } from "../analysis/AnalyzeMenu";
 import type { DiffStyle } from "../diff/useDiffStyle";
 import { Tooltip } from "../general/Tooltip";
-import { useFeatureFlags } from "../session/useFeatureFlags";
 import { useGuaranteedSession } from "../session/useGuaranteedSession";
 import { useTheme } from "../styling/useTheme";
 import { CoverageRing } from "./CoverageRing";
 import styles from "./TopBar.module.css";
 
 export interface TopBarProps {
-	/** absent on pages with no diff to lay out, like `/orient` */
+	/** absent on pages with no diff to lay out */
 	diffStyle?: DiffStyle;
 	onToggleDiffStyle?(): void;
-	/**
-	 * absent unless this page has a walkthrough to enter — the guided order is a
-	 * mode over the diff, so only the diff page can offer it
-	 */
-	onToggleWalkthrough?(): void;
-	walkthroughActive?: boolean;
-	onOpenHelp(): void;
 }
 
 const THEME_MODE_LABEL = {
@@ -37,43 +25,43 @@ const THEME_MODE_LABEL = {
 	auto: "Theme: auto",
 } as const;
 
-const ORIENT_PATH = "/orient";
-
-/** The app header (TASK-047): what is under review, and how far along it is. */
-export function TopBar({
-	diffStyle,
-	onToggleDiffStyle,
-	onToggleWalkthrough,
-	walkthroughActive = false,
-	onOpenHelp,
-}: TopBarProps) {
+/**
+ * The app header: what is under review, and how far along it is.
+ *
+ * Deliberately not a place to spend money. The analysis trigger used to live
+ * here, which meant the same button appeared beside every tab and belonged to
+ * none of them — a reader on the Diff tab was being offered a pass they had not
+ * navigated to. Each pass is now triggered from inside the tab it fills, where
+ * the invitation can say what it costs and what it produces.
+ */
+export function TopBar({ diffStyle, onToggleDiffStyle }: TopBarProps) {
 	const session = useGuaranteedSession();
 	const { mode, resolvedTheme, cycleThemeMode } = useTheme();
+	const href = sourceUrl(session.source);
 
 	return (
 		<header className={styles.bar}>
 			<div className={styles.identity}>
 				<span className={styles.wordmark}>prreview</span>
-				<span className={styles.changeset} title={session.announce.resolved}>
-					{session.changesetId}
-				</span>
+				{href === null ? (
+					<span className={styles.changeset} title={session.announce.resolved}>
+						{session.changesetId}
+					</span>
+				) : (
+					<a
+						className={styles.changesetLink}
+						href={href}
+						target="_blank"
+						rel="noreferrer"
+						title={`${session.announce.resolved} — open on GitHub`}
+					>
+						{session.changesetId}
+						<LinkExternalIcon size={12} />
+					</a>
+				)}
 				{session.resumed && <span className={styles.resumed}>resumed</span>}
 			</div>
 			<div className={styles.controls}>
-				<OrientationLink />
-				{onToggleWalkthrough !== undefined && (
-					<button
-						type="button"
-						className={styles.pageLink}
-						onClick={onToggleWalkthrough}
-						aria-pressed={walkthroughActive}
-						title="Guided walkthrough (w)"
-					>
-						<MilestoneIcon size={16} />
-						Walkthrough
-					</button>
-				)}
-				<AnalyzeMenu />
 				<CoverageRing percent={session.coverage.total} />
 				{diffStyle !== undefined && onToggleDiffStyle !== undefined && (
 					<Tooltip
@@ -111,45 +99,28 @@ export function TopBar({
 						)}
 					</button>
 				</Tooltip>
-				<Tooltip label="Keyboard shortcuts (?)">
-					<button
-						type="button"
-						className={styles.iconButton}
-						onClick={onOpenHelp}
-						aria-label="Keyboard shortcuts"
-					>
-						<QuestionIcon size={16} />
-					</button>
-				</Tooltip>
+				{/*
+					No shortcuts button. The keymap still works and `?` still opens the
+					dialog — what is gone is the icon advertising it, because a header
+					control that only opens a reference is one more thing to look past
+					on a screen whose job is the change.
+				*/}
 			</div>
 		</header>
 	);
 }
 
 /**
- * The one crossing between the two pages, and only once there is an
- * orientation to cross to: whether an intent map exists is the server's answer
- * (`session.analysis`), not something the flags can say — a flag reports what
- * this session can ever do, availability changes every time a run lands.
+ * The change, where it lives on the web.
+ *
+ * Only pull requests get one, because only a pull request has an address that
+ * exists outside this machine. A branch, a commit range, and the working tree
+ * are local facts, and inventing a URL for them would send the reader somewhere
+ * that may not exist.
  */
-function OrientationLink() {
-	const flags = useFeatureFlags();
-	const session = useGuaranteedSession();
-	const { pathname } = useLocation();
-
-	if (!flags.analysis || !session.analysis.intentMapAvailable) {
+function sourceUrl(source: ChangesetSourceDto): string | null {
+	if (source.kind !== "pr") {
 		return null;
 	}
-	const onOrient = pathname === ORIENT_PATH;
-
-	return (
-		<Link
-			className={styles.pageLink}
-			to={onOrient ? "/diff" : ORIENT_PATH}
-			title={onOrient ? "Back to the diff (g d)" : "Orientation (g o)"}
-		>
-			{onOrient ? <FileDiffIcon size={16} /> : <TelescopeIcon size={16} />}
-			{onOrient ? "Diff" : "Orientation"}
-		</Link>
-	);
+	return `https://github.com/${source.repo}/pull/${source.number}`;
 }

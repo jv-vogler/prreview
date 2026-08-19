@@ -1,3 +1,8 @@
+import type { TicketHint } from "../domain/analysis/discoverTicket";
+import { describeToolActivity } from "../domain/analysis/RunProgress";
+import { topicGranularity } from "../domain/analysis/topicGranularity";
+import type { Understanding } from "../domain/analysis/Understanding";
+import { buildUnderstanding } from "../domain/analysis/Understanding";
 import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
@@ -5,14 +10,10 @@ import type { EngineErrorReason } from "../domain/errors/EngineError";
 import { EngineError } from "../domain/errors/EngineError";
 import type { RunMeta } from "../domain/session/RunMeta";
 import type { SessionManifest } from "../domain/session/SessionManifest";
-import { buildComprehensionTask } from "./analysis/comprehensionTask";
-import { ANALYSIS_TIMEOUT_MS } from "./analysis/limits";
-import {
-	type ComprehensionOut,
-	comprehensionOutSchema,
-} from "./analysis/schemas";
+import { ANALYSIS_IDLE_TIMEOUT_MS } from "./analysis/limits";
+import { buildUnderstandingOutSchema } from "./analysis/understandingSchemas";
+import { buildUnderstandingTask } from "./analysis/understandingTask";
 import { consumeEngineRun } from "./consumeEngineRun";
-import { materializeAnnotations } from "./materializeAnnotations";
 import type {
 	Engine,
 	EngineRunFailure,
@@ -60,6 +61,8 @@ export interface RunAnalysisInput {
 	roundId: string;
 	ref: ChangesetRef;
 	files: readonly FileDiff[];
+	/** discovered opportunistically at open time; absent is normal, not a gap */
+	ticket?: TicketHint | null;
 }
 
 export type RunAnalysis = (input: RunAnalysisInput) => Promise<EnqueueResult>;
@@ -82,17 +85,18 @@ export function makeRunAnalysis(deps: RunAnalysisDeps): RunAnalysis {
 			source: input.ref.source,
 			headSha: input.ref.headSha,
 		});
-		const { task, input: taskInput } = buildComprehensionTask({
+		const { task, input: taskInput } = buildUnderstandingTask({
 			ref: input.ref,
 			files: input.files,
 			roundId: input.roundId,
 			workspaceDir: workspace.dir,
+			ticket: input.ticket ?? null,
 		});
 
 		return deps.runManager.enqueue({
 			lane: "analysis",
 			taskType: COMPREHENSION_TASK_TYPE,
-			timeoutMs: ANALYSIS_TIMEOUT_MS,
+			idleTimeoutMs: ANALYSIS_IDLE_TIMEOUT_MS,
 			job: (context) =>
 				runComprehension({ deps, input, context, engine, task, taskInput }),
 		});
@@ -122,7 +126,17 @@ async function runComprehension(run: ComprehensionRun): Promise<RunOutcome> {
 	const startedAt = nowIso();
 	const consumed = await consumeEngineRun(
 		run.engine.runTask(run.task, run.taskInput),
-		{ signal: run.context.signal },
+		{
+			signal: run.context.signal,
+			// what the agent is doing, forwarded so the screen can say it. Without
+			// this the reader sees "Running…" for as long as the pass takes and has
+			// no way to tell a working run from a wedged one.
+			onTool: (event) =>
+				run.deps.runManager.report(run.context.runId, {
+					kind: "activity",
+					activity: describeToolActivity(event.name, event.target),
+				}),
+		},
 	);
 	const sessionSoFar = {
 		engineSessionId: consumed.session?.sessionId ?? "",
@@ -162,17 +176,17 @@ async function runComprehension(run: ComprehensionRun): Promise<RunOutcome> {
 		return failRun("failed", result.reason, failureMessage(result));
 	}
 
-	const comprehension = parseComprehension(result.structuredOutput);
-	if (comprehension === null) {
+	const understanding = parseUnderstanding(run, result.structuredOutput);
+	if (understanding === null) {
 		return failRun(
 			"failed",
 			"schema-violation",
-			"The agent's answer did not match the comprehension schema, so nothing was applied.",
+			"The agent's answer did not match the understanding schema, so nothing was applied.",
 		);
 	}
 
-	const skippedAnchors = await applyComprehension(run, {
-		comprehension,
+	await applyUnderstanding(run, {
+		understanding,
 		result,
 		runId: run.context.runId,
 	});
@@ -190,65 +204,42 @@ async function runComprehension(run: ComprehensionRun): Promise<RunOutcome> {
 		},
 		result.sessionId,
 	);
-	return { ok: true, skippedAnchors };
+	return { ok: true, skippedAnchors: 0 };
 }
 
-interface AppliedComprehension {
-	comprehension: ComprehensionOut;
+interface AppliedUnderstanding {
+	understanding: Understanding;
 	result: EngineRunSuccess;
 	runId: string;
 }
 
 /**
- * Persist the round's raw stage output, then turn its explanations into stored
- * annotations. A re-run replaces the previous explanations rather than stacking
- * a second copy on the same lines — an explanation is cheap to regenerate (§12)
- * and duplicates would be user-visible noise.
+ * Persist what the pass understood, then tell every open client it landed.
+ *
+ * Stage A produces **no annotations**. Explanations used to be materialized
+ * into per-hunk notes hanging in the diff margin; they are now narration
+ * attached to a topic and rendered on the Understanding tab, where a reader can
+ * see the code a claim is about instead of hunting for it. The margin is
+ * reserved for findings — things you might actually say to the author.
  */
-async function applyComprehension(
+async function applyUnderstanding(
 	run: ComprehensionRun,
-	applied: AppliedComprehension,
-): Promise<number> {
+	applied: AppliedUnderstanding,
+): Promise<void> {
 	const { deps, input } = run;
-	const changesetId = input.manifest.changesetId;
 
-	await deps.store.saveRoundAnalysis(changesetId, input.roundId, {
-		comprehension: applied.comprehension,
-		readLog: applied.result.readLog,
-		runId: applied.runId,
-		engineSessionId: applied.result.sessionId,
-	});
-
-	const { annotations, skippedAnchors } = await materializeAnnotations(
-		{ git: deps.git, store: deps.store },
+	await deps.store.saveRoundAnalysis(
+		input.manifest.changesetId,
+		input.roundId,
 		{
-			explanations: applied.comprehension.explanations,
-			files: input.files,
-			provenance: {
-				roundId: input.roundId,
-				stage: COMPREHENSION_TASK_TYPE,
-				engineSessionId: applied.result.sessionId,
-			},
-			createdAt: nowIso(),
+			understanding: applied.understanding,
+			readLog: applied.result.readLog,
+			runId: applied.runId,
+			engineSessionId: applied.result.sessionId,
 		},
 	);
 
-	const existing = await deps.store.loadAnnotations(changesetId);
-	const superseded = existing.filter(
-		(annotation) => annotation.species === "explanation",
-	);
-	const kept = existing.filter(
-		(annotation) => annotation.species !== "explanation",
-	);
-	await deps.store.saveAnnotations(changesetId, [...kept, ...annotations]);
-
-	for (const annotation of superseded) {
-		deps.publish({ type: "annotation.removed", id: annotation.id });
-	}
-	for (const annotation of annotations) {
-		deps.publish({ type: "annotation.upserted", annotation });
-	}
-	return skippedAnchors;
+	deps.publish({ type: "understanding.updated", roundId: input.roundId });
 }
 
 /**
@@ -280,17 +271,44 @@ async function recordRun(
 	await deps.store.saveSessionManifest(updated);
 }
 
-function parseComprehension(
+/**
+ * Re-validates the agent's output against the same schema it was handed, then
+ * turns the draft into the persisted shape — ids assigned, `basis` stamped from
+ * what prreview discovered rather than what the agent claims, and the
+ * unaccounted-for hunks derived.
+ *
+ * The schema is rebuilt from the round's own granularity so the cap that
+ * validates is the cap that was requested.
+ */
+function parseUnderstanding(
+	run: ComprehensionRun,
 	structuredOutput: unknown,
-): ComprehensionOut | null {
-	// REQ-007's boundary is enforced in the adapter; parsing again is what turns
-	// `unknown` into the typed object, and costs nothing.
-	const parsed = comprehensionOutSchema.safeParse(structuredOutput);
-	return parsed.success ? parsed.data : null;
+): Understanding | null {
+	const schema = buildUnderstandingOutSchema(topicGranularity(run.input.files));
+	const parsed = schema.safeParse(structuredOutput);
+	if (!parsed.success) {
+		return null;
+	}
+	return buildUnderstanding({
+		draft: parsed.data,
+		files: run.input.files,
+		ticket: run.input.ticket ?? null,
+	});
 }
 
+/**
+ * The most useful sentence available, not the most machine-shaped one.
+ *
+ * `terminalReason` used to win here, which meant a run that failed with a
+ * perfectly clear explanation ("There's an issue with the selected model…")
+ * reported the bare token `api_error` instead and threw the sentence away. The
+ * explanation comes first now; the token is the fallback when there is nothing
+ * better.
+ */
 function failureMessage(result: EngineRunFailure): string {
-	const detail = result.terminalReason ?? lastLine(result.stderrTail);
+	const explanation = lastLine(result.stderrTail);
+	const detail =
+		explanation === "" ? (result.terminalReason ?? "") : explanation;
 	return detail === ""
 		? `The analysis run failed (${result.reason}).`
 		: `The analysis run failed (${result.reason}): ${detail}`;

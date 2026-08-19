@@ -2,6 +2,7 @@ import type {
 	EngineEvent,
 	EngineResultEvent,
 	EngineSessionEvent,
+	EngineToolEvent,
 } from "./ports/Engine";
 
 export interface ConsumeEngineRunHandlers {
@@ -9,6 +10,12 @@ export interface ConsumeEngineRunHandlers {
 	signal: AbortSignal;
 	/** chat deltas; task runs leave it unset */
 	onText?: (text: string) => void;
+	/**
+	 * Every tool the agent reaches for. These events used to be dropped here,
+	 * which is why a run could read forty files while the screen said nothing —
+	 * the evidence that it was working was arriving and being discarded.
+	 */
+	onTool?: (event: EngineToolEvent) => void;
 }
 
 export interface ConsumedEngineRun {
@@ -61,6 +68,9 @@ export async function consumeEngineRun(
 		if (event.type === "text") {
 			texts.push(event.text);
 			handlers.onText?.(event.text);
+		}
+		if (event.type === "tool") {
+			handlers.onTool?.(event);
 		}
 		if (event.type === "result") {
 			result = event;

@@ -63,6 +63,13 @@ export interface StreamResultRecord {
 	numTurns: number;
 	costUsd: number;
 	text: string | null;
+	/**
+	 * The HTTP status behind a `terminal_reason: "api_error"`, when there was
+	 * one. Captured because it is the difference between "you cannot reach that
+	 * model" (404), "you are rate limited" (429), and "your prompt is too long"
+	 * (400) — and without it every one of those reads the same to a user.
+	 */
+	apiErrorStatus: number | null;
 	/** absent on non-schema runs; null when the CLI exhausted its retries (CON-006) */
 	structuredOutput: unknown;
 }
@@ -232,6 +239,10 @@ function resultRecord(event: Record<string, unknown>): StreamResultRecord {
 		costUsd:
 			typeof event.total_cost_usd === "number" ? event.total_cost_usd : 0,
 		text: typeof event.result === "string" ? event.result : null,
+		apiErrorStatus:
+			typeof event.api_error_status === "number"
+				? event.api_error_status
+				: null,
 		structuredOutput: event.structured_output,
 	};
 }

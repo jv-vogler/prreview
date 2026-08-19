@@ -67,16 +67,24 @@ export class ClaudeEngine implements Engine {
 	}
 
 	runTask(task: TaskSpec, input: TaskInput): AsyncIterable<EngineEvent> {
+		// the resume may come from either side: an input-level one (the caller
+		// resuming a specific session) or a task-level one (a lens child built to
+		// fork from comprehension). The input wins when both are set.
+		const resume = input.resume ?? task.resume;
 		return this.run({
 			argv: buildTaskArgv({
 				jsonSchema: task.jsonSchema,
 				maxTurns: task.maxTurns,
 				systemContract: task.systemContract,
-				...(input.resume === undefined ? {} : { resume: input.resume }),
+				...(resume === undefined ? {} : { resume }),
+				...(task.effort === undefined ? {} : { effort: task.effort }),
+				...(task.maxBudgetUsd === undefined
+					? {}
+					: { maxBudgetUsd: task.maxBudgetUsd }),
 			}),
 			prompt: input.prompt,
 			workspaceDir: input.workspaceDir,
-			timeoutMs: task.timeoutMs,
+			idleTimeoutMs: task.idleTimeoutMs,
 			outputSchema: task.outputSchema,
 			// a schema task's text is a by-product; its assistant blocks would
 			// duplicate what structured output already carries
@@ -92,7 +100,7 @@ export class ClaudeEngine implements Engine {
 			}),
 			prompt: input.prompt,
 			workspaceDir: input.workspaceDir,
-			timeoutMs: input.timeoutMs,
+			idleTimeoutMs: input.idleTimeoutMs,
 			// --include-partial-messages sends every token twice — once as a
 			// delta, once inside the completed block; the deltas are the stream
 			textSource: "deltas",
@@ -142,7 +150,7 @@ export class ClaudeEngine implements Engine {
 
 		const stderr = collectStderrTail(child);
 		const exited = waitForExit(child);
-		const lifetime = this.startLifetime(child, options.timeoutMs);
+		const lifetime = this.startLifetime(child, options.idleTimeoutMs);
 		writePrompt(child, options.prompt);
 
 		const recorder = createReadLogRecorder();
@@ -151,6 +159,9 @@ export class ClaudeEngine implements Engine {
 
 		try {
 			for await (const record of parseStreamJson(child.stdout)) {
+				// every line off stdout is proof the child is alive and working,
+				// whatever the line says — that is the whole basis of the idle clock
+				lifetime.touch();
 				recorder.accept(record);
 				switch (record.kind) {
 					case "init":
@@ -203,16 +214,25 @@ export class ClaudeEngine implements Engine {
 	}
 
 	/**
-	 * Owns the child's clock and its death: the task timeout fires SIGTERM and
+	 * Owns the child's clock and its death: the idle timeout fires SIGTERM and
 	 * escalates to SIGKILL after the grace period, and `stop()` does the same
 	 * on the way out of the generator for a child that is still running.
+	 *
+	 * The clock measures **silence, not duration**. It is armed at spawn and
+	 * rearmed by `touch()` on every line the child emits, so a child that is
+	 * working stays alive however long the work takes, and only one that has
+	 * genuinely stopped talking gets killed. A wall-clock budget cannot tell
+	 * those two apart, and the case it gets wrong is the expensive one: a large
+	 * change being read carefully, thrown away at the ceiling.
 	 */
 	private startLifetime(
 		child: ChildProcessWithoutNullStreams,
-		timeoutMs: number,
+		idleTimeoutMs: number,
 	): ChildLifetime {
 		let timedOut = false;
 		let killTimer: NodeJS.Timeout | undefined;
+		let idleTimer: NodeJS.Timeout | undefined;
+		let stopped = false;
 
 		const terminate = () => {
 			if (child.exitCode !== null || child.signalCode !== null) {
@@ -223,16 +243,29 @@ export class ClaudeEngine implements Engine {
 			killTimer.unref();
 		};
 
-		const timeoutTimer = setTimeout(() => {
-			timedOut = true;
-			terminate();
-		}, timeoutMs);
-		timeoutTimer.unref();
+		const arm = () => {
+			idleTimer = setTimeout(() => {
+				timedOut = true;
+				terminate();
+			}, idleTimeoutMs);
+			idleTimer.unref();
+		};
+		arm();
 
 		return {
 			timedOut: () => timedOut,
+			touch: () => {
+				// after stop() there is nothing left to wait for, and rearming here
+				// would resurrect a timer the teardown just cleared
+				if (stopped || timedOut) {
+					return;
+				}
+				clearTimeout(idleTimer);
+				arm();
+			},
 			stop: () => {
-				clearTimeout(timeoutTimer);
+				stopped = true;
+				clearTimeout(idleTimer);
 				terminate();
 				child.stdout.destroy();
 				child.stderr.destroy();
@@ -250,7 +283,7 @@ interface RunOptions {
 	argv: string[];
 	prompt: string;
 	workspaceDir: string;
-	timeoutMs: number;
+	idleTimeoutMs: number;
 	textSource: "blocks" | "deltas";
 	/** present on schema tasks only; its absence means "no structured output expected" */
 	outputSchema?: OutputParser;
@@ -258,6 +291,8 @@ interface RunOptions {
 
 interface ChildLifetime {
 	timedOut(): boolean;
+	/** proof of life: rearms the idle clock */
+	touch(): void;
 	stop(): void;
 }
 
@@ -350,7 +385,12 @@ function terminalEvent(input: TerminalInput): EngineEvent {
 		return failure("agent-missing", null, input);
 	}
 	if (input.timedOut) {
-		return failure("timed-out", input.result?.terminalReason ?? null, input);
+		return failure(
+			"timed-out",
+			input.result?.terminalReason ?? null,
+			input,
+			input.result ?? undefined,
+		);
 	}
 	if (input.result === null) {
 		// the stream ended without a result event: the child died mid-run
@@ -361,6 +401,7 @@ function terminalEvent(input: TerminalInput): EngineEvent {
 			failureReason(input.result, input),
 			input.result.terminalReason,
 			input,
+			input.result,
 		);
 	}
 	return successOrSchemaViolation(input.result, input);
@@ -390,7 +431,12 @@ function successOrSchemaViolation(
 		result.structuredOutput === null ||
 		result.structuredOutput === undefined
 	) {
-		return failure("schema-violation", result.terminalReason, input);
+		return failure(
+			failureReason(result, input),
+			result.terminalReason,
+			input,
+			result,
+		);
 	}
 	try {
 		const structuredOutput = input.outputSchema.parse(result.structuredOutput);
@@ -406,7 +452,7 @@ function successOrSchemaViolation(
 			readLog: input.readLog,
 		};
 	} catch {
-		return failure("schema-violation", result.terminalReason, input);
+		return failure("schema-violation", result.terminalReason, input, result);
 	}
 }
 
@@ -414,6 +460,12 @@ function failureReason(
 	result: StreamResultRecord,
 	input: TerminalInput,
 ): EngineErrorReason {
+	// Checked FIRST: an API failure also leaves a schema task with no structured
+	// output, and reporting that as a schema violation blames the model for a
+	// call that never happened.
+	if (result.terminalReason === "api_error") {
+		return "api-error";
+	}
 	const schemaTaskProducedNothing =
 		input.outputSchema !== undefined &&
 		(result.structuredOutput === null || result.structuredOutput === undefined);
@@ -429,16 +481,32 @@ function failureReason(
 	return "crashed";
 }
 
+/**
+ * The CLI's own explanation is the most useful thing in the envelope on an API
+ * failure — it says which model, or that the prompt is too long — so it is put
+ * where the UI already looks rather than discarded in favour of stderr, which
+ * on these runs is usually empty.
+ */
 function failure(
 	reason: EngineErrorReason,
 	terminalReason: string | null,
 	input: TerminalInput,
+	result?: StreamResultRecord,
 ): EngineEvent {
+	const explanation =
+		result?.text !== undefined && result?.text !== null && result.text !== ""
+			? result.text
+			: null;
+	const status =
+		result?.apiErrorStatus === undefined || result?.apiErrorStatus === null
+			? ""
+			: `HTTP ${result.apiErrorStatus}: `;
 	return {
 		type: "result",
 		ok: false,
 		reason,
 		terminalReason,
-		stderrTail: input.stderrTail,
+		stderrTail:
+			explanation === null ? input.stderrTail : `${status}${explanation}`,
 	};
 }

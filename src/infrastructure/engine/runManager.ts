@@ -11,6 +11,11 @@ import type {
 	RunRequest,
 	RunStatus,
 } from "../../application/ports/RunManager";
+import type { RunProgressUpdate } from "../../domain/analysis/RunProgress";
+import {
+	applyRunProgress,
+	EMPTY_RUN_PROGRESS,
+} from "../../domain/analysis/RunProgress";
 
 /**
  * The two lanes of ARCHITECTURE §7, at most two `claude` children alive: an
@@ -36,16 +41,32 @@ export interface RunManagerOptions {
 	 * application/analysis/limits.ts so the timeouts stay in one place without
 	 * infrastructure reaching up into a use-case module.
 	 */
-	timeoutMsByLane: Record<RunLane, number>;
+	idleTimeoutMsByLane: Record<RunLane, number>;
 }
+
+/**
+ * How often a running job's progress reaches the browser.
+ *
+ * An agent reading forty files emits forty tool events in a few seconds, and
+ * forty SSE frames to move one line of text is waste. One frame every half
+ * second still reads as live to a person, and the newest state is always the
+ * one that gets sent — a coalesced frame is never a stale frame.
+ */
+const PROGRESS_PUBLISH_MS = 500;
+
+const MS_PER_SECOND = 1000;
 
 interface QueuedRun {
 	run: Run;
 	job: RunJob;
-	timeoutMs: number;
+	idleTimeoutMs: number;
 	controller: AbortController;
 	cancelRequested: boolean;
 	timedOut: boolean;
+	/** set while a coalesced progress frame is waiting to go out */
+	progressTimer: NodeJS.Timeout | null;
+	/** the silence clock; rearmed by every progress report */
+	idleTimer: NodeJS.Timeout | null;
 }
 
 interface Lane {
@@ -54,7 +75,7 @@ interface Lane {
 }
 
 export function createRunManager(options: RunManagerOptions): RunManager {
-	const { publish, timeoutMsByLane } = options;
+	const { publish, idleTimeoutMsByLane } = options;
 	const lanes: Record<RunLane, Lane> = {
 		analysis: { queue: [], active: null },
 		chat: { queue: [], active: null },
@@ -77,6 +98,8 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 			}
 		}
 
+		const idleTimeoutMs =
+			request.idleTimeoutMs ?? idleTimeoutMsByLane[request.lane];
 		const entry: QueuedRun = {
 			run: {
 				id: ulid(),
@@ -84,12 +107,15 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 				taskType: request.taskType,
 				status: "queued",
 				queuedAt: nowIso(),
+				idleTimeoutMs,
 			},
 			job: request.job,
-			timeoutMs: request.timeoutMs ?? timeoutMsByLane[request.lane],
+			idleTimeoutMs,
 			controller: new AbortController(),
 			cancelRequested: false,
 			timedOut: false,
+			progressTimer: null,
+			idleTimer: null,
 		};
 		runsById.set(entry.run.id, entry);
 		lane.queue.push(entry);
@@ -113,16 +139,40 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 		void start(laneName, next);
 	}
 
-	async function start(laneName: RunLane, entry: QueuedRun): Promise<void> {
-		transition(entry, "running", "run.started");
-		const timer = setTimeout(() => {
+	/**
+	 * Arms (or rearms) the run's idle clock.
+	 *
+	 * The manager's clock measures the same thing the engine's does — silence,
+	 * not elapsed time — for the same reason: a run that is demonstrably working
+	 * should not be killed for taking a while. Every progress report is proof of
+	 * life and pushes the deadline out. This one sits above the engine's so that
+	 * a job which stops reporting for a reason the child cannot see (server-side
+	 * work that wedged between lens children, say) is still caught.
+	 */
+	function armIdleClock(entry: QueuedRun): void {
+		if (entry.idleTimer !== null) {
+			clearTimeout(entry.idleTimer);
+		}
+		entry.idleTimer = setTimeout(() => {
 			entry.timedOut = true;
 			entry.controller.abort();
-		}, entry.timeoutMs);
-		timer.unref();
+		}, entry.idleTimeoutMs);
+		entry.idleTimer.unref?.();
+	}
+
+	function disarmIdleClock(entry: QueuedRun): void {
+		if (entry.idleTimer !== null) {
+			clearTimeout(entry.idleTimer);
+			entry.idleTimer = null;
+		}
+	}
+
+	async function start(laneName: RunLane, entry: QueuedRun): Promise<void> {
+		transition(entry, "running", "run.started");
+		armIdleClock(entry);
 
 		const outcome = await runJob(entry);
-		clearTimeout(timer);
+		disarmIdleClock(entry);
 		settle(entry, outcome);
 
 		lanes[laneName].active = null;
@@ -150,7 +200,7 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 		if (entry.timedOut) {
 			entry.run.error = {
 				reason: "timed-out",
-				message: `The ${entry.run.taskType} run passed its ${entry.timeoutMs}ms budget and was stopped.`,
+				message: `The ${entry.run.taskType} run reported nothing for ${Math.round(entry.idleTimeoutMs / MS_PER_SECOND)}s and was stopped.`,
 			};
 			transition(entry, "timed-out", "run.failed");
 			return;
@@ -166,11 +216,55 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 		transition(entry, "failed", "run.failed");
 	}
 
+	/**
+	 * Records what a running job is doing and lets the browser know.
+	 *
+	 * Two rules keep this from becoming a source of lies. A settled run is
+	 * ignored, so a tool event arriving after the result cannot make a finished
+	 * run look busy. And the frames are coalesced rather than dropped: the state
+	 * published is always the newest one, so the line on screen matches what the
+	 * agent is doing now, not what it was doing when the window opened.
+	 *
+	 * This is also where a run proves it is still alive. Publishing the progress
+	 * is coalesced; pushing the deadline out is not, because the clock has to
+	 * follow the newest *report*, not the newest frame.
+	 */
+	function report(runId: string, update: RunProgressUpdate): void {
+		const entry = runsById.get(runId);
+		if (entry === undefined || isSettled(entry.run.status)) {
+			return;
+		}
+		if (entry.run.status === "running") {
+			armIdleClock(entry);
+		}
+		entry.run.progress = applyRunProgress(
+			entry.run.progress ?? EMPTY_RUN_PROGRESS,
+			update,
+			nowIso(),
+		);
+		if (entry.progressTimer !== null) {
+			return;
+		}
+		entry.progressTimer = setTimeout(() => {
+			entry.progressTimer = null;
+			if (!isSettled(entry.run.status)) {
+				publish({ type: "run.progress", run: snapshot(entry) });
+			}
+		}, PROGRESS_PUBLISH_MS);
+		entry.progressTimer.unref?.();
+	}
+
 	function transition(
 		entry: QueuedRun,
 		status: RunStatus,
 		eventType: RunEventType,
 	): void {
+		if (entry.progressTimer !== null) {
+			// a queued progress frame published after the terminal one would put
+			// the run back into "working" on every screen watching it
+			clearTimeout(entry.progressTimer);
+			entry.progressTimer = null;
+		}
 		entry.run.status = status;
 		if (status === "running") {
 			entry.run.startedAt = nowIso();
@@ -203,6 +297,7 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 
 	return {
 		enqueue,
+		report,
 		cancel,
 		cancelAll: () => {
 			for (const entry of runsById.values()) {

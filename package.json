@@ -1,6 +1,6 @@
 {
-	"name": "prreview",
-	"version": "0.1.0",
+	"name": "@jv-vogler/prreview",
+	"version": "0.0.1",
 	"description": "GitHub-style diff viewer on localhost for reviewing PRs, branches, commit ranges, and working-tree changes",
 	"keywords": [
 		"code-review",
@@ -29,12 +29,18 @@
 		"dist",
 		"skills"
 	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"engines": {
 		"node": ">=20.19"
 	},
 	"scripts": {
 		"build": "tsdown && vite build src/client",
 		"dev": "concurrently \"tsx watch src/interface/cli/index.ts --dev\" \"vite src/client\"",
+		"dev:mock": "PATH=\"$PWD/scripts/mock-agent:$PATH\" npm run dev",
+		"link": "npm run build && npm link",
+		"unlink": "npm unlink -g @jv-vogler/prreview",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
 		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input && node scripts/check-dto-imports.mjs",
@@ -69,6 +75,7 @@
 		"@types/react": "^19.2.18",
 		"@types/react-dom": "^19.2.4",
 		"@vitejs/plugin-react": "^6.0.5",
+		"ajv": "8.20.0",
 		"concurrently": "^10.0.5",
 		"jsdom": "^29.1.1",
 		"stylelint": "^17.14.1",

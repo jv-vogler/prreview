@@ -1,15 +1,15 @@
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ComprehensionOut } from "../src/application/analysis/schemas";
+import type { AnnotationDraft } from "../src/application/materializeAnnotations";
+import { materializeAnnotations } from "../src/application/materializeAnnotations";
 import type { AppEvent } from "../src/application/ports/EventPublisher";
-import type { Run } from "../src/application/ports/RunManager";
 import { buildContainer, type Container } from "../src/container";
 import type { Toolchain } from "../src/domain/session/Toolchain";
 import {
 	createFixtureRepo,
 	type FixtureRepo,
 } from "./helpers/createFixtureRepo";
-import { FakeEngine, fakeResult, fakeSession } from "./helpers/FakeEngine";
+import { FakeEngine } from "./helpers/FakeEngine";
 import { InMemorySessionStore } from "./helpers/InMemorySessionStore";
 
 /**
@@ -62,22 +62,16 @@ afterEach(async () => {
 	repo = undefined;
 });
 
-function comprehensionAnchoredAt(
-	startLine: number,
-	path: string,
-): ComprehensionOut {
-	return {
-		intentMap: { summary: "doubling", clusters: [], suggestedEntryPoint: path },
-		walkthrough: { steps: [] },
-		explanations: [
-			{
-				anchor: { path, side: "new", startLine, endLine: startLine },
-				kind: "mechanism",
-				body: "doubling is the whole point of this function",
-			},
-		],
-		risk: { hunkRisks: [] },
-	};
+/** one finding anchored on a known line — what re-anchoring has to carry */
+function draftAnchoredAt(startLine: number, path: string): AnnotationDraft[] {
+	return [
+		{
+			anchor: { path, side: "new", startLine, endLine: startLine },
+			body: "doubling is the whole point of this function",
+			species: "finding",
+			category: "correctness",
+		},
+	];
 }
 
 interface Harness {
@@ -87,20 +81,10 @@ interface Harness {
 	engine: FakeEngine;
 }
 
-function harnessFor(
-	fixture: FixtureRepo,
-	comprehension: ComprehensionOut,
-): Harness {
+function harnessFor(fixture: FixtureRepo): Harness {
 	const store = new InMemorySessionStore();
 	const events: AppEvent[] = [];
-	const engine = new FakeEngine({
-		task: {
-			events: [
-				fakeSession("session-A"),
-				fakeResult({ structuredOutput: comprehension, sessionId: "session-A" }),
-			],
-		},
-	});
+	const engine = new FakeEngine();
 	const container = buildContainer(
 		{
 			repoRoot: fixture.root,
@@ -116,22 +100,6 @@ function harnessFor(
 		},
 	);
 	return { container, store, events, engine };
-}
-
-async function settled(container: Container, runId: string): Promise<Run> {
-	const deadline = Date.now() + 2000;
-	while (Date.now() < deadline) {
-		const run = container.runManager.get(runId);
-		if (
-			run !== undefined &&
-			run.status !== "queued" &&
-			run.status !== "running"
-		) {
-			return run;
-		}
-		await new Promise((resolve) => setTimeout(resolve, 5));
-	}
-	throw new Error(`run ${runId} never settled`);
 }
 
 /**
@@ -150,23 +118,32 @@ async function repoWithWorktreeChange(): Promise<FixtureRepo> {
 	return fixture;
 }
 
+/**
+ * Seeds one anchored annotation on round 1 directly, rather than through an
+ * agent run. Re-anchoring is what these tests are about, and how an annotation
+ * came to exist is irrelevant to whether it survives the tree moving — going
+ * through a scripted engine only added a way for the test to fail for an
+ * unrelated reason.
+ */
 async function analyzedRound1(fixture: FixtureRepo) {
-	const harness = harnessFor(
-		fixture,
-		comprehensionAnchoredAt(4, "src/compute.ts"),
-	);
+	const harness = harnessFor(fixture);
 	const review = await harness.container.openReview({ target: "working" });
-	const enqueued = await harness.container.runAnalysis({
-		manifest: review.manifest,
-		roundId: review.roundId,
-		ref: review.ref,
-		files: review.files,
-	});
-	if (enqueued.kind !== "accepted") {
-		throw new Error(`expected an accepted run, got ${enqueued.kind}`);
-	}
-	const run = await settled(harness.container, enqueued.runId);
-	expect(run.status).toBe("succeeded");
+
+	const { annotations: seeded } = await materializeAnnotations(
+		{ git: harness.container.git, store: harness.store },
+		{
+			drafts: draftAnchoredAt(4, "src/compute.ts"),
+			files: review.files,
+			provenance: {
+				roundId: review.roundId,
+				stage: "findings",
+				engineSessionId: "session-A",
+			},
+			createdAt: "2026-08-17T10:00:00.000Z",
+		},
+	);
+	await harness.store.saveAnnotations(review.manifest.changesetId, seeded);
+
 	const annotations = await harness.store.loadAnnotations(
 		review.manifest.changesetId,
 	);
@@ -177,7 +154,7 @@ async function analyzedRound1(fixture: FixtureRepo) {
 	return { harness, review, annotations };
 }
 
-describe("refreshChangeset re-anchors explanations", () => {
+describe("refreshChangeset re-anchors annotations", () => {
 	it("carries an explanation onto its new line after the code shifted down", async () => {
 		repo = await repoWithWorktreeChange();
 		const { harness, review, annotations } = await analyzedRound1(repo);

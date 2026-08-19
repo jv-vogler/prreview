@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
 import type {
 	Run,
@@ -20,7 +21,7 @@ function harness(timeouts = LANE_TIMEOUTS): Harness {
 	const events: RunEvent[] = [];
 	const manager = createRunManager({
 		publish: (event) => events.push(event),
-		timeoutMsByLane: timeouts,
+		idleTimeoutMsByLane: timeouts,
 	});
 	return { manager, events, types: () => events.map((event) => event.type) };
 }
@@ -439,13 +440,49 @@ describe("runManager timeout", () => {
 		const enqueued = manager.enqueue({
 			lane: "analysis",
 			taskType: "comprehension",
-			timeoutMs: 20,
+			idleTimeoutMs: 20,
 			job: work.job,
 		});
 		if (enqueued.kind !== "accepted") {
 			throw new Error("expected an accepted run");
 		}
 		expect((await settled(manager, enqueued.runId)).status).toBe("timed-out");
+	});
+
+	/**
+	 * The clock measures silence, not duration.
+	 *
+	 * This job runs for roughly ten times its own budget and survives, because
+	 * it keeps saying what it is doing. Under the wall clock this replaced, a
+	 * large change being read carefully was indistinguishable from a hang and
+	 * was killed alongside it.
+	 */
+	it("keeps a run alive as long as it reports progress", async () => {
+		const idleTimeoutMs = 30;
+		const { manager } = harness({ analysis: idleTimeoutMs, chat: 60_000 });
+		let runId = "";
+		const enqueued = manager.enqueue({
+			lane: "analysis",
+			taskType: "comprehension",
+			job: async (context) => {
+				runId = context.runId;
+				for (let tick = 0; tick < 10; tick++) {
+					await sleep(idleTimeoutMs / 2);
+					manager.report(context.runId, {
+						kind: "activity",
+						activity: `still reading, tick ${tick}`,
+					});
+				}
+				return { ok: true };
+			},
+		});
+		if (enqueued.kind !== "accepted") {
+			throw new Error("expected an accepted run");
+		}
+
+		const run = await settled(manager, enqueued.runId);
+		expect(runId).toBe(enqueued.runId);
+		expect(run.status).toBe("succeeded");
 	});
 
 	it("does not fire the timeout for a run that finished in time", async () => {
@@ -461,3 +498,91 @@ describe("runManager timeout", () => {
 		expect((await settled(manager, enqueued.runId)).status).toBe("succeeded");
 	});
 });
+
+/**
+ * Progress reporting: the mechanism that turns "Running…" into something a
+ * person can read. The rules that matter are all about not lying — never after
+ * the run has settled, and never a stale frame when a newer state exists.
+ */
+describe("createRunManager progress", () => {
+	it("publishes what a running job says it is doing", async () => {
+		// a generous lane budget: the coalescing window is half a second, and the
+		// default 1s timeout would settle the run out from under the frame
+		const { manager, events } = harness({ analysis: 60_000, chat: 60_000 });
+		const work = controllableJob();
+		const enqueued = manager.enqueue({
+			lane: "analysis",
+			taskType: "comprehension",
+			job: work.job,
+		});
+		if (enqueued.kind !== "accepted") {
+			throw new Error("expected an accepted run");
+		}
+		await work.started;
+
+		manager.report(enqueued.runId, {
+			kind: "activity",
+			activity: "Reading src/a.ts",
+		});
+		await waitForType(events, "run.progress");
+
+		const frame = events.find((event) => event.type === "run.progress");
+		expect(frame?.run.progress).toMatchObject({
+			activity: "Reading src/a.ts",
+			toolCalls: 1,
+		});
+		work.release();
+		await settled(manager, enqueued.runId);
+	});
+
+	/**
+	 * The failure this prevents: an agent reads forty files in three seconds,
+	 * forty frames queue up, the run finishes, and the last few land afterwards
+	 * — putting a finished run back into "working" on every screen watching it.
+	 */
+	it("never publishes progress after the run has settled", async () => {
+		const { manager, events } = harness();
+		const enqueued = manager.enqueue({
+			lane: "analysis",
+			taskType: "comprehension",
+			job: async () => ({ ok: true }),
+		});
+		if (enqueued.kind !== "accepted") {
+			throw new Error("expected an accepted run");
+		}
+		await settled(manager, enqueued.runId);
+
+		manager.report(enqueued.runId, { kind: "activity", activity: "too late" });
+		await new Promise((resolve) => setTimeout(resolve, 700));
+
+		expect(events.map((event) => event.type)).not.toContain("run.progress");
+	});
+
+	it("ignores a report for a run it has never heard of", () => {
+		const { manager, events } = harness();
+		expect(() =>
+			manager.report("nope", { kind: "activity", activity: "x" }),
+		).not.toThrow();
+		expect(events).toHaveLength(0);
+	});
+
+	it("puts the budget on every run so the UI can name the deadline", () => {
+		const { manager, events } = harness({ analysis: 12_345, chat: 1000 });
+		manager.enqueue({
+			lane: "analysis",
+			taskType: "comprehension",
+			job: async () => ({ ok: true }),
+		});
+		expect(events[0]?.run.idleTimeoutMs).toBe(12_345);
+	});
+});
+
+async function waitForType(events: RunEvent[], type: string): Promise<void> {
+	const deadline = Date.now() + 2000;
+	while (!events.some((event) => event.type === type)) {
+		if (Date.now() > deadline) {
+			throw new Error(`no ${type} event within the deadline`);
+		}
+		await new Promise((resolve) => setTimeout(resolve, 10));
+	}
+}

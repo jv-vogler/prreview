@@ -5,10 +5,9 @@ import type {
 	FileDiffLoadedFiles,
 	FileDiffMetadata,
 } from "@pierre/diffs";
-import { parsePatchFiles, registerCustomCSSVariableTheme } from "@pierre/diffs";
+import { parsePatchFiles } from "@pierre/diffs";
 import type { CodeViewHandle } from "@pierre/diffs/react";
-import { CodeView, WorkerPoolContextProvider } from "@pierre/diffs/react";
-import DiffsWorker from "@pierre/diffs/worker/worker.js?worker";
+import { CodeView } from "@pierre/diffs/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type {
 	AnnotationCard,
@@ -18,41 +17,35 @@ import { placeAnnotations } from "../../domain/annotation/placeAnnotations";
 import { blobSidesFor } from "../../domain/changeset/blobSidesFor";
 import { buildPatchText } from "../../domain/changeset/buildPatchText";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
-import { ExplanationNote } from "../annotations/ExplanationNote";
-import { UnanchoredTray } from "../annotations/UnanchoredTray";
 import { useAnnotations } from "../annotations/useAnnotations";
 import { useClientContainer } from "../app/ClientContainerProvider";
+import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
 import { useCoverageActions } from "../coverage/CoverageProvider";
+import {
+	FindingBalloon,
+	FindingBalloonGroup,
+} from "../findings/FindingBalloon";
+import { useGuaranteedSession } from "../session/useGuaranteedSession";
+import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import type { DiffCursor } from "./DiffNavigationProvider";
 import { useDiffNavigation } from "./DiffNavigationProvider";
 import styles from "./DiffWorkspace.module.css";
+import { FileFoldChevron } from "./FileFoldChevron";
+import { FileViewedToggle } from "./FileViewedToggle";
+import { useAnimatedCollapse } from "./useAnimatedCollapse";
 import type { DiffStyle } from "./useDiffStyle";
 import { useDiffViewport } from "./useDiffViewport";
 import { useGuaranteedChangeset } from "./useGuaranteedChangeset";
+import { useHeaderFoldClicks } from "./useHeaderFoldClicks";
 
 /**
- * The one module that imports @pierre/diffs (TASK-046 / RISK-002): everything
- * Pierre-specific — theme registration, worker pool, patch parsing, the
- * loadDiffFiles blob bridge, scrolling — lives behind this wrapper.
+ * The Diff tab's renderer.
+ *
+ * Pierre-specific concerns are split in two: the worker pool and theme
+ * registration are hoisted into `WorkerPoolHost` so they outlive a tab switch,
+ * and everything about *this* view — patch parsing, the loadDiffFiles blob
+ * bridge, scrolling, balloons — stays here.
  */
-
-const PIERRE_THEME_NAME = "prreview-primer";
-/** the spike's proven pool size; highlight throughput was never the bottleneck */
-const WORKER_POOL_SIZE = 4;
-const HIGHLIGHTER = {
-	theme: PIERRE_THEME_NAME,
-	// 'shiki-wasm' would need 'wasm-unsafe-eval' in script-src, which the CSP
-	// does not grant (Spike 1)
-	preferredHighlighter: "shiki-js",
-} as const;
-
-/**
- * Registered once at startup (module scope runs exactly once): every color
- * slot resolves through `var(--diffs-*)` references defined in
- * pierre-theme.css, so no defaults are needed here and a theme flip is pure
- * CSS cascade — no re-render, no re-highlight (Spike 1).
- */
-registerCustomCSSVariableTheme(PIERRE_THEME_NAME, {});
 
 export interface DiffWorkspaceProps {
 	diffStyle: DiffStyle;
@@ -67,27 +60,34 @@ interface AnnotationMetadata {
 	card: AnnotationCard;
 }
 
-export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
-	return (
-		<WorkerPoolContextProvider
-			poolOptions={{
-				workerFactory: () => new DiffsWorker(),
-				poolSize: WORKER_POOL_SIZE,
-			}}
-			highlighterOptions={HIGHLIGHTER}
-		>
-			<DiffCodeView diffStyle={diffStyle} />
-		</WorkerPoolContextProvider>
-	);
-}
+/** the server's per-file percentage at which every hunk is accounted for */
+const FULLY_READ_PERCENT = 100;
 
-function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
+export function DiffWorkspace({ diffStyle }: DiffWorkspaceProps) {
 	const { api } = useClientContainer();
 	const changeset = useGuaranteedChangeset();
+	const session = useGuaranteedSession();
 	const navigation = useDiffNavigation();
-	const { markViewed } = useCoverageActions();
+	const { isFolded, isFileViewed, toggleFold } = useCoverageActions();
 	const annotations = useAnnotations();
 	const handleRef = useRef<CodeViewHandle<AnnotationMetadata>>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
+
+	/*
+	 * Read state comes from the server's coverage summary, never from a local
+	 * guess: it is the same number the ring in the header shows, so the box and
+	 * the percentage can never disagree, and it survives a reload because the
+	 * session owns it.
+	 */
+	const viewedByFileId = useMemo(() => {
+		const viewed = new Set<string>();
+		for (const [fileId, percent] of Object.entries(session.coverage.byFile)) {
+			if (percent >= FULLY_READ_PERCENT) {
+				viewed.add(fileId);
+			}
+		}
+		return viewed;
+	}, [session.coverage.byFile]);
 
 	// files without hunks (binary, mode-only, pure renames) have no rows to
 	// render; they stay in the tree but not in the code view
@@ -96,12 +96,47 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 		[navigation.files],
 	);
 
-	// where every note hangs, decided by the domain; this module only hands the
-	// result to the renderer (ARCHITECTURE §6, consumer 1)
+	/**
+	 * Where every balloon hangs, decided by the domain; this module only hands
+	 * the result to the renderer (ARCHITECTURE §6, consumer 1).
+	 *
+	 * Findings are always shown. There used to be a checkbox for it, which meant
+	 * a review someone paid for rendered only if they also found and flipped a
+	 * switch — hidden by default, in other words. Explanations are filtered out
+	 * unconditionally: narration belongs beside its code on the Understanding
+	 * tab, and scattering it through the margin is the thing this re-model
+	 * exists to undo.
+	 */
 	const placedByFileId = useMemo(
-		() => placeAnnotations(annotations),
+		() =>
+			placeAnnotations(
+				annotations.filter(
+					(annotation) => annotation.species !== "explanation",
+				),
+			),
 		[annotations],
 	);
+
+	/**
+	 * The fold state the session asks for, which is not always the one drawn.
+	 *
+	 * `useAnimatedCollapse` lags this by one animation so a fold can be eased
+	 * rather than cut to. Everything a person looks at — the chevron's rotation,
+	 * the aria state — follows the request, because the request is what they
+	 * just asked for; only the renderer is told the lagging one.
+	 */
+	const requestedCollapsed = useMemo(() => {
+		const folded = new Set<string>();
+		for (const file of renderedFiles) {
+			const viewed = isFileViewed(file.id, viewedByFileId.has(file.id));
+			if (isFolded(file.id, viewed)) {
+				folded.add(file.id);
+			}
+		}
+		return folded;
+	}, [renderedFiles, isFolded, isFileViewed, viewedByFileId]);
+
+	const drawnCollapsed = useAnimatedCollapse(requestedCollapsed, containerRef);
 
 	const items = useMemo<CodeViewDiffItem<AnnotationMetadata>[]>(() => {
 		const parsed = parsePatchFiles(
@@ -118,12 +153,17 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 				return [];
 			}
 			const placed = placedByFileId.get(file.id) ?? [];
+			const collapsed = drawnCollapsed.has(file.id);
 			return [
 				{
 					id: file.id,
 					type: "diff" as const,
 					fileDiff,
-					version: annotationsVersion(placed),
+					// the fold state is in the version because the renderer reuses a
+					// file's rendered record until this number moves, so a fold that
+					// is not in the hash is a fold that does not happen
+					version: itemVersion(placed, collapsed),
+					collapsed,
 					annotations: placed.map((entry) => ({
 						side: entry.side,
 						lineNumber: entry.lineNumber,
@@ -132,7 +172,7 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 				},
 			];
 		});
-	}, [renderedFiles, changeset.roundId, placedByFileId]);
+	}, [renderedFiles, changeset.roundId, placedByFileId, drawnCollapsed]);
 
 	const filesByPath = useMemo(
 		() => new Map(renderedFiles.map((file) => [file.path, file])),
@@ -167,9 +207,28 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 
 	const viewport = useDiffViewport({
 		files: navigation.files,
-		onHunksViewed: markViewed,
 		onCursorFromScroll: navigation.setCursorFromScroll,
 	});
+
+	const filesById = useMemo(
+		() => new Map(renderedFiles.map((file) => [file.id, file])),
+		[renderedFiles],
+	);
+
+	/**
+	 * The whole header folds its file, and the fold it applies is the *effective*
+	 * one — a file folded because it was ticked as viewed is folded, whatever the
+	 * explicit override says, so a click on it has to open it rather than fold
+	 * something that is already away.
+	 */
+	const toggleFileFold = useCallback(
+		(fileId: string) => {
+			const viewed = isFileViewed(fileId, viewedByFileId.has(fileId));
+			toggleFold(fileId, isFolded(fileId, viewed));
+		},
+		[toggleFold, isFolded, isFileViewed, viewedByFileId],
+	);
+	useHeaderFoldClicks(containerRef, toggleFileFold);
 
 	const scrollToCursor = useCallback(
 		(cursor: DiffCursor) => {
@@ -231,16 +290,41 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 	return (
 		<CodeView<AnnotationMetadata>
 			ref={handleRef}
+			containerRef={containerRef}
 			items={items}
 			className={styles.codeView}
 			onScroll={viewport.scheduleSync}
 			renderAnnotation={(annotation) => renderCard(annotation.metadata.card)}
+			// the far-left slot, immediately before the change-type icon
+			renderHeaderPrefix={(item) => {
+				const file = filesById.get(item.id);
+				if (file === undefined) {
+					return null;
+				}
+				const viewed = isFileViewed(file.id, viewedByFileId.has(file.id));
+				return (
+					<FileFoldChevron file={file} folded={isFolded(file.id, viewed)} />
+				);
+			}}
+			renderHeaderMetadata={(item) => {
+				const file = filesById.get(item.id);
+				if (file === undefined) {
+					return null;
+				}
+				return (
+					<FileViewedToggle
+						file={file}
+						viewed={isFileViewed(file.id, viewedByFileId.has(file.id))}
+					/>
+				);
+			}}
 			options={{
 				theme: PIERRE_THEME_NAME,
 				diffStyle,
 				loadDiffFiles,
 				hunkSeparators: "line-info",
 				stickyHeaders: true,
+				unsafeCSS: PIERRE_DIFF_CHROME_CSS,
 				preferredHighlighter: HIGHLIGHTER.preferredHighlighter,
 				onPostRender: viewport.scheduleSync,
 			}}
@@ -252,19 +336,25 @@ function DiffCodeView({ diffStyle }: DiffWorkspaceProps) {
 const FNV_OFFSET_BASIS = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 const NO_ANNOTATIONS_VERSION = 0;
+/** a file with nothing in its margin, folded: still a different render */
+const COLLAPSED_EMPTY_VERSION = 2;
 
 /**
  * The renderer reuses a file's rendered record until that item's `version`
  * changes, so notes arriving mid-run appear only if the version moves with
- * them. Derived from what is actually placed rather than from a counter, so the
- * number a reload computes is the number the previous render had, and an
- * unchanged file is never re-laid-out.
+ * them — and a file folds only if the fold is in here too. Derived from what is
+ * actually rendered rather than from a counter, so the number a reload computes
+ * is the number the previous render had, and an unchanged file is never
+ * re-laid-out.
  */
-function annotationsVersion(placed: readonly PlacedAnnotation[]): number {
+function itemVersion(
+	placed: readonly PlacedAnnotation[],
+	collapsed: boolean,
+): number {
 	if (placed.length === 0) {
-		return NO_ANNOTATIONS_VERSION;
+		return collapsed ? COLLAPSED_EMPTY_VERSION : NO_ANNOTATIONS_VERSION;
 	}
-	let hash = FNV_OFFSET_BASIS;
+	let hash = collapsed ? FNV_OFFSET_BASIS ^ 1 : FNV_OFFSET_BASIS;
 	for (const entry of placed) {
 		const ids =
 			entry.card.kind === "note"
@@ -276,9 +366,13 @@ function annotationsVersion(placed: readonly PlacedAnnotation[]): number {
 			hash = Math.imul(hash, FNV_PRIME);
 		}
 	}
-	// zero means "no notes", so a signature that lands there borrows the next one
-	return hash >>> 0 || 1;
+	// the low values are the empty cases above; a signature landing on one
+	// borrows the first number nothing else claims
+	const signature = hash >>> 0;
+	return signature > COLLAPSED_EMPTY_VERSION ? signature : FIRST_FREE_VERSION;
 }
+
+const FIRST_FREE_VERSION = 3;
 
 /**
  * The renderer calls this through a React portal for every annotation it lays
@@ -287,9 +381,9 @@ function annotationsVersion(placed: readonly PlacedAnnotation[]): number {
  */
 function renderCard(card: AnnotationCard) {
 	if (card.kind === "unanchored") {
-		return <UnanchoredTray notes={card.notes} />;
+		return <FindingBalloonGroup notes={card.notes} />;
 	}
-	return <ExplanationNote note={card.note} />;
+	return <FindingBalloon note={card.note} />;
 }
 
 /**

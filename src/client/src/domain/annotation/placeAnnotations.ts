@@ -1,4 +1,4 @@
-import type { Annotation, Explanation } from "./Annotation";
+import type { Annotation, Finding, RelatedFinding } from "./Annotation";
 import { annotationIsExplanation } from "./Annotation";
 import type { PierreAnchor } from "./toPierreAnchor";
 import { toPierreAnchor } from "./toPierreAnchor";
@@ -8,8 +8,8 @@ import { toPierreAnchor } from "./toPierreAnchor";
  * code is gone — the file's tray of unattached ones (ARCHITECTURE §6 step 6).
  */
 export type AnnotationCard =
-	| { kind: "note"; note: Explanation }
-	| { kind: "unanchored"; notes: readonly Explanation[] };
+	| { kind: "note"; note: Finding | RelatedFinding }
+	| { kind: "unanchored"; notes: readonly (Finding | RelatedFinding)[] };
 
 export interface PlacedAnnotation extends PierreAnchor {
 	card: AnnotationCard;
@@ -27,18 +27,21 @@ const FILE_LEVEL_LINE = 0;
  * exists to avoid (RISK-007). Those collapse into one tray per file, at the top
  * of the file.
  *
- * Only explanations are placed. Findings are M3's, and they get their own card
- * with its own rules; silently rendering them as margin notes would break the
- * one thing F3 asks for, that the species are told apart at a glance.
+ * **Explanations are never placed.** Narration belongs beside its code on the
+ * Understanding tab, where a reader sees the claim and what it is about at
+ * once; scattered through the margin it is the thing this re-model exists to
+ * undo. What the margin holds is findings — things you might actually say to
+ * the author — and related findings, which look different so the species are
+ * told apart at a glance.
  */
 export function placeAnnotations(
 	annotations: readonly Annotation[],
 ): Map<string, PlacedAnnotation[]> {
 	const byFileId = new Map<string, PlacedAnnotation[]>();
-	const orphanedByFileId = new Map<string, Explanation[]>();
+	const orphanedByFileId = new Map<string, (Finding | RelatedFinding)[]>();
 
 	for (const annotation of annotations) {
-		if (!annotationIsExplanation(annotation)) {
+		if (annotationIsExplanation(annotation)) {
 			continue;
 		}
 		const fileId = annotation.anchor.fileId;
