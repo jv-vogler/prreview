@@ -24,10 +24,12 @@
 //   MOCK_AGENT_DELAY_MS  ms between emitted lines (default 150; 0 for instant)
 //   MOCK_AGENT_FAIL      any value → terminal failure, for the error surface
 //   MOCK_AGENT_SEED      override the prompt-derived seed
+//   MOCK_AGENT_REVIEW    silent → every lens finds nothing, for the empty state
 
 const { createHash } = require("node:crypto");
 const { readFileSync } = require("node:fs");
 const { setTimeout: sleep } = require("node:timers/promises");
+const { buildReview } = require("./review");
 
 const VERSION = "0.0.0-mock (prreview mock agent)";
 const DEFAULT_DELAY_MS = 150;
@@ -36,6 +38,23 @@ const SESSION_ID = "00000000-mock-4000-8000-000000000000";
 /** the comprehension prompt's own words — see application/analysis/understandingTask.ts */
 const COMPREHENSION_MARKER =
 	"Produce the understanding object described by the output schema.";
+
+/**
+ * The review prompt's own words — see application/review/reviewTask.ts.
+ *
+ * The marker doubles as the lens discriminator, which this mock cannot do
+ * without: it is spawned once per lens child, and a mock that cannot tell which
+ * lens it is answers identically five times over. Every row would then arrive
+ * corroborated by five lenses and the merge demonstration would be gone.
+ */
+const REVIEW_LENS_MARKER =
+	/^You are reviewing a code change through one lens: \*\*([a-z-]+)\*\*\./m;
+const FRESH_EYES_MARKER = "You are reviewing a code change you know nothing about.";
+/** `Your working directory, <dir>, holds the code at the reviewed revision.` */
+const WORKSPACE_MARKER = /^Your working directory, (.+?), holds the code/m;
+/** the floor lives in ReviewDepth and reaches the agent only as this sentence */
+const FLOOR_MARKER = /Report nothing below (\d+) confidence/;
+const DEFAULT_CONFIDENCE_FLOOR = 80;
 
 const argv = process.argv.slice(2);
 
@@ -52,46 +71,151 @@ async function main() {
 	);
 
 	const isComprehension = prompt.includes(COMPREHENSION_MARKER);
-	const output =
-		isComprehension && schema !== null
-			? buildUnderstanding(parseNud(prompt), schema, random)
-			: schema !== null
-				? instanceOf(schema, random)
-				: null;
+	const lens = reviewLensOf(prompt);
+	const files = parseNud(prompt);
 
-	await emit(narration(isComprehension), output);
+	if (isComprehension && schema !== null) {
+		await emit(narration(files), buildUnderstanding(files, schema, random));
+		return;
+	}
+	if (lens !== null && schema !== null && isReviewSchema(schema)) {
+		const review =
+			process.env.MOCK_AGENT_REVIEW === "silent"
+				? { output: { findings: [], relatedFindings: [] }, toolCalls: [] }
+				: buildReview({
+						lens,
+						files,
+						schema,
+						workspaceDir: parseWorkspaceDir(prompt),
+						confidenceFloor: parseConfidenceFloor(prompt),
+						suppressions: parseSuppressions(prompt),
+					});
+		await emit(review.toolCalls, review.output);
+		return;
+	}
+
+	await emit(narration(files), schema === null ? null : instanceOf(schema, random));
+}
+
+/**
+ * Which lens this child is, or null when the prompt is not a review at all.
+ *
+ * If the prompt sentence is ever reworded this returns null and the review falls
+ * back to schema-shaped lorem — which the confidence floor then discards
+ * entirely, exactly the failure this generator exists to fix. `isReviewSchema`
+ * is the second signal, so a reworded first line degrades to one lens's rows
+ * rather than to nothing.
+ */
+function reviewLensOf(prompt) {
+	const matched = REVIEW_LENS_MARKER.exec(prompt);
+	if (matched !== null) {
+		return matched[1];
+	}
+	if (prompt.includes(FRESH_EYES_MARKER)) {
+		return "fresh-eyes";
+	}
+	return null;
+}
+
+function isReviewSchema(schema) {
+	const properties = schema.properties ?? {};
+	return (
+		properties.findings !== undefined && properties.relatedFindings !== undefined
+	);
+}
+
+/**
+ * The workspace dir, parsed rather than taken from `process.cwd()`.
+ *
+ * This string is what adjudication strips off the read log before comparing it
+ * to a citation, so it has to be byte-identical to the one in the prompt. Using
+ * cwd works right up until a symlinked repo root or a realpath'd temp dir makes
+ * the two differ — and then nothing is grounded, every blocker is dropped, and
+ * the board is empty for a reason that looks nothing like its cause.
+ */
+function parseWorkspaceDir(prompt) {
+	return WORKSPACE_MARKER.exec(prompt)?.[1] ?? process.cwd();
+}
+
+function parseConfidenceFloor(prompt) {
+	const matched = FLOOR_MARKER.exec(prompt);
+	return matched === null ? DEFAULT_CONFIDENCE_FLOOR : Number(matched[1]);
+}
+
+/** the `## Already dismissed` list, so a dismissed comment stays dismissed */
+function parseSuppressions(prompt) {
+	const section = prompt.split("## Already dismissed")[1];
+	if (section === undefined) {
+		return [];
+	}
+	const titles = [];
+	for (const line of section.split("\n")) {
+		if (line.startsWith("## ")) {
+			break;
+		}
+		if (line.startsWith("- ")) {
+			titles.push(line.slice(2).trim());
+		}
+	}
+	return titles;
 }
 
 // ── the numbered diff, read back out of the prompt ──────────────────────────
 
 /**
- * Pulls the file paths and hunk ids out of the NUD the prompt carries.
+ * Pulls the files, hunk ids and numbered rows out of the NUD the prompt carries.
  *
  * This is the whole reason the mock generates rather than replays. The topic
  * refs it emits have to name hunk ids this round actually has, or
  * `buildExcerpts` resolves nothing, falls back to whole files, and the
- * Understanding tab renders a shape no real run produces.
+ * Understanding tab renders a shape no real run produces. The review generator
+ * needs one thing more — the printed line numbers — because an anchor is only
+ * `in-diff`, and a balloon only lands in the margin, if it names lines a hunk
+ * really has.
  *
  * Deliberately tolerant: an unparseable prompt yields an empty file list and
  * the mock still answers, because a mock that throws on a diff shape it did
  * not expect is worse than one that shows an empty change.
  */
+const NUD_FILE = /^=== FILE (\S+)\s{2}(.+?)\s{2}\(/;
+const NUD_HUNK = /^@@ HUNK (\S+) @@/;
+const NUD_ROW = /^ *([0-9]+|\.) \| *([0-9]+|\.) \| ([ +-])(.*)$/;
+const ROW_KINDS = { " ": "context", "+": "add", "-": "del" };
+
 function parseNud(prompt) {
 	const files = [];
-	let current = null;
+	let currentFile = null;
+	let currentHunk = null;
 	for (const line of prompt.split("\n")) {
-		const file = /^=== FILE (\S+)\s{2}(.+?)\s{2}\(/.exec(line);
+		const file = NUD_FILE.exec(line);
 		if (file !== null) {
-			current = { path: file[2], hunkIds: [] };
-			files.push(current);
+			currentFile = { path: file[2], hunks: [] };
+			currentHunk = null;
+			files.push(currentFile);
 			continue;
 		}
-		const hunk = /^@@ HUNK (\S+) @@/.exec(line);
-		if (hunk !== null && current !== null) {
-			current.hunkIds.push(hunk[1]);
+		const hunk = NUD_HUNK.exec(line);
+		if (hunk !== null && currentFile !== null) {
+			currentHunk = { id: hunk[1], rows: [] };
+			currentFile.hunks.push(currentHunk);
+			continue;
+		}
+		const row = NUD_ROW.exec(line);
+		if (row !== null && currentHunk !== null) {
+			currentHunk.rows.push({
+				kind: ROW_KINDS[row[3]],
+				oldLine: row[1] === "." ? null : Number(row[1]),
+				newLine: row[2] === "." ? null : Number(row[2]),
+				content: row[4],
+			});
 		}
 	}
 	return files;
+}
+
+/** every hunk id of a file, in NUD order */
+function hunkIdsOf(file) {
+	return file.hunks.map((hunk) => hunk.id);
 }
 
 // ── the understanding ───────────────────────────────────────────────────────
@@ -118,7 +242,7 @@ function buildUnderstanding(files, schema, random) {
 	const summaryMax = itemSchema.summary.maxLength;
 
 	const pairs = files.flatMap((file) =>
-		file.hunkIds.map((hunkId) => ({ path: file.path, hunkId })),
+		hunkIdsOf(file).map((hunkId) => ({ path: file.path, hunkId })),
 	);
 	// one hunk held back so the "not covered by any topic" notice renders
 	const reserved = pairs.length >= 4 ? 1 : 0;
@@ -292,16 +416,23 @@ function seededRandom(seed) {
  * The status bar's whole job is that a run always narrates itself, so a mock
  * that answered in one frame would leave the surface it is meant to exercise
  * untested. These are what `RunProgress` coalesces into `run.progress`.
+ *
+ * The paths are the changeset's own, which used to matter less than it does
+ * now: this was one hardcoded `src/index.ts`, so the round's read log held a
+ * single irrelevant entry. That is a mock claiming to have read a file that is
+ * not in front of it — the same class of dishonesty this whole generator exists
+ * to remove — and it made every grounding check fail for reasons unrelated to
+ * the code being checked.
  */
-function narration(isComprehension) {
-	if (!isComprehension) {
-		return [["Read", { file_path: "src/index.ts" }]];
+function narration(files) {
+	const paths = files.slice(0, 3).map((file) => file.path);
+	if (paths.length === 0) {
+		return [["Glob", { pattern: "**/*" }]];
 	}
 	return [
 		["Glob", { pattern: "**/*.ts" }],
-		["Read", { file_path: "src/index.ts" }],
+		...paths.map((path) => ["Read", { file_path: path }]),
 		["Grep", { pattern: "export function" }],
-		["Read", { file_path: "src/domain/index.ts" }],
 	];
 }
 
