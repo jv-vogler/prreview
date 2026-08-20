@@ -11,9 +11,9 @@ reviewer has seen, and that coverage survives restarts. It is read-only toward G
 is posted, commented, or approved.
 
 When the reviewer's machine has an authenticated `claude` CLI, prreview can also explain the
-change — but only when the reviewer clicks **Explain this change** in the browser. Nothing is
-analyzed at startup and prreview adds no flag for it, so this is never something you trigger from
-the command line.
+change and suggest review comments about it — but only when the reviewer clicks the button for
+that pass in the browser. Nothing is analyzed at startup and prreview adds no flag for it, so this
+is never something you trigger from the command line.
 
 ## Pick the invocation
 
@@ -60,23 +60,38 @@ own once the tab closes. Kill it only if the review is abandoned.
 Always: the diff, a file list ordered by how much attention each file needs, keyboard
 navigation, and a coverage ring.
 
-With an authenticated `claude` CLI, after the reviewer clicks **Explain this change** (one pass,
-billed to their own account):
+With an authenticated `claude` CLI there are two more tabs, and **each is its own deliberate
+spend, billed to the reviewer's own account.** Nothing chains one off the other: reading about a
+change must never quietly pay for a review nobody asked for, so each pass is triggered from inside
+the tab it fills.
 
-- an orientation page naming what the change is for, its parts sized against each other, and a
-  suggested entry point
-- explanations anchored to specific lines in the margin — intent, mechanism, or implication, not
-  review comments
-- a guided walkthrough that narrates the change in reading order and counts each step as reviewed
+**Understanding**, after they click *Explain this change* — one pass:
+
+- what the change is for, the ticket when one was cheap to find, and whether the code appears to
+  do what it set out to do
+- the change retold as plain-language topics, each carrying the code that serves it. Topics
+  overlap where one hunk does two things; they name what the change does rather than partition it
 - a chat dock that answers questions about the code at the reviewed revision
+
+**Suggested comments**, after they click *Review this change* at a depth they pick — a separate,
+more expensive pass:
+
+- candidate review comments about problems *this* change introduced, each checked against the code
+  the agent actually read and marked when it was not
+- problems that predate the change kept in their own section, never mixed into review feedback
+- what the pass threw away and why, so "six comments" can be told apart from "everything was cut"
+
+Nothing is posted anywhere. It is a scratchpad the reviewer curates: they can dismiss a comment
+and restore it, and a dismissal is remembered so a later pass does not raise it again.
 
 Describe these as available, never as done: whether they exist for a given session depends on the
 reviewer's machine and on their clicking the button.
 
 ## Where state lives
 
-Progress persists in `.prreview/` at the repository root: which hunks were seen, plus any
-explanations, orientation, walkthrough position, and chat history an analysis produced. prreview
+Progress persists in `.prreview/` at the repository root: which hunks were seen, plus whatever a
+pass produced — the change's topics, the suggested comments and how the reviewer curated them, and
+the chat history. prreview
 excludes it from git via `.git/info/exclude`, so it never touches the user's `.gitignore` and
 never shows up in `git status`. Rerunning the same invocation resumes all of it; deleting
 `.prreview/` resets it.
@@ -85,12 +100,13 @@ never shows up in `git status`. Rerunning the same invocation resumes all of it;
 
 These are planned but absent — do not look for them or promise them:
 
-- review findings, comment curation, and the `.prreview/review-*.md` export
-- checking the change against its ticket, the fix brief, and publishing a pending GitHub review
+- exporting the comments as a `.prreview/review-*.md` scratchfile
+- asking chat to reword or drop a comment (the reviewer can do both by hand on the tab)
+- the fix brief, and publishing a pending GitHub review
 
-prreview explains a change; it does not yet write review comments or publish anything. If the user
-asks for one of these, say it isn't in the installed version yet and offer the review workflow that
-is.
+prreview explains a change and suggests comments about it; it does not publish anything anywhere.
+If the user asks for one of these, say it isn't in the installed version yet and offer the review
+workflow that is.
 
 ## Requirements
 

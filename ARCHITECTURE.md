@@ -577,9 +577,11 @@ claude -p --output-format stream-json --verbose --json-schema <schema>
 The ticket-alignment task additionally allows `mcp__<ticketserver>__*`. Structured output
 arrives in the final result event rather than streaming; that event also carries cost and
 session id, which we record. Chat turns run **without** `--json-schema`, since a schema would
-defeat token streaming; annotation operations from chat come back inside a fenced
-` ```prreview-ops ` JSON block that the server strips and validates with zod. A validation
-failure shows the prose plus a note that it could not be applied automatically.
+defeat token streaming. Annotation operations from chat are designed to come back inside a fenced
+` ```prreview-ops ` JSON block that the server strips and validates with zod, with a validation
+failure showing the prose plus a note that it could not be applied automatically — **the write
+path and its gates exist and the chat lane does not emit ops yet**; today the only caller of
+`applyAnnotationOps` is `POST /api/annotations/ops`.
 
 ### Engine workspace
 
@@ -613,21 +615,65 @@ Not a single mega-pass and not independent sessions per stage.
 
 | Stage | Session | Output |
 |---|---|---|
-| A | fresh | comprehension: intentMap + walkthrough + explanations + risk, one schema |
-| B | `--resume` A | findings + relatedFindings |
-| C | `--resume` A `--fork-session` | ticket alignment, only when a ticket was detected |
-| D | `--resume` A `--fork-session` | PR description, on demand |
+| 0 | none — no agent call at all | the project frame: README, conventions, the manifest's tooling, the change's shape |
+| A | fresh | comprehension: understanding (headline, summary, topics, entry point, goal match) |
+| B∥ | `--resume` A `--fork-session`, one child **per lens** | each lens's `ReviewOut` |
+| C | deterministic, in-process | adjudication: merge, gate, rank, cut |
+| D | deterministic, in-process | materialization: anchors, snapshots, placement |
 | Chat | `--resume` A `--fork-session` on the first turn, then plain-resumes its own thread | context-framed Q&A |
-| Lens | `--resume` A | focused re-analysis → ReviewOut |
 | Incremental | fresh, deliberately not resumed | §12 |
 
-Stage A lands minutes before findings do, so the user gets something to read early, and what
-they get is F4's orientation artifact. Stage B inherits A's grounding at marginal cost, and its
-findings respect the intent A established. For stage C, prreview regexes candidate ticket keys
-out of the branch name and PR body, and the agent fetches them through the user's own MCP
-servers; any failure degrades silently, per F9. Chat turns are prefixed with a context frame
-like `[viewing <path>, hunk <id>, lines a–b]`. Lens results are deduplicated against existing
-findings on anchor overlap plus identical category.
+Stage 0 is the cheapest quality lever in the pipeline and costs nothing: the single largest
+category of useless review comment is the one a tool already catches, and the fix is naming the
+repo's linter rather than a sterner prompt. It is read through the `Git` port at the reviewed
+revision — not from whatever is checked out — and it ships in **every** preset, because awareness
+of the project is not what a depth tier buys.
+
+Stage A lands minutes before findings do, so the user gets something to read early. Nothing
+chains B off A: reading about a change must never quietly spend on a review nobody asked for, so
+each is triggered from inside the tab it fills.
+
+**B is a fan-out, and it lives inside one run.** Up to six lenses — correctness, security,
+edge-cases, design, fresh-eyes, impact — each get their own child, behind a semaphore, *inside*
+the analysis lane's single job. The run manager therefore still sees one runId, one 202, one
+cancel, and one abort signal, and the lane policy is deliberately unaware that a fan-out is
+happening. Every lens resume passes `--fork-session`: concurrent plain resumes interleave into
+the parent's session file, and five at once is exactly the case that produces an unreadable
+transcript nobody notices until they try to resume it (measured clean at five,
+`spikes/depth-and-fanout/VERDICT.md`). One lens failing is not the run failing — five readings
+minus one is still a review.
+
+`fresh-eyes` is the exception to grounding by construction: it receives **only the diff**, no
+project frame and no file reads, because someone meeting the code cold notices what the author
+has stopped seeing. It therefore emits leads rather than findings, and they survive only through
+the union rule below.
+
+C and D are deterministic and in-process on purpose. Adjudication decides what the reviewer sees,
+and a second agent call deciding it would be one more thing that can hallucinate at the last
+possible moment. What it does: merges duplicates conservatively (same file, overlapping lines,
+same category — two lenses raising one bug is the corroboration signal, and merging aggressively
+would destroy exactly that), applies the confidence floor, the form gate and the grounding gate,
+then ranks by severity, then corroboration, then confidence. Corroboration outranks confidence
+because a model's self-reported confidence is a number it produced about itself, while two
+independent lenses landing on the same lines is evidence from outside either one.
+
+**Everything C decides is carried, not just its verdicts.** The rejects are persisted per round
+with a structured reason and served by `GET /api/review`; the hedges (`marks`) reach the card as
+the specific sentence rather than generic copy; citations are stored, because a later reword is
+re-grounded against them; and the anchors that could not be placed are counted rather than
+dropped in silence. Six of those were computed correctly and thrown away for a release, which is
+the failure this codebase keeps repeating: anything prreview computes about a run has to reach a
+human without being asked.
+
+Chat turns are prefixed with a context frame like `[viewing <path>, hunk <id>, lines a–b]`.
+
+**How hard to look** is `ReviewDepth`, three presets and no custom in the UI: light (2 lenses, 1
+child at a time, 8 findings, no `nitpick` tier *in the schema enum* — removing the tier makes the
+violation unrepresentable, where "do not report nitpicks" is only a request), standard (5 lenses,
+3 at a time, 15), thorough (6 lenses, 5 at a time, 20). The confidence floor is 80 in every
+preset including `custom`, and the lens locks on correctness and security are applied where the
+depth is constructed rather than in the dialog — a checkbox the UI disables is still one line of
+curl away.
 
 Incremental analysis uses a fresh session on purpose: resuming carries stale context about code
 that has since changed, and stale context is the one failure mode an incremental pass cannot
@@ -673,18 +719,26 @@ ComprehensionOut = {
 Hunks the agent does not list keep the baseline risk score of 1. Walkthrough steps carry hunkIds
 so they link into coverage: viewing a step marks its hunks viewed.
 
+Nearly every quality rule that *can* be a schema constraint is one, because a schema is enforced
+by the CLI itself and retried against, while a prompt sentence is advice weighed against
+everything else the model was told. The rules that cannot be expressed in a schema — the
+pasteable length budget measured on rendered prose, the restatement check, path resolution — live
+in code (`domain/review/formGate.ts`, `domain/review/groundingGate.ts`), not in prose either.
+
 ```ts
-FindingOut = {
+ReviewFinding = {
   anchor: AgentAnchor
   title: string            // ≤ 80 chars
-  body: string
-  category: 'correctness'|'security'|'performance'|'data'|'concurrency'
-          | 'api-contract'|'error-handling'|'tests'|'other'
-  confidence: 'high'|'medium'|'low'
-  citations: Citation[]    // minItems 1: grounding enforced by the schema itself
-  suggestedFix?: string
+  body: string             // ≤ 900; the prose budget is re-checked on rendered text
+  severity: 'blocker'|'should-fix'|'consider'|'nitpick'   // nitpick absent at light
+  category: 'correctness'|'security'|'edge-case'|'performance'|'data-loss'
+          | 'concurrency'|'api-contract'|'error-handling'|'testing'|'design'
+  confidence: int 0..100   // floored at 80 before anything is kept
+  proof: { mode: 'traced'|'inferred', how: string }
+  evidence?: { path, startLine, endLine, note }   // one block, never a list
+  reproTest?: string       // an artifact for the reader; nothing here runs it
 }
-ReviewOut = { findings: FindingOut[], relatedFindings: FindingOut[] }
+ReviewOut = { findings: ReviewFinding[], relatedFindings: ReviewFinding[] }
 
 TicketOut = {
   ticket: {key, title, source}
@@ -697,23 +751,61 @@ TicketOut = {
 PrDescriptionOut = { title: string, body: string }
 ```
 
+There is deliberately no `other` category: an escape hatch labelled "other" collects everything
+the model could not be bothered to classify, and a category that means nothing cannot be
+filtered, sorted, or trusted. `proof.mode` has no `tested` value, because prreview cannot run
+anything — Write/Edit/Bash are forbidden — and a verification word implying execution would be a
+lie by connotation. `findings` has **no minimum**: silence is a succeeding outcome, and a floor
+would manufacture the padding every reviewer learns to ignore. The 0–100 confidence becomes the
+three bands the store and the UI speak, with thresholds above the floor so the bands describe
+what actually survives.
+
 `IncrementalOut` is defined in §12.
 
 ### Grounding verification
 
 The adapter tails the stream-json `tool_use` events and records every Read, Grep, and Glob
 target. Each finding's citations are cross-checked against that record (a pure function in
-`domain/grounding/`) and the finding is stamped `groundingVerified`. Findings whose citations do
-not check out get a visible marker in the UI. So "grounded" is a property the program checks,
-not just an instruction in a prompt.
+`domain/review/groundingGate.ts`) and the finding is stamped `groundingVerified`. So "grounded"
+is a property the program checks, not just an instruction in a prompt.
+
+Four details decide whether the check works at all, and each is easy to get wrong in a way that
+makes it silently always-true:
+
+1. **Citations are repo-relative; the log holds absolute paths.** For a PR the workspace is a
+   detached worktree under a cache dir, so comparing the two directly matches nothing — and a
+   check that matches nothing passes everything. Both sides are normalized against the workspace
+   dir, and the log is stored *already* normalized, because that directory is released at
+   shutdown and is meaningless to whoever reads the file next.
+2. **A Grep hit is not a read.** Search tells you a string occurs somewhere; it does not show you
+   the code around it. Search hits are tracked separately and never count as having read a file.
+3. **Line-level grounding needs the range.** `Read`'s `offset`/`limit` are recorded, so a file
+   opened at lines 1–50 grounds a claim about line 12 and not one about line 900. This is the
+   detail that was missing longest: with bare paths the range check short-circuited true and the
+   `outside-read-range` verdict was unreachable in production.
+4. **The union of the round's logs.** Lenses fork one session, so each child's log holds only what
+   *it* opened. A claim resting on a file the round read is grounded whichever child opened it —
+   which is also the only reason `fresh-eyes`, which reads nothing, can contribute anything.
+
+The response is **asymmetric by severity**. A confidently-worded blocker about code the agent
+never opened is the most expensive output this tool can produce, because it costs the reader's
+trust in everything else on the page; a nitpick in the same state costs a shrug. So an ungrounded
+blocker is dropped outright and everything below it is kept and marked — with the specific
+citation named, not a generic warning.
 
 ### Run manager
 
-Two lanes, at most two `claude` children alive:
+Two lanes, at most two **runs** alive:
 
 - **Analysis lane**: FIFO, concurrency 1.
 - **Chat lane**: its own FIFO over `--resume`, concurrency 1, so the user can interrogate the
   diff while an analysis runs.
+
+A run is not a child process. A review run fans out to as many as five lens children *inside* its
+own job (above), so "two runs" is up to six children — and the lane policy, the single-flight
+collapse, and the 409 path all keep working untouched, which is the entire reason the fan-out
+lives there rather than in a widened lane. Teaching every one of those about a new shape of
+concurrency would have bought nothing.
 
 Lifecycle: `queued → running → succeeded | failed | cancelled | timed-out`. Enqueue returns a
 runId with 202. A duplicate task type still queued collapses onto the same runId; one already

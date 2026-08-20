@@ -12,8 +12,10 @@ file away and is the only thing that moves the coverage number), and review cove
 survives restarts. It is free and works with no agent at all. **Understanding** says what the
 change is for and whether the code appears to do it, then retells the change as plain-language
 topics, each carrying the code that serves it. **Suggested comments** is a list of candidate
-review comments about problems this change introduces. Curating those comments and publishing
-them to GitHub are still ahead.
+review comments about problems this change introduces, at a depth you choose — with what the pass
+threw away, and why, so you can see whether the right things were cut. Dismiss one and it stays
+recoverable, and a later pass does not raise it again. Nothing is posted anywhere: publishing to
+GitHub is still ahead.
 
 ## Quickstart
 
@@ -70,9 +72,13 @@ prreview [target] [base]
 |---|---|
 | `--port <number>` | preferred port (default 4973); when taken, prreview walks upward to a free one |
 | `--no-open` | don't open the browser; prreview prints the URL instead (for scripts, ssh, WSL2) |
+| `--brain <path>` | a markdown file of your own review guidelines, handed to the review pass as data |
+| `--brain-mode layer\|replace` | add yours to the agent's own judgement (default), or use them instead of it |
 
 That's the whole surface. Diff style and theme are UI preferences: set them in the browser and
-they're remembered.
+they're remembered. `--brain` is a flag rather than a setting because the file has to be read,
+hashed, and fenced before any prompt is built, and because the browser cannot hand the server a
+path to read.
 
 ## What the agent adds
 
@@ -127,9 +133,8 @@ to reset.
 
 ## Not here yet
 
-- accepting, editing, and dismissing suggested comments, and the `.prreview/review-*.md` export
-- asking chat to reword or drop a comment
-- `--brain`, for pointing prreview at your own review guidelines
+- exporting the suggested comments as a `.prreview/review-*.md` scratchfile
+- asking chat to reword or drop a comment (you can do both by hand on the tab)
 - the fix brief, and publishing a pending GitHub review
 
 If you're looking for those, they aren't in this version.

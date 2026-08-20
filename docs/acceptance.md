@@ -2,7 +2,7 @@
 
 In plain terms: the walk-through to run against a real pull request of your own before calling
 this build good. Everything mechanical is covered by the automated gates — the whole unit suite,
-four Playwright specs driving the built artifact against a fake `claude`, and the opt-in real-CLI
+five Playwright specs driving the built artifact against a fake `claude`, and the opt-in real-CLI
 smoke. What no test can do is judge whether the output is *any good on your code*, which is the
 only question left.
 
@@ -32,8 +32,8 @@ Land on **Diff**. This should be a good diff viewer on its own merits: file tree
 attention, split/unified with `s`, `j`/`k` between files, `n`/`p` between hunks, `v`/`m` to mark
 reviewed, coverage climbing in the header.
 
-*The question:* would you use this to read a PR even if the other three tabs did not exist? If
-no, the foundation is wrong and nothing above it will save it.
+*The question:* would you use this to read a PR even if the other two tabs did not exist? If no,
+the foundation is wrong and nothing above it will save it.
 
 ## 2. Understanding
 
@@ -51,9 +51,11 @@ Press **Explain this change**. When it lands:
 
 *The question:* after reading only this tab, could you describe the change to a colleague?
 
-## 3. Overview
+## 3. What the change is for
 
-Open **Overview**. It shares the pass you already paid for, so it should be filled in.
+Still on **Understanding**, at the top — this is not a separate tab and was one for a single
+release, which was wrong: it came out of the same pass and read as the same account, so splitting
+it charged a click for half a thought.
 
 - Is the summary what the change is *for*, or a list of what it touches?
 - If a ticket was found, is it the right one? Check the link.
@@ -63,7 +65,9 @@ Open **Overview**. It shares the pass you already paid for, so it should be fill
 
 ## 4. Suggested comments
 
-Open **Suggested comments** and press **Review this change**. This is the expensive one.
+Open **Suggested comments**. Pick a depth — the copy should tell you what each one buys in
+readings, and if it ever tells you a preset "thinks harder", that is a claim nobody has measured.
+Then press **Review this change**. This is the expensive one.
 
 For each comment, the only test that matters: **would you actually post this?**
 
@@ -77,14 +81,30 @@ For each comment, the only test that matters: **would you actually post this?**
 Count them. A pass that returns two comments you would post beats one that returns fifteen you
 would not. **Zero is a legitimate answer** on a clean change.
 
+Then open **"N candidates didn't make the cut"**. This is the pass grading itself, and it is the
+fastest way to judge whether the gates are set right:
+
+- The ones cut for being **too unsure** — would you have wanted to see any of them?
+- The ones cut for **being badly written** — is that fair, or was a real problem thrown away for
+  its prose?
+- A blocker cut for **not being grounded** is the gate doing its most valuable work. If you see
+  several, the pass is guessing more than it is reading.
+
+If anything says it could not be placed, that is a comment the agent wrote and prreview could not
+anchor — worth knowing, and worth telling me about.
+
 Then: dismiss one. It should move to the dismissed lane, still readable, restorable. Re-run the
 review — the dismissed one should not come back.
 
 ## 5. The diff, with comments on it
 
-Back to **Diff**. The toggle overlays the same comments as balloons where they land. Uncheck it;
-they vanish without being lost. There should be **no explanations in the margin at all** — that
-is the point of the re-model.
+Back to **Diff**. The same comments are already there as balloons, where they land — no toggle to
+find and flip, because a review you have paid for should not render only on request. `]` and `[`
+should walk between them, and the file list should show a note count beside each file that carries
+one. There should be **no explanations in the margin at all** — that is the point of the re-model.
+
+Clicking a comment's location on the **Suggested comments** tab should land on that file *and*
+leave that comment selected when it arrives.
 
 ## 6. Chat
 
@@ -99,7 +119,7 @@ the overview, the comments, your dismissal, and the chat history should all stil
 
 ## What to write down
 
-For each of the four tabs: what was useful, what was noise, and one concrete example of each.
+For each of the three tabs: what was useful, what was noise, and one concrete example of each.
 The noise matters more — precision is the only thing that makes a review tool worth opening
 twice.
 

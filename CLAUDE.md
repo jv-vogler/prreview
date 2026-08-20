@@ -11,8 +11,8 @@ spend:
 | Tab | Route | What it is | Spend |
 |---|---|---|---|
 | Understanding | `/understand` | what the change is for, whether the code matches, then the change as plain-language topics each carrying its code | comprehension pass |
-| Diff | `/diff` | plain GitHub-style diff, GitHub-style per-file "Viewed"; a toggle overlays finding balloons | free |
-| Suggested comments | `/comments` | candidate review comments at a chosen depth | its own pass |
+| Diff | `/diff` | plain GitHub-style diff, GitHub-style per-file "Viewed"; findings appear as balloons, with no switch to find | free |
+| Suggested comments | `/comments` | candidate review comments at a chosen depth, plus what the pass threw away | its own pass |
 
 Nothing chains one pass off another: reading about a change must never quietly spend on a review
 nobody asked for. With no agent installed the two AI tabs are **absent** (not disabled), and the
@@ -24,8 +24,10 @@ the same account, so splitting it charged a click for half a thought.
 one lived there, appeared beside every tab, and belonged to none of them.
 
 Built and working: the viewer, the comprehension pass (topics + overview + opportunistic ticket),
-the findings pass (six lenses, adjudication, form and grounding gates), and chat. Not yet:
-chat operating on findings as structured ops, `--brain`, and GitHub publishing.
+the findings pass (six lenses at a depth you choose, adjudication, form and grounding gates, and
+a report of what it threw away), curation through one write path, `--brain`, and chat. Not yet:
+chat emitting findings ops through that write path — the path and its gates exist, the chat lane
+does not call them — markdown export, the fix brief, and GitHub publishing.
 
 Authority docs: `PRODUCT.md` (what and why), `ARCHITECTURE.md` (how), `plan/` (execution state,
 gitignored — `plan/design-understanding-and-comments.md` is the current design agreement).
@@ -111,6 +113,18 @@ Key structural facts:
   a second CLI needs no change to a use-case, a route, or the client. Analysis is only ever
   user-triggered; with no agent installed `deriveFeatureFlags` returns all-false and every AI
   surface is absent rather than disabled.
+- **A review run reports on itself.** Stage 0 (`review/frameSources.ts` → `projectFrame.ts`) reads
+  the README, the conventions file and the manifest **at the reviewed revision** through the `Git`
+  port, and names the repo's own linters so the pass is told not to duplicate them — the cheapest
+  quality lever there is, and it shipped in no preset for a release because it was an optional
+  argument the route never passed. Read it inside the run, never accept it as an argument. What
+  adjudication decides then has to survive to a person: the discards (with a structured reason),
+  the hedges (`marks`), the citations, the repro test, and the anchors it could not place are
+  persisted as `rounds/<id>/review.json`, served by `GET /api/review`, rendered as a collapsed
+  section on the comments tab, and counted in the terminal. That log is also what a later reword
+  is re-grounded against, so it is stored **repo-relative** — a PR's workspace is a cache
+  directory released at shutdown, and paths relative to it are unusable by the time anything reads
+  them back.
 
 ## Enforced invariants — do not break
 
@@ -150,11 +164,25 @@ its `kind` list and its topic count from the `--json-schema` it is passed, so it
 of agreement with `understandingSchemas.ts`. The comprehension pass is deliberately arranged to
 put every state of the tab on screen at once (overlapping topics so the percentages overshoot, a
 topic naming no code, a whole-file ref beside id-level refs, a title and summary at their caps,
-every `kind`, and hunks left over so the uncovered notice renders); every other task falls back to
-a schema-shaped lorem instance that is valid and meaningless. It goes on PATH as `claude`, so the
-run manager, progress events, SSE, the zod gates and the store all run the production path, and
-nothing in `src/` knows it exists. Knobs: `MOCK_AGENT_VERDICT`, `MOCK_AGENT_DELAY_MS`,
-`MOCK_AGENT_FAIL`, `MOCK_AGENT_SEED`.
+every `kind`, and hunks left over so the uncovered notice renders).
+
+The **review** pass generates too (`scripts/mock-agent/review.js`), and it has to satisfy three
+gates it cannot see, so each row is designed against a specific outcome: one board carries
+findings at several severities, a pair corroborated across two lenses ranked above a lone stronger
+finding, a hedged finding whose citation nobody opened, a repro test, two pre-existing problems in
+their own lane, and four discards across three reasons. Two invariants there break in silence and
+are stated in the module: **every live row needs its own `category`** (`mergeDuplicates` runs
+before the gates, so two rows sharing one merge and a discarded body rides into a surviving card),
+and the workspace dir must be **parsed out of the prompt** rather than taken from `process.cwd()`
+(the two strings have to match byte for byte or nothing is grounded and every blocker is dropped).
+`test/mockAgent.test.ts` drives the real pass and asserts the board, because "puts every state on
+screen" is exactly the kind of claim that rots without a witness. Any remaining task falls back to
+a schema-shaped lorem instance that is valid and meaningless.
+
+It goes on PATH as `claude`, so the run manager, progress events, SSE, the zod gates and the store
+all run the production path, and nothing in `src/` knows it exists. Knobs: `MOCK_AGENT_VERDICT`,
+`MOCK_AGENT_DELAY_MS`, `MOCK_AGENT_FAIL`, `MOCK_AGENT_SEED`, `MOCK_AGENT_REVIEW=silent` (every
+lens finds nothing, for the empty state).
 
 **Never run the real `claude` CLI from inside this repository.** Two opt-in escapes exist, both
 refusing to run without `PRREVIEW_REAL_CLAUDE=1`, both using `--model haiku` in a scratch repo

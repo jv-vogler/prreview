@@ -102,13 +102,18 @@ one off another: reading about a change must never quietly pay for a review nobo
    the change does rather than partition it. Read this before any diff.
 3. **Browse** — the *Diff* tab, free. The plain diff, always available and costing nothing. Mark a
    file **Viewed** the way you do on GitHub and it folds away; coverage counts what you ticked,
-   never what scrolled past. A toggle overlays suggested comments as balloons where they land.
+   never what scrolled past. Suggested comments appear here as balloons where they land, and there
+   is no switch for that: a review you have already paid for that renders only if you also find and
+   flip a checkbox is a review that is hidden by default.
 4. **Review** — the *Suggested comments* tab, its own pass. Candidate comments about problems this
-   change introduced, at a depth you choose. A separate, deliberate spend — nothing chains it off
-   step 2. Problems that predate the change are kept in their own section and never mixed into
-   review feedback.
-5. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"), and
-   operations on the suggested comments themselves.
+   change introduced, at a depth you choose: three presets stating what each buys in readings,
+   never in "more thinking". A separate, deliberate spend — nothing chains it off step 2. Problems
+   that predate the change are kept in their own section and never mixed into review feedback. The
+   tab also says what the pass **threw away** and why: a reader who sees six comments has no way,
+   otherwise, to tell "nothing worth raising" from "everything was cut".
+5. **Interrogate.** Chat: repo-grounded Q&A ("who calls this?", "why is this safe?"), and —
+   designed, not yet shipped — operations on the suggested comments themselves. The single write
+   path and its gates exist; the chat lane does not emit ops through them yet.
 6. **Curate.** Accept, edit, or dismiss comments. A dismissal is remembered, so a later pass does
    not raise it again.
 7. **Ship.** Export the markdown scratchfile and/or publish a pending GitHub review. Authors can
@@ -274,7 +279,14 @@ prreview [target] [base]
 | `prreview working` | local changes, staged and unstaged together |
 
 Flags: `--port` (fixed port when running several repos; collisions auto-resolve otherwise) and
-`--no-open` (don't open the browser; needed on WSL2 and in scripts). Nothing else. Rejected:
+`--no-open` (don't open the browser; needed on WSL2 and in scripts).
+
+**One flag was added after this section was written**, under an argued decision rather than by
+drift: `--brain <path>` (with `--brain-mode layer|replace`) points prreview at the reviewer's own
+review guidelines. It earns a flag because it is a property of *this invocation's* reviewer rather
+than a UI preference — the file has to be read at boot, hashed, and fenced as data before any
+prompt is built — and because there is nowhere else to say it: the browser cannot hand the server
+a path to read. Nothing else has been added. Rejected:
 `staged` as a separate target (narrow; commit and use a range), `--mode` (UI preference, lives
 in the browser), `--no-ai` (analysis only runs on click), `--fresh` (delete `.prreview/`),
 `--keep-alive`, `--data-dir`, `--pr`/`--base` (redundant with positionals).
