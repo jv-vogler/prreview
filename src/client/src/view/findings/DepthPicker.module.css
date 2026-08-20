@@ -1,0 +1,49 @@
+.picker {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+.legend {
+	padding: 0 0 4px;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-default);
+}
+
+.option {
+	display: grid;
+	grid-template-columns: auto auto 1fr;
+	align-items: baseline;
+	gap: 8px;
+	padding: 6px 8px;
+	border: 1px solid var(--borderColor-muted);
+	border-radius: var(--borderRadius-medium);
+	background: var(--bgColor-default);
+	cursor: pointer;
+}
+
+.option[data-selected="true"] {
+	border-color: var(--borderColor-accent-emphasis);
+	background: var(--bgColor-accent-muted);
+}
+
+.picker:disabled .option {
+	cursor: default;
+	opacity: 0.6;
+}
+
+.label {
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-default);
+}
+
+.detail {
+	font-size: var(--text-body-size-small);
+	line-height: var(--text-body-lineHeight-small);
+	color: var(--fgColor-muted);
+}

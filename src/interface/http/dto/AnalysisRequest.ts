@@ -24,8 +24,22 @@ const reviewLensSchema = z.enum([
  * `security` are re-applied server-side regardless of what arrives here — a
  * disabled checkbox is not a security control.
  */
+/**
+ * `custom` stays reachable by the schema and unreachable by the UI, which is
+ * the right way round: the lens locks are applied where the depth is built, so
+ * a caller asking for a review without the security lens gets one anyway.
+ */
+export const reviewPresetDtoSchema = z.enum([
+	"light",
+	"standard",
+	"thorough",
+	"custom",
+]);
+
+export type ReviewPresetDto = z.infer<typeof reviewPresetDtoSchema>;
+
 const reviewDepthRequestSchema = z.object({
-	preset: z.enum(["light", "standard", "thorough", "custom"]),
+	preset: reviewPresetDtoSchema,
 	lenses: z.array(reviewLensSchema).optional(),
 	allowNitpick: z.boolean().optional(),
 	maxFindings: z.int().min(1).max(30).optional(),

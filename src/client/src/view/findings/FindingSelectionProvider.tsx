@@ -15,7 +15,17 @@ import { createContext, useContext, useMemo, useState } from "react";
 
 export interface FindingSelection {
 	selectedId: string | null;
+	/** clicking the same thing twice clears it — this is the click */
 	select(id: string | null): void;
+	/**
+	 * Selects outright, without the toggle.
+	 *
+	 * Arriving at `/diff?finding=…` is not a click on a card: the reader followed
+	 * a link *to* that finding, and since this provider sits above the router the
+	 * finding they clicked is usually already selected — so a toggle would
+	 * deselect the one thing they navigated to see.
+	 */
+	focus(id: string): void;
 }
 
 const FindingSelectionContext = createContext<FindingSelection | null>(null);
@@ -31,6 +41,7 @@ export function FindingSelectionProvider({
 		() => ({
 			selectedId,
 			select: (id) => setSelectedId((current) => (current === id ? null : id)),
+			focus: (id) => setSelectedId(id),
 		}),
 		[selectedId],
 	);

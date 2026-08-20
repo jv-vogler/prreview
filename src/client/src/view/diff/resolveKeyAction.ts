@@ -11,6 +11,7 @@ export type KeyAction =
 	| "toggle-diff-style"
 	| "go-diff"
 	| "go-understand"
+	| "go-comments"
 	| "open-help";
 
 /** the only chord prefix in the keymap: `g` for "go to" */
@@ -58,6 +59,7 @@ const KEYMAP: Record<string, KeyAction> = {
 const CHORD_KEYMAP: Record<string, KeyAction> = {
 	d: "go-diff",
 	u: "go-understand",
+	c: "go-comments",
 };
 
 const NOTHING: KeyResolution = { kind: "none" };

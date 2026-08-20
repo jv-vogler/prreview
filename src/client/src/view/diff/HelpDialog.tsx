@@ -25,6 +25,7 @@ const KEY_ROWS: readonly KeyRow[] = [
 	{ keys: ["s"], label: "Toggle split / unified view" },
 	{ keys: ["g", "u"], label: "Go to Understanding", flag: "analysis" },
 	{ keys: ["g", "d"], label: "Go back to the diff", flag: "analysis" },
+	{ keys: ["g", "c"], label: "Go to Suggested comments", flag: "analysis" },
 	{ keys: ["?"], label: "This help" },
 ];
 

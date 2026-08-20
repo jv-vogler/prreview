@@ -1,9 +1,15 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { AnalysisInvitation } from "../view/analysis/AnalysisInvitation";
-import { useAnnotations } from "../view/annotations/useAnnotations";
+import { useAnalysis } from "../view/analysis/AnalysisProvider";
+import { useAnnotationsQuery } from "../view/annotations/useAnnotations";
+import type { DepthChoice } from "../view/findings/DepthPicker";
+import { DepthPicker } from "../view/findings/DepthPicker";
+import { DiscardedSummary } from "../view/findings/DiscardedSummary";
 import { FindingCard } from "../view/findings/FindingCard";
 import { useFindingSelection } from "../view/findings/FindingSelectionProvider";
 import { useAnnotationOps } from "../view/findings/useAnnotationOps";
+import { useReviewSummary } from "../view/findings/useReviewSummary";
 import styles from "./CommentsPage.module.css";
 
 /**
@@ -19,9 +25,10 @@ import styles from "./CommentsPage.module.css";
  * complaint about code the change did not touch.
  */
 export function CommentsPage() {
-	const annotations = useAnnotations();
+	const { annotations, loading } = useAnnotationsQuery();
 	const selection = useFindingSelection();
 	const ops = useAnnotationOps();
+	const summary = useReviewSummary();
 
 	/**
 	 * Handles are assigned over **every** comment species, in stored order —
@@ -56,6 +63,17 @@ export function CommentsPage() {
 		(finding) => finding.curation?.state === "dismissed",
 	);
 
+	/*
+	 * "Not back yet" is not "there are none".
+	 *
+	 * This used to render the invitation while the first fetch was still out, so
+	 * reloading during a review flashed "run a review" at somebody whose review
+	 * was already running — an offer to spend again on the thing in flight.
+	 */
+	if (loading) {
+		return <p className={styles.footnote}>Loading suggested comments…</p>;
+	}
+
 	if (findings.length === 0 && related.length === 0) {
 		return <NoFindingsYet />;
 	}
@@ -70,6 +88,8 @@ export function CommentsPage() {
 						: `${active.length} candidate ${active.length === 1 ? "comment" : "comments"}. Nothing is posted anywhere — this is a scratchpad.`}
 				</p>
 			</header>
+
+			{summary !== null && <DiscardedSummary summary={summary} />}
 
 			{ops.rejections.length > 0 && (
 				<div className={styles.rejections} role="alert">
@@ -152,8 +172,16 @@ export function CommentsPage() {
  * The invitation states its own cost and starts the findings pass — and only
  * that pass. It deliberately refuses to silently chain a comprehension run: a
  * reviewer who asked for comments asked for comments.
+ *
+ * The depth choice lives here rather than inside the invitation, which is shared
+ * with the Understanding tab and has no business knowing what a lens is. It
+ * arrives as a slot and an `onAction`, so the comprehension path is untouched.
  */
 function NoFindingsYet() {
+	const analysis = useAnalysis();
+	const [depth, setDepth] = useState<DepthChoice>("standard");
+	const running = analysis.activeRun !== null || analysis.starting;
+
 	return (
 		<>
 			<AnalysisInvitation
@@ -162,6 +190,12 @@ function NoFindingsYet() {
 				body="Reads the diff several times over, looking for a different kind of problem each time, and merges what it finds into one list. Every comment is checked against what the agent actually read."
 				cost="Several agent passes at once. The most expensive thing prreview does."
 				actionLabel="Review this change"
+				controls={
+					<DepthPicker value={depth} onChange={setDepth} disabled={running} />
+				}
+				// only the preset goes on the wire: the lens locks and the floor are
+				// applied where the depth is built, not asked for here
+				onAction={() => analysis.startReview({ preset: depth })}
 			/>
 			<p className={styles.footnote}>
 				Separate from understanding the change on purpose, so reading about a PR

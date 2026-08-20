@@ -44,6 +44,14 @@ export function toAnnotation(dto: AnnotationDto): Annotation {
 						dismissReason: dto.curation.dismissReason ?? null,
 					},
 		groundingVerified: dto.groundingVerified ?? null,
+		marks: dto.marks ?? [],
+		citations: (dto.citations ?? []).map((citation) => ({
+			path: citation.path,
+			startLine: citation.startLine ?? null,
+			endLine: citation.endLine ?? null,
+			note: citation.note ?? null,
+		})),
+		reproTest: dto.reproTest ?? null,
 	};
 }
 

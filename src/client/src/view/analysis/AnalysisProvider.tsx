@@ -9,6 +9,7 @@ import { postCancelRun } from "../../infrastructure/endpoints/postCancelRun";
 import { HttpError } from "../../infrastructure/httpClients/HttpError";
 import { useAnnotationEvents } from "../annotations/useAnnotationEvents";
 import { useClientContainer } from "../app/ClientContainerProvider";
+import { useFindingsArtifactSync } from "../findings/useFindingsArtifactSync";
 import { useAnalysisArtifactSync } from "./useAnalysisArtifactSync";
 import { useRunEvents } from "./useRunEvents";
 
@@ -72,6 +73,7 @@ export function AnalysisProvider({ children }: AnalysisProviderProps) {
 	const runs = useRunEvents();
 	useAnnotationEvents();
 	useAnalysisArtifactSync();
+	useFindingsArtifactSync();
 
 	const [conflictRunId, setConflictRunId] = useState<string | null>(null);
 	// which pass the in-flight request is for, so a request that fails before it

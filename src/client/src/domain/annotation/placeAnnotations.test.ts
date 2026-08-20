@@ -13,6 +13,9 @@ function finding(overrides: Partial<Finding> = {}): Finding {
 		proof: null,
 		curation: null,
 		groundingVerified: true,
+		marks: [],
+		citations: [],
+		reproTest: null,
 		anchor: {
 			fileId: "f1",
 			path: "src/greeting.ts",

@@ -1,6 +1,6 @@
 import type { FileDiffDto } from "@dto/ChangesetDto";
 import type { Annotation } from "./Annotation";
-import { annotationIsExplanation } from "./Annotation";
+import { annotationIsInMargin } from "./Annotation";
 
 /** a cursor position that carries at least one note */
 export interface AnnotationStop {
@@ -18,6 +18,9 @@ const FIRST_HUNK = 0;
  * are rendered, hunks in file order. Several notes on the same hunk are one
  * stop — the cursor cannot be more precise than a hunk, and pressing `]` twice
  * without moving would read as a broken key.
+ *
+ * The stops are the balloons in the margin. They used to be the explanations,
+ * which the margin never renders, so the keys jumped to nothing at all.
  */
 export function annotationStops(
 	annotations: readonly Annotation[],
@@ -25,7 +28,7 @@ export function annotationStops(
 ): AnnotationStop[] {
 	const noteCountByPosition = new Map<string, AnnotationStop>();
 	for (const annotation of annotations) {
-		if (!annotationIsExplanation(annotation)) {
+		if (!annotationIsInMargin(annotation)) {
 			continue;
 		}
 		const fileIndex = files.findIndex(

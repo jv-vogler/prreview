@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import styles from "./AnalysisInvitation.module.css";
 import { useAnalysis } from "./AnalysisProvider";
 
@@ -19,6 +20,18 @@ export interface AnalysisInvitationProps {
 	actionLabel: string;
 	/** which pass this invitation triggers; they are never chained */
 	task?: "comprehension" | "review";
+	/**
+	 * Anything the caller needs above the button — the findings pass puts its
+	 * depth choice here.
+	 *
+	 * A slot rather than a `task === "review"` branch, because this component is
+	 * shared with the Understanding tab and it has no business knowing what a
+	 * lens is. Branching on the task inside here is how one shared component
+	 * ends up holding both tabs' vocabularies.
+	 */
+	controls?: ReactNode;
+	/** replaces the default trigger, for a caller that has options to pass */
+	onAction?(): void;
 }
 
 export function AnalysisInvitation({
@@ -27,6 +40,8 @@ export function AnalysisInvitation({
 	cost,
 	actionLabel,
 	task = "comprehension",
+	controls,
+	onAction,
 }: AnalysisInvitationProps) {
 	const analysis = useAnalysis();
 	const running = analysis.activeRun !== null || analysis.starting;
@@ -43,12 +58,21 @@ export function AnalysisInvitation({
 				than saying what is actually known.
 			*/}
 			<p className={styles.cost}>{cost}</p>
+			{controls}
 			<button
 				type="button"
 				className={styles.action}
-				onClick={() =>
-					task === "review" ? analysis.startReview() : analysis.startAnalysis()
-				}
+				onClick={() => {
+					if (onAction !== undefined) {
+						onAction();
+						return;
+					}
+					if (task === "review") {
+						analysis.startReview();
+						return;
+					}
+					analysis.startAnalysis();
+				}}
 				disabled={running}
 				data-analysis-start
 			>

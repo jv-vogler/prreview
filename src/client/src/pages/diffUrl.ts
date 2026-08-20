@@ -3,6 +3,8 @@ import type { DiffCursor } from "../view/diff/DiffNavigationProvider";
 
 export const FILE_PARAM = "file";
 export const HUNK_PARAM = "hunk";
+/** which finding the reader arrived to look at, from a link on the comments tab */
+export const FINDING_PARAM = "finding";
 
 /**
  * URL ↔ cursor translation for `/diff?file=&hunk=` (TASK-051). The params
@@ -43,6 +45,20 @@ export function diffPathFor(fileId: string, hunkId?: string | null): string {
 		params.set(HUNK_PARAM, hunkId);
 	}
 	return `/diff?${params.toString()}`;
+}
+
+/**
+ * The finding a link asked to land on, if any.
+ *
+ * The parameter was being written by the comments tab and read by nobody, so
+ * following a comment into the diff selected nothing when it arrived. Selection
+ * across the two surfaces is the entire point of splitting the list from the
+ * balloons.
+ */
+export function findingFromSearchParams(
+	params: URLSearchParams,
+): string | null {
+	return params.get(FINDING_PARAM);
 }
 
 export function searchParamsForCursor(

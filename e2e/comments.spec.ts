@@ -70,18 +70,26 @@ test.describe("suggested comments", () => {
 		servers.push(server);
 
 		/*
-		 * Reached by URL, not by a tab. The findings surface is postponed — its
-		 * output is not good enough to put in front of someone yet — so the tab
-		 * and the trigger are gone from the UI while the pass itself, and this
-		 * proof of it, stay intact.
+		 * Reached by clicking the tab, which is the assertion. The surface was
+		 * postponed for a release and reachable by URL only, and a URL nobody
+		 * types is not a surface — so navigating here the way a person does is
+		 * what proves it is back.
 		 */
-		await page.goto(`${server.url}comments`);
+		await page.goto(server.url);
+		await page.locator('[data-tab="comments"]').click();
 
 		// nothing has been reviewed, so the tab invites — and states its own cost
 		await expect(
 			page.getByRole("heading", { name: "Review this change for problems" }),
 		).toBeVisible();
 		await expect(page.locator("[data-finding-id]")).toHaveCount(0);
+
+		/*
+		 * At a depth, chosen. Every run used to be silently `standard` because
+		 * `startReview(depth?)` existed and nothing ever passed one.
+		 */
+		await expect(page.getByText("Light")).toBeVisible();
+		await page.locator('[data-depth="thorough"] input').check();
 
 		await page.locator("[data-analysis-start]").click();
 
@@ -108,10 +116,15 @@ test.describe("suggested comments", () => {
 		/*
 		 * The grounding check ran against the real read log. The recorded stream
 		 * read files in the capture's own scratch repo, not this one, so the
-		 * citation does not resolve — and the card says so rather than presenting
-		 * the claim as verified.
+		 * citation does not resolve — and the card says which path it could not
+		 * verify rather than presenting the claim as verified. The specific
+		 * sentence is the point: adjudication works out exactly which citation
+		 * failed, and that answer used to be dropped on the way to the store.
 		 */
 		await expect(page.getByText(/treat as a lead/).first()).toBeVisible();
+		await expect(
+			page.getByText(/which the agent did not read this round/).first(),
+		).toBeVisible();
 
 		/*
 		 * ── the same findings, in the diff ────────────────────────────────────
@@ -127,8 +140,17 @@ test.describe("suggested comments", () => {
 		});
 		await expect(page.getByLabel(/Show suggested comments/)).toHaveCount(0);
 
+		/*
+		 * The file tree counts the balloons it actually renders. It counted
+		 * explanations, which the margin never shows, so the badge read 0 beside
+		 * a file carrying findings.
+		 */
+		await expect(
+			page.locator('[title$="note"], [title$="notes"]').first(),
+		).toBeVisible();
+
 		// ── dismissing is never deletion ───────────────────────────────────────
-		await page.goto(`${server.url}comments`);
+		await page.locator('[data-tab="comments"]').click();
 		await page.getByRole("button", { name: "Dismiss" }).first().click();
 
 		await expect(page.getByRole("heading", { name: /^Dismissed/ })).toBeVisible(

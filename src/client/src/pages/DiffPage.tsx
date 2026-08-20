@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useOutletContext, useSearchParams } from "react-router";
+import {
+	Link,
+	useNavigate,
+	useOutletContext,
+	useSearchParams,
+} from "react-router";
 import {
 	annotationStops,
 	nextAnnotationStop,
@@ -13,9 +18,14 @@ import type { KeyAction } from "../view/diff/resolveKeyAction";
 import { SidebarResizer } from "../view/diff/SidebarResizer";
 import { useKeymap } from "../view/diff/useKeymap";
 import { useSidebarWidth } from "../view/diff/useSidebarWidth";
+import { useFindingSelection } from "../view/findings/FindingSelectionProvider";
 import { useFeatureFlags } from "../view/session/useFeatureFlags";
 import styles from "./DiffPage.module.css";
-import { cursorFromSearchParams, searchParamsForCursor } from "./diffUrl";
+import {
+	cursorFromSearchParams,
+	findingFromSearchParams,
+	searchParamsForCursor,
+} from "./diffUrl";
 import type { ReviewOutletContext } from "./ReviewLayout";
 
 /**
@@ -35,6 +45,7 @@ export function DiffPage() {
 	const flags = useFeatureFlags();
 	const navigate = useNavigate();
 	const annotations = useAnnotations();
+	const selection = useFindingSelection();
 	const [searchParams] = useSearchParams();
 	const sidebar = useSidebarWidth();
 
@@ -57,7 +68,20 @@ export function DiffPage() {
 		if (initial !== undefined) {
 			navigation.jumpTo(initial);
 		}
-	}, [searchParams, navigation.files, navigation.jumpTo]);
+		/*
+		 * `?finding=` selects the balloon the link was about.
+		 *
+		 * The comments tab has been emitting this parameter since findings
+		 * shipped and nothing read it, so following a comment into the diff
+		 * scrolled to roughly the right place and highlighted nothing. Selection
+		 * is shared state precisely so a reader can cross between the list and
+		 * the margin without losing which comment they were on.
+		 */
+		const finding = findingFromSearchParams(searchParams);
+		if (finding !== null) {
+			selection.focus(finding);
+		}
+	}, [searchParams, navigation.files, navigation.jumpTo, selection.focus]);
 
 	const reviewedHunkIdsFor = useCallback(
 		(scope: "hunk" | "file") => {
@@ -95,6 +119,8 @@ export function DiffPage() {
 					return navigate("/understand");
 				case "go-diff":
 					return undefined;
+				case "go-comments":
+					return navigate("/comments");
 				case "next-file":
 					return navigation.nextFile();
 				case "prev-file":
@@ -153,23 +179,30 @@ function useCursorUrlSync(): void {
 }
 
 /**
- * The findings pass, where its output lands — and honest about not being ready.
+ * A way to the findings pass from where its output lands.
  *
- * The trigger used to be a tab of its own. The pass works end to end, but its
- * output is not good enough to put in front of someone yet, and a tab you
- * cannot use is worse than no tab: a standing invitation to click something
- * that goes nowhere. Disabled and labelled beats hidden, because hidden also
- * hides the plan.
+ * It defers rather than triggering: the depth choice belongs to the tab that
+ * owns the pass, and a button here that silently picked one would be the same
+ * mistake as the analysis button that once sat in the header — beside every tab
+ * and belonging to none of them. This was a `disabled` button with no `onClick`
+ * at all while the surface was pulled; it is a link now, and the tab does the
+ * spending.
  */
 function ReviewToolbar() {
+	const annotations = useAnnotations();
+	const hasFindings = annotations.some(
+		(annotation) => annotation.species !== "explanation",
+	);
+
 	return (
 		<div className={styles.toolbar}>
-			<button type="button" className={styles.review} disabled>
-				Review this change
-			</button>
+			<Link className={styles.review} to="/comments">
+				{hasFindings ? "See suggested comments" : "Review this change"}
+			</Link>
 			<span className={styles.reviewNote}>
-				Not ready yet — suggested review comments are being reworked. Findings
-				appear here in the margin once this is switched on.
+				{hasFindings
+					? "The comments below in the margin, as a list you can triage."
+					: "Findings appear here in the margin, and as a list on the Suggested comments tab."}
 			</span>
 		</div>
 	);

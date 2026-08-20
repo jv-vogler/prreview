@@ -93,3 +93,34 @@
 	color: var(--fgColor-default);
 	background: var(--bgColor-muted);
 }
+
+.citations {
+	margin: 0;
+	padding-left: 18px;
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+}
+
+.citationPath {
+	font-family: var(--fontStack-monospace);
+	color: var(--fgColor-default);
+}
+
+.repro {
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+}
+
+.repro summary {
+	cursor: pointer;
+}
+
+.repro pre {
+	margin: 6px 0 0;
+	padding: 8px 10px;
+	overflow-x: auto;
+	border-radius: var(--borderRadius-small);
+	background: var(--bgColor-muted);
+	color: var(--fgColor-default);
+	font-family: var(--fontStack-monospace);
+}

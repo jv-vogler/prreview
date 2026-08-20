@@ -1,4 +1,5 @@
 import type { AnchorDto, AnchorStatusDto } from "@dto/AnchorDto";
+import type { FindingMarkDto } from "@dto/AnnotationDto";
 
 /** what an explanation is about (ARCHITECTURE §7) */
 export type ExplanationKind = "intent" | "mechanism" | "implication";
@@ -31,6 +32,23 @@ export interface Explanation extends AnnotationBase {
 	kind: ExplanationKind | null;
 }
 
+/**
+ * Why a finding survived in a weakened form — the hedge, structured.
+ *
+ * The sentences live in `view/findings/findingMarkCopy.ts`, not in the store: a
+ * mark is copy a reader sees, and copy persisted in `.prreview/` can never be
+ * reworded without rewriting everybody's session files.
+ */
+export type FindingMark = FindingMarkDto;
+
+/** a place a finding points at besides where it sits */
+export interface Citation {
+	path: string;
+	startLine: number | null;
+	endLine: number | null;
+	note: string | null;
+}
+
 /** where a finding sits in the reviewer's triage */
 export type CurationState = "proposed" | "accepted" | "edited" | "dismissed";
 
@@ -48,6 +66,18 @@ interface FindingFields {
 	 * A checked program property, not a claim — see the grounding cross-check.
 	 */
 	groundingVerified: boolean | null;
+	/**
+	 * The specific hedges, which the card states instead of generic copy.
+	 *
+	 * Empty is not the same as `groundingVerified: false` with no marks: the
+	 * latter is what a reword produces when it loses its stamp without a
+	 * particular citation to blame.
+	 */
+	marks: FindingMark[];
+	/** what it points at besides its anchor */
+	citations: Citation[];
+	/** a test that would fail today and pass once fixed; nothing runs it */
+	reproTest: string | null;
 }
 
 /** A candidate review comment about a problem this change introduced. */
@@ -74,4 +104,19 @@ export function annotationIsExplanation(
 	annotation: Annotation,
 ): annotation is Explanation {
 	return annotation.species === "explanation";
+}
+
+/**
+ * The species the diff's margin actually renders.
+ *
+ * Worth its own predicate rather than a negation spelled out at each call site:
+ * the file-tree count and the `]`/`[` stops both filtered for **explanations**,
+ * which `placeAnnotations` never places, so the badge always read 0 and the
+ * keys never landed on a balloon. Two readers of "what is in the margin" that
+ * disagreed with the one writer of it.
+ */
+export function annotationIsInMargin(
+	annotation: Annotation,
+): annotation is Finding | RelatedFinding {
+	return annotation.species !== "explanation";
 }

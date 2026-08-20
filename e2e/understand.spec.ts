@@ -107,13 +107,14 @@ test.describe("understand: one pass, two tabs, and a question", () => {
 		// the AI tab exists because an agent does, but holds nothing yet
 		await expect(page.locator('[data-tab="understand"]')).toBeVisible();
 		/*
-		 * Two tabs, not four. Overview was folded into Understanding — same pass,
-		 * one account — and Suggested comments is postponed, its trigger moved to
-		 * the diff and plainly marked as not ready. Both old routes still resolve
-		 * for anyone who bookmarked them.
+		 * Three tabs, not four. Overview was folded into Understanding — same
+		 * pass, one account, so splitting it charged a click for half a thought —
+		 * and its route still resolves for anyone who bookmarked it. Suggested
+		 * comments is a tab of its own because it is a separate pass and a
+		 * separate spend.
 		 */
 		await expect(page.locator('[data-tab="overview"]')).toHaveCount(0);
-		await expect(page.locator('[data-tab="comments"]')).toHaveCount(0);
+		await expect(page.locator('[data-tab="comments"]')).toBeVisible();
 		// and nothing agent-produced is in the margin before the reader asks
 		await expect(page.locator(EXPLANATION_NOTE)).toHaveCount(0);
 

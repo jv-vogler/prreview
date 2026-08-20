@@ -11,7 +11,23 @@ const citationDtoSchema = z.object({
 	path: z.string(),
 	startLine: z.int().min(0).optional(),
 	endLine: z.int().min(0).optional(),
+	/** what the reader should notice there, not a restatement of the code */
+	note: z.string().optional(),
 });
+
+/**
+ * Why a finding survived in a weakened form.
+ *
+ * Structured rather than a sentence, so the copy lives in the client next to
+ * every other copy table instead of in whatever `.prreview/` happened to be
+ * written by whichever version produced the finding.
+ */
+const findingMarkDtoSchema = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal("ungrounded-citation"), path: z.string() }),
+	z.object({ kind: z.literal("inferred-path") }),
+]);
+
+export type FindingMarkDto = z.infer<typeof findingMarkDtoSchema>;
 
 const annotationCurationDtoSchema = z.object({
 	state: z.enum(["proposed", "accepted", "edited", "dismissed"]),
@@ -75,6 +91,15 @@ export const annotationDtoSchema = z.object({
 	citations: z.array(citationDtoSchema).optional(),
 	/** whether every citation resolved against what the round actually read */
 	groundingVerified: z.boolean().optional(),
+	/** the specific hedges adjudication attached, for the card to state honestly */
+	marks: z.array(findingMarkDtoSchema).optional(),
+	/**
+	 * A test that would fail today and pass once this is fixed.
+	 *
+	 * An artifact, never an execution: prreview cannot run anything, which is
+	 * also why `proof` has no mode implying it did.
+	 */
+	reproTest: z.string().optional(),
 	suggestedFix: z.string().optional(),
 	curation: annotationCurationDtoSchema.optional(),
 	resolution: annotationResolutionDtoSchema.optional(),

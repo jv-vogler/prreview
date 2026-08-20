@@ -1,6 +1,6 @@
 import type { FileDiffDto } from "@dto/ChangesetDto";
 import { describe, expect, it } from "vitest";
-import type { Explanation } from "./Annotation";
+import type { Explanation, Finding } from "./Annotation";
 import { annotationStops, nextAnnotationStop } from "./annotationStops";
 
 function file(id: string, hunkNewLines: readonly number[][]): FileDiffDto {
@@ -30,9 +30,46 @@ function file(id: string, hunkNewLines: readonly number[][]): FileDiffDto {
 	};
 }
 
+/**
+ * A finding, because findings are what the margin renders and therefore what
+ * `]` and `[` land on. This fixture used to build explanations, which matched
+ * the filter the code had and not the balloons a reader sees.
+ */
 function note(fileId: string, endLine: number, id = `${fileId}-${endLine}`) {
-	const explanation: Explanation = {
+	const finding: Finding = {
 		id,
+		species: "finding",
+		anchor: {
+			fileId,
+			path: `${fileId}.ts`,
+			side: "new",
+			startLine: endLine,
+			endLine,
+			placement: "in-diff",
+		},
+		anchorStatus: "anchored",
+		body: "body",
+		title: null,
+		touchedByDelta: false,
+		createdAt: "2026-08-17T10:00:00.000Z",
+		roundId: "r1",
+		category: null,
+		severity: null,
+		proof: null,
+		confidence: null,
+		curation: null,
+		groundingVerified: null,
+		marks: [],
+		citations: [],
+		reproTest: null,
+	};
+	return finding;
+}
+
+/** narration lives on the Understanding tab and is never in the margin */
+function explanation(fileId: string, endLine: number): Explanation {
+	return {
+		id: `x-${fileId}-${endLine}`,
 		species: "explanation",
 		kind: "intent",
 		anchor: {
@@ -50,7 +87,6 @@ function note(fileId: string, endLine: number, id = `${fileId}-${endLine}`) {
 		createdAt: "2026-08-17T10:00:00.000Z",
 		roundId: "r1",
 	};
-	return explanation;
 }
 
 const FILES = [
@@ -82,6 +118,18 @@ describe("annotationStops", () => {
 		expect(annotationStops([fileLevel], FILES)).toEqual([
 			{ fileIndex: 0, hunkIndex: 0, noteCount: 1 },
 		]);
+	});
+
+	/**
+	 * The regression this filter shipped with: it selected explanations, which
+	 * `placeAnnotations` never places, so every stop the keys could reach was a
+	 * balloon that does not exist and every balloon that does was skipped.
+	 */
+	it("skips explanations, which never appear in the margin", () => {
+		expect(annotationStops([explanation("f1", 2)], FILES)).toEqual([]);
+		expect(
+			annotationStops([explanation("f1", 2), note("f1", 3)], FILES),
+		).toEqual([{ fileIndex: 0, hunkIndex: 0, noteCount: 1 }]);
 	});
 
 	it("ignores a note whose file is not on screen", () => {

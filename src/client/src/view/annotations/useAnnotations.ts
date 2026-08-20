@@ -16,13 +16,34 @@ const NO_ANNOTATIONS: readonly Annotation[] = [];
  * request the M1 viewer did not make (REQ-004).
  */
 export function useAnnotations(): readonly Annotation[] {
+	return useAnnotationsQuery().annotations;
+}
+
+export interface AnnotationsResult {
+	annotations: readonly Annotation[];
+	/** the first fetch is still out — not the same as "there are none" */
+	loading: boolean;
+}
+
+/**
+ * The same query, for a surface that has to tell "none yet" from "not back yet".
+ *
+ * The comments tab needs the difference: an empty list is what it renders its
+ * "run a review" invitation for, so during the first fetch — a reload while a
+ * review is running, most obviously — it flashed that invitation at somebody
+ * whose review was already in flight.
+ */
+export function useAnnotationsQuery(): AnnotationsResult {
 	const { api } = useClientContainer();
 	const flags = useFeatureFlags();
-	const { data } = useQuery({
+	const { data, isPending } = useQuery({
 		queryKey: ANNOTATIONS_QUERY_KEY,
 		queryFn: async () => (await getAnnotations(api)).map(toAnnotation),
 		enabled: flags.analysis,
 		staleTime: Infinity,
 	});
-	return data ?? NO_ANNOTATIONS;
+	return {
+		annotations: data ?? NO_ANNOTATIONS,
+		loading: flags.analysis && isPending,
+	};
 }

@@ -1,9 +1,12 @@
 import { Link } from "react-router";
 import type {
+	Citation,
 	Finding,
 	RelatedFinding,
 } from "../../domain/annotation/Annotation";
+import { diffPathFor } from "../../pages/diffUrl";
 import styles from "./FindingCard.module.css";
+import { findingMarkCopy } from "./findingMarkCopy";
 
 /**
  * One candidate review comment.
@@ -29,6 +32,21 @@ export interface FindingCardProps {
 	onRestore?(): void;
 }
 
+function citationLocation(citation: Citation): string {
+	if (citation.startLine === null) {
+		return citation.path;
+	}
+	const end =
+		citation.endLine === null || citation.endLine === citation.startLine
+			? ""
+			: `-${citation.endLine}`;
+	return `${citation.path}:${citation.startLine}${end}`;
+}
+
+function citationKey(citation: Citation): string {
+	return `${citation.path}:${citation.startLine ?? ""}:${citation.endLine ?? ""}`;
+}
+
 export function FindingCard({
 	finding,
 	handle,
@@ -52,9 +70,17 @@ export function FindingCard({
 				<button type="button" className={styles.handle} onClick={onSelect}>
 					{handle}
 				</button>
+				{/*
+					Through `diffPathFor`, because the diff addresses files by
+					`file.id` and not by path: this link used to carry
+					`?file=<path>`, which `cursorFromSearchParams` matched against
+					nothing, so clicking a finding's location landed at the top of
+					the diff. That module exists so "where a file lives in the URL"
+					is decided once.
+				*/}
 				<Link
 					className={styles.location}
-					to={`/diff?file=${encodeURIComponent(anchor.path)}&finding=${finding.id}`}
+					to={`${diffPathFor(anchor.fileId)}&finding=${finding.id}`}
 				>
 					{location}
 				</Link>
@@ -76,6 +102,39 @@ export function FindingCard({
 			)}
 			<p className={styles.body}>{finding.body}</p>
 
+			{/*
+				What the finding points at besides where it sits. Worth showing:
+				it is the difference between a claim about these lines and a claim
+				about how these lines reach somewhere else.
+			*/}
+			{finding.citations.length > 0 && (
+				<ul className={styles.citations}>
+					{finding.citations.map((citation) => (
+						<li key={citationKey(citation)}>
+							<span className={styles.citationPath}>
+								{citationLocation(citation)}
+							</span>
+							{citation.note !== null && ` — ${citation.note}`}
+						</li>
+					))}
+				</ul>
+			)}
+
+			{/*
+				Collapsed, and never open by default: a repro test can run to 800
+				characters beside a 900-character body, and the body is the thing
+				being read. It is an artifact, not an execution — nothing here runs
+				it, which is also why `proof` has no mode that implies otherwise.
+			*/}
+			{finding.reproTest !== null && (
+				<details className={styles.repro}>
+					<summary>A test that would fail today</summary>
+					<pre>
+						<code>{finding.reproTest}</code>
+					</pre>
+				</details>
+			)}
+
 			<footer className={styles.footer}>
 				{/*
 					Dismissing is never deletion: it moves the comment to the dismissed
@@ -93,11 +152,21 @@ export function FindingCard({
 					</button>
 				)}
 				{/*
-					Two honesty markers, both of which the reader needs before acting:
-					a claim whose citations were not all actually read, and a claim
-					whose code moved since it was made.
+					The honesty markers, and they are specific now.
+
+					Adjudication works out exactly which citation failed and why a
+					claim is hedged, and all of that used to be dropped on the way
+					to the store, so this card substituted one generic sentence for
+					every reason. The generic line survives only as the fallback for
+					a stamp lost with no particular citation to blame — which is what
+					a reword produces.
 				*/}
-				{finding.groundingVerified === false && (
+				{finding.marks.map((mark) => (
+					<span key={mark.kind} className={styles.warn}>
+						{findingMarkCopy(mark)}
+					</span>
+				))}
+				{finding.groundingVerified === false && finding.marks.length === 0 && (
 					<span className={styles.warn}>
 						Not all cited files were read — treat as a lead
 					</span>
