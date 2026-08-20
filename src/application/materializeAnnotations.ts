@@ -3,6 +3,8 @@ import { captureSnapshot } from "../domain/anchor/captureSnapshot";
 import { computePlacement } from "../domain/anchor/computePlacement";
 import type {
 	AnnotationProvenance,
+	Citation,
+	FindingMark,
 	StoredAnnotation,
 } from "../domain/annotation/Annotation";
 import { newAnnotationId } from "../domain/annotation/newAnnotationId";
@@ -50,7 +52,11 @@ export interface AnnotationDraft {
 	groundingVerified?: boolean;
 	proof?: { mode: "traced" | "inferred"; how: string };
 	confidence?: "high" | "medium" | "low";
-	citations?: { path: string; startLine?: number; endLine?: number }[];
+	citations?: Citation[];
+	/** the specific hedges the producer attached, rendered on the card */
+	marks?: FindingMark[];
+	/** a test that would fail today and pass once fixed; never executed */
+	reproTest?: string;
 }
 
 export interface MaterializeAnnotationsInput {
@@ -142,6 +148,8 @@ export async function materializeAnnotations(
 			...optional("proof", explanation.proof),
 			...optional("confidence", explanation.confidence),
 			...optional("citations", explanation.citations),
+			...optional("marks", explanation.marks),
+			...optional("reproTest", explanation.reproTest),
 			provenance: input.provenance,
 			createdAt: input.createdAt,
 		});

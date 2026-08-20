@@ -54,6 +54,7 @@ interface Harness {
 	stop: () => void;
 	annotationCacheDrops: number;
 	analysisCacheDrops: number;
+	reviewCacheDrops: number;
 }
 
 function harness(): Harness {
@@ -63,7 +64,11 @@ function harness(): Harness {
 			sent.push(serverEventSchema.parse(event));
 		},
 	} as SseHub;
-	const record = { annotationCacheDrops: 0, analysisCacheDrops: 0 };
+	const record = {
+		annotationCacheDrops: 0,
+		analysisCacheDrops: 0,
+		reviewCacheDrops: 0,
+	};
 	const state = {
 		applyAnnotations: (value: unknown) => {
 			if (value === null) {
@@ -73,6 +78,11 @@ function harness(): Harness {
 		applyAnalysis: (value: unknown) => {
 			if (value === null) {
 				record.analysisCacheDrops++;
+			}
+		},
+		applyReview: (value: unknown) => {
+			if (value === null) {
+				record.reviewCacheDrops++;
 			}
 		},
 	} as ReviewState;
@@ -88,6 +98,9 @@ function harness(): Harness {
 		},
 		get analysisCacheDrops() {
 			return record.analysisCacheDrops;
+		},
+		get reviewCacheDrops() {
+			return record.reviewCacheDrops;
 		},
 	};
 }
@@ -192,6 +205,19 @@ describe("createAppEventPublisher", () => {
 		});
 
 		expect(app.analysisCacheDrops).toBe(1);
+	});
+
+	/**
+	 * The findings pass has its own per-round record, so it needs its own cache
+	 * drop: without it a client refetching after a review reads whatever the
+	 * previous round left in memory.
+	 */
+	it("drops the review cache when findings land", async () => {
+		const app = harness();
+		app.publish({ type: "findings.updated", roundId: "r1" });
+
+		expect(app.reviewCacheDrops).toBe(1);
+		expect(app.analysisCacheDrops).toBe(0);
 	});
 
 	it("drops events published before the channel exists", () => {

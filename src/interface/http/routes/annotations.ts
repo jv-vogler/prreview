@@ -37,21 +37,31 @@ export function annotationsRoute(deps: AnnotationsRouteDeps): Hono {
 
 	route.post("/ops", async (context) => {
 		const request = await validatedJson(context, annotationOpsPostSchema);
-		const review = deps.state.current();
-		const analysis = await deps.state.analysis();
+		const current = deps.state.current();
+		const review = await deps.state.review();
 
 		const outcome = await applyAnnotationOps(
 			{ store: deps.store, publish: deps.publish },
 			{
-				changesetId: review.manifest.changesetId,
+				changesetId: current.manifest.changesetId,
 				ops: request.ops,
-				// grounding is recomputed against what the round actually read; with
-				// no analysis on record nothing was read, so a rewrite honestly
-				// loses its verified stamp rather than inheriting one
-				readLog: {
-					reads: (analysis?.readLog.reads ?? []).map((path) => ({ path })),
-					searchHits: analysis?.readLog.searchHits ?? [],
-				},
+				/*
+				 * Grounding is recomputed against what the **findings pass**
+				 * actually read.
+				 *
+				 * It used to be handed the comprehension pass's log, which is the
+				 * wrong evidence twice over: the lenses fork that session, so each
+				 * child's log holds only what it opened, and a rewrite must not come
+				 * back more grounded than the claim it replaced. With no review on
+				 * record nothing was read, so a rewrite honestly loses its verified
+				 * stamp rather than inheriting one.
+				 */
+				readLog: review?.readLog ?? { reads: [], searchHits: [] },
+				// the stored log is already repo-relative, so there is no workspace
+				// prefix left to strip. This argument used to be "" against a log of
+				// absolute paths, which silently disabled the normalization and made
+				// every citation compare unequal — a reword lost its stamp
+				// essentially every time.
 				workspaceDir: "",
 				at: new Date().toISOString(),
 			},

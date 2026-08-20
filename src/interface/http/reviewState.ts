@@ -2,6 +2,7 @@ import type { RoundAnalysis } from "../../application/analysis/RoundAnalysis";
 import type { OpenedReview } from "../../application/openReview";
 import type { SessionStore } from "../../application/ports/SessionStore";
 import type { RefreshedChangeset } from "../../application/refreshChangeset";
+import type { RoundReview } from "../../application/review/RoundReview";
 import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import type { HunkCoverage } from "../../domain/coverage/HunkCoverage";
 
@@ -31,6 +32,10 @@ export interface ReviewState {
 	analysis(): Promise<RoundAnalysis | null>;
 	/** the produced analysis, or null to forget it and re-read on the next request */
 	applyAnalysis(analysis: RoundAnalysis | null): void;
+	/** what the current round's findings pass decided, absent until one ran */
+	review(): Promise<RoundReview | null>;
+	/** the produced review, or null to forget it and re-read on the next request */
+	applyReview(review: RoundReview | null): void;
 }
 
 export function createReviewState(
@@ -40,6 +45,7 @@ export function createReviewState(
 	let current = opened;
 	let annotations: readonly StoredAnnotation[] | null = null;
 	let analysis: RoundAnalysis | null = null;
+	let review: RoundReview | null = null;
 
 	return {
 		current: () => current,
@@ -57,6 +63,7 @@ export function createReviewState(
 			// own: stage A ran against the round that just became history
 			annotations = refreshed.annotations.carried;
 			analysis = null;
+			review = null;
 		},
 
 		applyCoverage(coverage) {
@@ -86,6 +93,20 @@ export function createReviewState(
 
 		applyAnalysis(next) {
 			analysis = next;
+		},
+
+		async review() {
+			if (review === null) {
+				review = await store.loadRoundReview(
+					current.manifest.changesetId,
+					current.roundId,
+				);
+			}
+			return review;
+		},
+
+		applyReview(next) {
+			review = next;
 		},
 	};
 }

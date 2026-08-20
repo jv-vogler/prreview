@@ -22,5 +22,8 @@ export function toRunDto(run: Run): RunDto {
 		...(run.skippedAnchors === undefined
 			? {}
 			: { skippedAnchors: run.skippedAnchors }),
+		...(run.discardedCandidates === undefined
+			? {}
+			: { discardedCandidates: run.discardedCandidates }),
 	};
 }

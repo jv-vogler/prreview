@@ -5,6 +5,7 @@ import type { ChatThread } from "../../domain/chat/ChatThread";
 import type { HunkCoverage } from "../../domain/coverage/HunkCoverage";
 import type { SessionManifest } from "../../domain/session/SessionManifest";
 import type { RoundAnalysis } from "../analysis/RoundAnalysis";
+import type { RoundReview } from "../review/RoundReview";
 
 /**
  * The `.prreview/` persistence port (ARCHITECTURE §11), implemented by
@@ -51,6 +52,16 @@ export interface SessionStore {
 		changesetId: ChangesetId,
 		roundId: string,
 		analysis: RoundAnalysis,
+	): Promise<void>;
+	/** null means no findings pass has run against this round */
+	loadRoundReview(
+		changesetId: ChangesetId,
+		roundId: string,
+	): Promise<RoundReview | null>;
+	saveRoundReview(
+		changesetId: ChangesetId,
+		roundId: string,
+		review: RoundReview,
 	): Promise<void>;
 	/** null means the thread has no history yet */
 	loadChatThread(

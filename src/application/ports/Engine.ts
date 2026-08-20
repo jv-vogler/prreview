@@ -1,4 +1,5 @@
 import type { EngineErrorReason } from "../../domain/errors/EngineError";
+import type { ReadRange } from "../../domain/review/groundingGate";
 
 /**
  * The application's view of the user's agent CLI (ARCHITECTURE §7),
@@ -143,9 +144,20 @@ export interface EngineRunFailure {
 	stderrTail: string;
 }
 
-/** every file the agent actually saw (CON-007): Read inputs plus the paths
- * harvested from Grep/Glob tool_result contents, cwd-joined */
+/**
+ * Every file the agent actually saw (CON-007): `Read` inputs plus the paths
+ * harvested from Grep/Glob tool_result contents, cwd-joined.
+ *
+ * `reads` carries the domain's `ReadRange`, not a bare path, because the range
+ * is what makes line-level grounding possible: a file opened at lines 1-50
+ * grounds a claim about line 12 and not one about line 900. It was recorded
+ * nowhere for a while, which made the grounding gate's `outside-read-range`
+ * verdict unreachable in production - an absent range reads as "the whole file",
+ * so every citation inside an opened file passed. One type rather than two
+ * identical ones, so the log an engine reports and the log the gate checks
+ * cannot drift apart.
+ */
 export interface ReadLog {
-	reads: string[];
+	reads: ReadRange[];
 	searchHits: string[];
 }

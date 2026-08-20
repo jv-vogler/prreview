@@ -64,6 +64,8 @@ export const runDtoSchema = z.object({
 		.optional(),
 	/** anchors the agent named that could not be placed and were dropped */
 	skippedAnchors: z.int().min(0).optional(),
+	/** candidates adjudication threw away; the tab shows why, this shows how many */
+	discardedCandidates: z.int().min(0).optional(),
 	progress: runProgressDtoSchema.optional(),
 	/** how long this run may go silent before it is stopped; not a wall clock */
 	idleTimeoutMs: z.int().min(0),

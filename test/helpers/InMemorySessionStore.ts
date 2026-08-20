@@ -1,5 +1,6 @@
 import type { RoundAnalysis } from "../../src/application/analysis/RoundAnalysis";
 import type { SessionStore } from "../../src/application/ports/SessionStore";
+import type { RoundReview } from "../../src/application/review/RoundReview";
 import type { StoredAnnotation } from "../../src/domain/annotation/Annotation";
 import type { ChangesetId } from "../../src/domain/changeset/ChangesetId";
 import type { FileDiff } from "../../src/domain/changeset/FileDiff";
@@ -22,6 +23,7 @@ export class InMemorySessionStore implements SessionStore {
 	>();
 	readonly annotationRecords = new Map<ChangesetId, StoredAnnotation[]>();
 	readonly roundAnalyses = new Map<string, RoundAnalysis>();
+	readonly roundReviews = new Map<string, RoundReview>();
 	readonly chatThreads = new Map<string, ChatThread>();
 	readonly blobs = new Map<string, Buffer>();
 	readonly locks = new Set<ChangesetId>();
@@ -111,6 +113,22 @@ export class InMemorySessionStore implements SessionStore {
 	): Promise<void> {
 		this.throwIfFailing();
 		this.roundAnalyses.set(scopedKey(changesetId, roundId), analysis);
+	}
+
+	async loadRoundReview(
+		changesetId: ChangesetId,
+		roundId: string,
+	): Promise<RoundReview | null> {
+		return this.roundReviews.get(scopedKey(changesetId, roundId)) ?? null;
+	}
+
+	async saveRoundReview(
+		changesetId: ChangesetId,
+		roundId: string,
+		review: RoundReview,
+	): Promise<void> {
+		this.throwIfFailing();
+		this.roundReviews.set(scopedKey(changesetId, roundId), review);
 	}
 
 	async loadChatThread(

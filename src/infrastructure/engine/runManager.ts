@@ -209,6 +209,9 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 			if (outcome.skippedAnchors !== undefined) {
 				entry.run.skippedAnchors = outcome.skippedAnchors;
 			}
+			if (outcome.discardedCandidates !== undefined) {
+				entry.run.discardedCandidates = outcome.discardedCandidates;
+			}
 			transition(entry, "succeeded", "run.succeeded");
 			return;
 		}

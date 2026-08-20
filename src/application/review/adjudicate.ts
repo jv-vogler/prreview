@@ -1,7 +1,9 @@
+import type { Citation, FindingMark } from "../../domain/annotation/Annotation";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import { checkForm } from "../../domain/review/formGate";
 import {
 	checkGrounding,
+	type ReadRange,
 	type RoundReadLog,
 	resolveUngrounded,
 } from "../../domain/review/groundingGate";
@@ -33,14 +35,56 @@ export interface AdjudicatedFinding extends ReviewFinding {
 	lenses: string[];
 	groundingVerified: boolean;
 	/** why it survived in a weakened form, for the UI to show honestly */
-	marks: string[];
+	marks: FindingMark[];
+	/**
+	 * What the finding cites **besides** where it sits.
+	 *
+	 * The anchor is excluded on purpose: it is already on the annotation, and
+	 * `applyAnnotationOps` re-grounds a reword against `[anchor, ...citations]`,
+	 * so including it here would check the same location twice.
+	 */
+	citations: Citation[];
+}
+
+/**
+ * Why a candidate did not make the cut.
+ *
+ * A closed union carrying its own numbers, not a sentence. The comments tab
+ * needs per-reason counts, and grouping by parsing prose would break the first
+ * time someone reworded a message — the same argument `runFailureReasonDto`
+ * already makes for run failures.
+ */
+export type DiscardReason =
+	| { kind: "below-confidence-floor"; confidence: number; floor: number }
+	| { kind: "form"; rules: string[] }
+	| {
+			kind: "ungrounded-blocker";
+			path: string;
+			why: "never-opened" | "outside-read-range";
+	  };
+
+export interface DiscardedCandidate {
+	title: string;
+	species: "finding" | "related-finding";
+	severity: string;
+	/** which lenses raised it: a corroborated discard reads differently */
+	lenses: string[];
+	reason: DiscardReason;
 }
 
 export interface Adjudication {
 	findings: AdjudicatedFinding[];
 	relatedFindings: AdjudicatedFinding[];
 	/** what was thrown away and why — surfaced, never silently dropped */
-	discarded: { title: string; reason: string }[];
+	discarded: DiscardedCandidate[];
+	/**
+	 * The union log grounding was actually checked against.
+	 *
+	 * Returned rather than rebuilt by the caller, so what gets persisted as the
+	 * round's evidence is the same set the gate ran on. Rebuilding it elsewhere
+	 * is how the two quietly stop matching.
+	 */
+	readLog: RoundReadLog;
 }
 
 const SEVERITY_RANK: Record<string, number> = {
@@ -61,9 +105,15 @@ export function adjudicate(input: AdjudicateInput): Adjudication {
 	// Lenses fork the comprehension session, so each child's log holds only what
 	// *it* opened. Grounding is checked against the union: a claim resting on a
 	// file the round read is grounded, whichever child happened to open it.
+	//
+	// Deduplicated because five children opening the same file is one fact about
+	// the round, and this log is also what gets written to disk for a person to
+	// read — five copies of every entry is noise that grows with the lens count.
 	const unionLog: RoundReadLog = {
-		reads: input.results.flatMap((result) => result.readLog.reads),
-		searchHits: input.results.flatMap((result) => result.readLog.searchHits),
+		reads: dedupeReads(input.results.flatMap((result) => result.readLog.reads)),
+		searchHits: [
+			...new Set(input.results.flatMap((result) => result.readLog.searchHits)),
+		],
 	};
 
 	const discarded: Adjudication["discarded"] = [];
@@ -73,6 +123,7 @@ export function adjudicate(input: AdjudicateInput): Adjudication {
 		raw: input.results.flatMap((result) =>
 			result.out.findings.map((finding) => ({ finding, lens: result.lens })),
 		),
+		species: "finding",
 		unionLog,
 		input,
 		linesByAnchor,
@@ -87,6 +138,7 @@ export function adjudicate(input: AdjudicateInput): Adjudication {
 				lens: result.lens,
 			})),
 		),
+		species: "related-finding",
 		unionLog,
 		input,
 		linesByAnchor,
@@ -94,15 +146,17 @@ export function adjudicate(input: AdjudicateInput): Adjudication {
 		cap: input.depth.maxRelatedFindings,
 	});
 
-	return { findings, relatedFindings, discarded };
+	return { findings, relatedFindings, discarded, readLog: unionLog };
 }
 
 function pipeline(args: {
 	raw: { finding: ReviewFinding; lens: string }[];
+	/** which list this is, so a discard record can say where it came from */
+	species: "finding" | "related-finding";
 	unionLog: RoundReadLog;
 	input: AdjudicateInput;
 	linesByAnchor: Map<string, string[]>;
-	discarded: Adjudication["discarded"];
+	discarded: DiscardedCandidate[];
 	cap: number;
 }): AdjudicatedFinding[] {
 	const merged = mergeDuplicates(args.raw);
@@ -111,10 +165,13 @@ function pipeline(args: {
 	for (const candidate of merged) {
 		// 1. the confidence floor, before anything expensive
 		if (candidate.confidence < args.input.depth.confidenceFloor) {
-			args.discarded.push({
-				title: candidate.title,
-				reason: `confidence ${candidate.confidence} is below the floor of ${args.input.depth.confidenceFloor}`,
-			});
+			args.discarded.push(
+				discard(candidate, args.species, {
+					kind: "below-confidence-floor",
+					confidence: candidate.confidence,
+					floor: args.input.depth.confidenceFloor,
+				}),
+			);
 			continue;
 		}
 
@@ -123,58 +180,66 @@ function pipeline(args: {
 		const anchoredLines = args.linesByAnchor.get(anchorKey(candidate)) ?? [];
 		const violations = checkForm({ body: candidate.body, anchoredLines });
 		if (violations.length > 0) {
-			args.discarded.push({
-				title: candidate.title,
-				reason: `form: ${violations.map((violation) => violation.rule).join(", ")}`,
-			});
+			args.discarded.push(
+				discard(candidate, args.species, {
+					kind: "form",
+					rules: violations.map((violation) => violation.rule),
+				}),
+			);
 			continue;
 		}
 
 		// 3. grounding, asymmetric by severity
-		const citations = [
-			{
-				path: candidate.anchor.path,
-				startLine: candidate.anchor.startLine,
-				endLine: candidate.anchor.endLine,
-			},
-			...(candidate.evidence === undefined
+		// the evidence block, as a citation the annotation keeps; the anchor is
+		// checked alongside it but never stored as a citation of itself
+		const citations: Citation[] =
+			candidate.evidence === undefined
 				? []
 				: [
 						{
 							path: candidate.evidence.path,
 							startLine: candidate.evidence.startLine,
 							endLine: candidate.evidence.endLine,
+							note: candidate.evidence.note,
 						},
-					]),
-		];
+					];
 		const grounding = checkGrounding({
-			citations,
+			citations: [
+				{
+					path: candidate.anchor.path,
+					startLine: candidate.anchor.startLine,
+					endLine: candidate.anchor.endLine,
+				},
+				...citations,
+			],
 			log: args.unionLog,
 			workspaceDir: args.input.workspaceDir,
 		});
 
-		const marks: string[] = [];
+		const marks: FindingMark[] = [];
 		if (!grounding.grounded) {
 			if (resolveUngrounded(candidate.severity) === "drop") {
-				args.discarded.push({
-					title: candidate.title,
-					reason: `ungrounded blocker: ${grounding.reason} (${grounding.path})`,
-				});
+				args.discarded.push(
+					discard(candidate, args.species, {
+						kind: "ungrounded-blocker",
+						path: grounding.path,
+						why: grounding.reason,
+					}),
+				);
 				continue;
 			}
-			marks.push(
-				`cites ${grounding.path}, which the agent did not read this round`,
-			);
+			marks.push({ kind: "ungrounded-citation", path: grounding.path });
 		}
 
 		if (candidate.proof.mode === "inferred") {
-			marks.push("the path was inferred rather than traced end to end");
+			marks.push({ kind: "inferred-path" });
 		}
 
 		kept.push({
 			...candidate,
 			groundingVerified: grounding.grounded,
 			marks,
+			citations,
 		});
 	}
 
@@ -249,6 +314,33 @@ function rank(findings: AdjudicatedFinding[]): AdjudicatedFinding[] {
 		}
 		return b.confidence - a.confidence;
 	});
+}
+
+/** one entry per file-and-range: the same file at two ranges stays two entries */
+function dedupeReads(reads: readonly ReadRange[]): ReadRange[] {
+	const byKey = new Map<string, ReadRange>();
+	for (const read of reads) {
+		byKey.set(
+			`${read.path}\u0000${read.offset ?? ""}\u0000${read.limit ?? ""}`,
+			read,
+		);
+	}
+	return [...byKey.values()];
+}
+
+/** one discard record, so the three call sites cannot disagree about its shape */
+function discard(
+	candidate: ReviewFinding & { lenses: string[] },
+	species: "finding" | "related-finding",
+	reason: DiscardReason,
+): DiscardedCandidate {
+	return {
+		title: candidate.title,
+		species,
+		severity: candidate.severity,
+		lenses: [...candidate.lenses],
+		reason,
+	};
 }
 
 function anchorKey(finding: ReviewFinding): string {

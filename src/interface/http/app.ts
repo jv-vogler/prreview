@@ -18,6 +18,7 @@ import { changesetRoute } from "./routes/changeset";
 import { chatRoute } from "./routes/chat";
 import { coverageRoute } from "./routes/coverage";
 import { goodbyeRoute } from "./routes/goodbye";
+import { reviewRoute } from "./routes/review";
 import { sessionRoute } from "./routes/session";
 import { understandingRoute } from "./routes/understanding";
 import { registerStatic } from "./static";
@@ -158,6 +159,7 @@ export function createApp(deps: AppDeps): Hono {
 		}),
 	);
 	app.route("/api/understanding", understandingRoute({ state: deps.state }));
+	app.route("/api/review", reviewRoute({ state: deps.state }));
 	app.route(
 		"/api/chat",
 		chatRoute({

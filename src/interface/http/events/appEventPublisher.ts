@@ -179,4 +179,10 @@ function invalidate(event: AppEvent, state: ReviewState | undefined): void {
 	) {
 		state.applyAnalysis(null);
 	}
+	if (
+		event.type === "findings.updated" ||
+		(event.type === "run.succeeded" && event.run.lane === "analysis")
+	) {
+		state.applyReview(null);
+	}
 }

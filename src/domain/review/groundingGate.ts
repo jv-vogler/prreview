@@ -103,6 +103,29 @@ export function resolveUngrounded(severity: string): "drop" | "mark" {
 	return severity === "blocker" ? "drop" : "mark";
 }
 
+/**
+ * The whole log made repo-relative, for storing.
+ *
+ * A read log is only comparable to a citation once both sides have lost the
+ * workspace prefix, and for a PR that prefix is a cache directory named after a
+ * head sha — released at shutdown and meaningless to whoever reads the file
+ * next. Normalizing once, at the point the log is written down, is what lets a
+ * later reword be re-grounded without anyone having to remember which
+ * disappeared directory the paths were relative to.
+ */
+export function toRepoRelativeLog(
+	log: RoundReadLog,
+	workspaceDir: string,
+): RoundReadLog {
+	return {
+		reads: log.reads.map((read) => ({
+			...read,
+			path: normalize(read.path, workspaceDir),
+		})),
+		searchHits: log.searchHits.map((hit) => normalize(hit, workspaceDir)),
+	};
+}
+
 /** repo-relative, comparable, and free of the workspace prefix */
 function normalize(path: string, workspaceDir: string): string {
 	let normalized = path.replace(/\\/g, "/");

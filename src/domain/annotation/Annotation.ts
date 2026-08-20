@@ -18,7 +18,25 @@ export interface Citation {
 	path: string;
 	startLine?: number;
 	endLine?: number;
+	/** what the reader should notice there, from the finding's evidence block */
+	note?: string;
 }
+
+/**
+ * Why a finding survived in a weakened form.
+ *
+ * Structured rather than a stored sentence: the marks are copy a reader sees,
+ * and copy that lives in `.prreview/` can never be reworded without rewriting
+ * everybody's session files. The client holds the sentences, the same way it
+ * holds the run-failure and chat-failure copy tables.
+ *
+ * A finding with no marks is not hedged. That is different from
+ * `groundingVerified: false` with no marks, which is what a reword produces
+ * when it loses its stamp without a specific citation to blame.
+ */
+export type FindingMark =
+	| { kind: "ungrounded-citation"; path: string }
+	| { kind: "inferred-path" };
 
 export interface AnnotationProvenance {
 	roundId: string;
@@ -77,6 +95,16 @@ export interface StoredAnnotation {
 	confidence?: "high" | "medium" | "low";
 	citations?: Citation[];
 	groundingVerified?: boolean;
+	/** the specific hedges adjudication attached, for the card to state honestly */
+	marks?: FindingMark[];
+	/**
+	 * A test that would fail today and pass once this is fixed.
+	 *
+	 * An artifact, never an execution: prreview cannot run anything, which is
+	 * also why `proof.mode` has no `tested` value. A reword does not clear it —
+	 * the test is about the code, not about the sentence describing it.
+	 */
+	reproTest?: string;
 	suggestedFix?: string;
 	curation?: AnnotationCuration;
 	resolution?: AnnotationResolution;

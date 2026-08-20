@@ -40,7 +40,9 @@ describe("createReadLogRecorder", () => {
 	it("takes Read targets from tool_use input.file_path (absolute)", async () => {
 		const recorder = await recordFixture("tooluse.jsonl");
 		expect(recorder.result().reads).toEqual([
-			"/tmp/claude-1000/-home-jvogler-Projects-personal-prreview/e0c177c1-ea10-46d7-ad41-ded12cc9e734/scratchpad/s3/miniws/notes.txt",
+			{
+				path: "/tmp/claude-1000/-home-jvogler-Projects-personal-prreview/e0c177c1-ea10-46d7-ad41-ded12cc9e734/scratchpad/s3/miniws/notes.txt",
+			},
 		]);
 		expect(recorder.result().searchHits).toEqual([]);
 	});
@@ -49,8 +51,8 @@ describe("createReadLogRecorder", () => {
 		const recorder = await recordFixture("understanding.jsonl");
 		const { reads, searchHits } = recorder.result();
 		expect(reads).toEqual([
-			"/tmp/prreview-capture-33zpuC/miniweb/src/greeting.ts",
-			"/tmp/prreview-capture-33zpuC/miniweb/src/main.ts",
+			{ path: "/tmp/prreview-capture-33zpuC/miniweb/src/greeting.ts" },
+			{ path: "/tmp/prreview-capture-33zpuC/miniweb/src/main.ts" },
 		]);
 		// Grep returned "Found 2 files\nsrc/greeting.ts\nsrc/main.ts": the header
 		// is skipped and both relative paths resolve against the init cwd
@@ -145,9 +147,78 @@ describe("createReadLogRecorder", () => {
 			},
 		]);
 		expect(recorder.result()).toEqual({
-			reads: ["/work/repo/a.ts", "/work/repo/z.ts"],
+			reads: [{ path: "/work/repo/a.ts" }, { path: "/work/repo/z.ts" }],
 			searchHits: ["/work/repo/b.ts"],
 		});
+	});
+
+	/**
+	 * The range is the whole reason `reads` is not a list of strings. Without it
+	 * the grounding gate's `outside-read-range` verdict cannot be reached in
+	 * production: an absent range means "the whole file", so every citation
+	 * inside an opened file passes.
+	 */
+	it("records the range a Read asked for", () => {
+		const recorder = feed([
+			INIT,
+			{
+				kind: "tool-use",
+				id: "t1",
+				name: "Read",
+				input: { file_path: "a.ts", offset: 120, limit: 40 },
+			},
+		]);
+		expect(recorder.result().reads).toEqual([
+			{ path: "/work/repo/a.ts", offset: 120, limit: 40 },
+		]);
+	});
+
+	/**
+	 * Two ranges over one file are two entries, not one merged span: a claim
+	 * about the gap between them is grounded in neither, and merging would
+	 * silently ground it.
+	 */
+	it("keeps one file read at two ranges as two entries", () => {
+		const recorder = feed([
+			INIT,
+			{
+				kind: "tool-use",
+				id: "t1",
+				name: "Read",
+				input: { file_path: "a.ts", offset: 1, limit: 20 },
+			},
+			{
+				kind: "tool-use",
+				id: "t2",
+				name: "Read",
+				input: { file_path: "a.ts", offset: 400, limit: 20 },
+			},
+			// the same range twice is still one entry
+			{
+				kind: "tool-use",
+				id: "t3",
+				name: "Read",
+				input: { file_path: "a.ts", offset: 1, limit: 20 },
+			},
+		]);
+		expect(recorder.result().reads).toEqual([
+			{ path: "/work/repo/a.ts", offset: 1, limit: 20 },
+			{ path: "/work/repo/a.ts", offset: 400, limit: 20 },
+		]);
+	});
+
+	/** a range the CLI did not send is absent, not zero */
+	it("ignores a non-numeric offset rather than recording it", () => {
+		const recorder = feed([
+			INIT,
+			{
+				kind: "tool-use",
+				id: "t1",
+				name: "Read",
+				input: { file_path: "a.ts", offset: "12", limit: 0 },
+			},
+		]);
+		expect(recorder.result().reads).toEqual([{ path: "/work/repo/a.ts" }]);
 	});
 
 	it("joins results to calls by tool_use_id, not by arrival order", () => {
@@ -169,7 +240,7 @@ describe("createReadLogRecorder", () => {
 			},
 		]);
 		expect(recorder.result()).toEqual({
-			reads: ["/r.ts"],
+			reads: [{ path: "/r.ts" }],
 			searchHits: ["/work/repo/src/c.ts"],
 		});
 	});

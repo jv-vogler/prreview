@@ -57,6 +57,8 @@ export interface Run {
 	error?: RunFailure;
 	/** agent anchors that could not be placed and were dropped (TASK-032) */
 	skippedAnchors?: number;
+	/** candidates adjudication threw away — named in the terminal, never silent */
+	discardedCandidates?: number;
 	/** what the run is doing, once it has done anything */
 	progress?: RunProgress;
 	/**
@@ -115,7 +117,7 @@ export interface RunContext {
 }
 
 export type RunOutcome =
-	| { ok: true; skippedAnchors?: number }
+	| { ok: true; skippedAnchors?: number; discardedCandidates?: number }
 	| ({ ok: false } & RunFailure);
 
 /**

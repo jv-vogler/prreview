@@ -1,9 +1,12 @@
 import { z } from "zod";
 import type { RoundAnalysis } from "../../application/analysis/RoundAnalysis";
 import type { ReadLog } from "../../application/ports/Engine";
+import type { DiscardReason } from "../../application/review/adjudicate";
+import type { RoundReview } from "../../application/review/RoundReview";
 import type { Anchor, AnchorStatus } from "../../domain/anchor/Anchor";
 import type {
 	Citation,
+	FindingMark,
 	StoredAnnotation,
 } from "../../domain/annotation/Annotation";
 import type { BlobRef } from "../../domain/changeset/BlobRef";
@@ -18,6 +21,7 @@ import type {
 	ChatThread,
 } from "../../domain/chat/ChatThread";
 import type { HunkCoverage } from "../../domain/coverage/HunkCoverage";
+import type { ReadRange } from "../../domain/review/groundingGate";
 import type { RunMeta } from "../../domain/session/RunMeta";
 import type { SessionManifest } from "../../domain/session/SessionManifest";
 import type { Toolchain } from "../../domain/session/Toolchain";
@@ -191,7 +195,13 @@ const citationSchema: z.ZodType<Citation> = z.object({
 	path: z.string(),
 	startLine: z.number().optional(),
 	endLine: z.number().optional(),
+	note: z.string().optional(),
 });
+
+const findingMarkSchema: z.ZodType<FindingMark> = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal("ungrounded-citation"), path: z.string() }),
+	z.object({ kind: z.literal("inferred-path") }),
+]);
 
 const storedAnnotationSchema: z.ZodType<StoredAnnotation> = z.object({
 	id: z.string(),
@@ -229,6 +239,8 @@ const storedAnnotationSchema: z.ZodType<StoredAnnotation> = z.object({
 	confidence: z.enum(["high", "medium", "low"]).optional(),
 	citations: z.array(citationSchema).optional(),
 	groundingVerified: z.boolean().optional(),
+	marks: z.array(findingMarkSchema).optional(),
+	reproTest: z.string().optional(),
 	suggestedFix: z.string().optional(),
 	curation: z
 		.object({
@@ -254,10 +266,30 @@ export const annotationsSchema: z.ZodType<StoredAnnotation[]> = z.array(
 	storedAnnotationSchema,
 );
 
-const readLogSchema: z.ZodType<ReadLog> = z.object({
-	reads: z.array(z.string()),
+/**
+ * A read entry, tolerating the bare path an older prreview wrote.
+ *
+ * `reads` used to be `string[]`; it carries the range now, because line-level
+ * grounding is impossible without it. That is not an additive change, so a
+ * strict schema would refuse every round already on disk — and a bare path is
+ * exactly what an absent range means downstream ("the whole file was read"),
+ * so the old shape has a faithful reading rather than needing a migration.
+ */
+const readRangeSchema = z.union([
+	z.string().transform((path): ReadRange => ({ path })),
+	z.object({
+		path: z.string(),
+		offset: z.number().optional(),
+		limit: z.number().optional(),
+	}),
+]);
+
+/** input differs from output here (the string branch transforms), so this one
+ * schema cannot carry the `z.ZodType<T>` pin the others do */
+const readLogSchema = z.object({
+	reads: z.array(readRangeSchema),
 	searchHits: z.array(z.string()),
-});
+}) satisfies z.ZodType<ReadLog, unknown>;
 
 const topicRefSchema = z.object({
 	path: z.string(),
@@ -313,6 +345,44 @@ export const roundAnalysisSchema: z.ZodType<RoundAnalysis> = z.object({
 	readLog: readLogSchema,
 	runId: z.string(),
 	engineSessionId: z.string(),
+});
+
+const discardReasonSchema: z.ZodType<DiscardReason> = z.discriminatedUnion(
+	"kind",
+	[
+		z.object({
+			kind: z.literal("below-confidence-floor"),
+			confidence: z.number(),
+			floor: z.number(),
+		}),
+		z.object({ kind: z.literal("form"), rules: z.array(z.string()) }),
+		z.object({
+			kind: z.literal("ungrounded-blocker"),
+			path: z.string(),
+			why: z.enum(["never-opened", "outside-read-range"]),
+		}),
+	],
+);
+
+/**
+ * rounds/<roundId>/review.json — what the findings pass decided beyond the
+ * annotations it wrote: the candidates it threw away, the anchors it could not
+ * place, and the read log its citations were checked against.
+ */
+export const roundReviewSchema: z.ZodType<RoundReview, unknown> = z.object({
+	discarded: z.array(
+		z.object({
+			title: z.string(),
+			species: z.enum(["finding", "related-finding"]),
+			severity: z.string(),
+			lenses: z.array(z.string()),
+			reason: discardReasonSchema,
+		}),
+	),
+	skippedAnchors: z.number(),
+	readLog: readLogSchema,
+	runId: z.string(),
+	producedAt: z.string(),
 });
 
 const chatMessageContextSchema: z.ZodType<ChatMessageContext> = z.object({

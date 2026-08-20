@@ -1,5 +1,6 @@
 import { isAbsolute, resolve } from "node:path";
 import type { ReadLog } from "../../application/ports/Engine";
+import type { ReadRange } from "../../domain/review/groundingGate";
 import type { StreamJsonRecord } from "./streamJson";
 
 /**
@@ -9,6 +10,10 @@ import type { StreamJsonRecord } from "./streamJson";
  * surfaced appear in the **tool_result content** as cwd-relative paths,
  * joined to their call by `tool_use_id`. cwd comes from the stream's `init`
  * event, never from prreview's own process.
+ *
+ * `Read`'s `offset`/`limit` are recorded alongside its path, because the range
+ * is the difference between grounding a claim about line 12 and grounding one
+ * about line 900 of the same file.
  *
  * MCP tools reach the model through a ToolSearch → tool_reference
  * indirection (CON-008); those calls carry no grounding and are ignored
@@ -32,7 +37,8 @@ const IGNORED_TOOLS = new Set(["ToolSearch", "tool_reference"]);
 const SEARCH_TOOLS = new Set(["Grep", "Glob"]);
 
 export function createReadLogRecorder(): ReadLogRecorder {
-	const reads = new Set<string>();
+	/** keyed by path and range, so one file read twice at two ranges is two entries */
+	const reads = new Map<string, ReadRange>();
 	const searchHits = new Set<string>();
 	const unknown = new Set<string>();
 	/** tool_use_id → tool name, so a tool_result knows which parser to use */
@@ -65,7 +71,7 @@ export function createReadLogRecorder(): ReadLogRecorder {
 		if (name === "Read") {
 			const filePath = input.file_path;
 			if (typeof filePath === "string" && filePath !== "") {
-				reads.add(absolutize(filePath));
+				recordRead(absolutize(filePath), input);
 			}
 			return;
 		}
@@ -87,6 +93,28 @@ export function createReadLogRecorder(): ReadLogRecorder {
 		}
 	}
 
+	/**
+	 * A `Read` with its range, when it asked for one.
+	 *
+	 * An absent `offset` is recorded as absent and read downstream as "the whole
+	 * file". That is an over-approximation: `Read` with no arguments returns
+	 * roughly the first 2000 lines, so a citation on line 4000 of a 5000-line
+	 * file is still counted as grounded. Encoding 2000 here would be an
+	 * unmeasured CLI default baked into a gate, which is exactly what the spike
+	 * discipline exists to prevent - it belongs in `spikes/` and
+	 * `docs/engine-notes.md` before it belongs in code.
+	 */
+	function recordRead(path: string, input: Record<string, unknown>): void {
+		const offset = positiveInt(input.offset);
+		const limit = positiveInt(input.limit);
+		const entry: ReadRange = {
+			path,
+			...(offset === undefined ? {} : { offset }),
+			...(limit === undefined ? {} : { limit }),
+		};
+		reads.set(`${path}\u0000${offset ?? ""}\u0000${limit ?? ""}`, entry);
+	}
+
 	/** paths from tool_result are cwd-relative; Read's are already absolute */
 	function absolutize(path: string): string {
 		if (isAbsolute(path)) {
@@ -98,11 +126,22 @@ export function createReadLogRecorder(): ReadLogRecorder {
 	return {
 		accept,
 		result: () => ({
-			reads: [...reads].sort(),
+			reads: [...reads.values()].sort((left, right) =>
+				left.path === right.path
+					? (left.offset ?? 0) - (right.offset ?? 0)
+					: left.path.localeCompare(right.path),
+			),
 			searchHits: [...searchHits].sort(),
 		}),
 		unknownTools: () => [...unknown].sort(),
 	};
+}
+
+/** a line number the CLI actually sent; anything else is treated as absent */
+function positiveInt(value: unknown): number | undefined {
+	return typeof value === "number" && Number.isInteger(value) && value > 0
+		? value
+		: undefined;
 }
 
 /**

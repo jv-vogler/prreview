@@ -62,7 +62,7 @@ export function createRunReporter(options: RunReporterOptions): RunReporter {
 				case "run.succeeded":
 					lastPrintedAt.delete(run.id);
 					options.write(
-						`prreview: ${run.taskType} run finished${elapsedSuffix(run)}\n`,
+						`prreview: ${run.taskType} run finished${elapsedSuffix(run)}${lossesSuffix(run)}\n`,
 					);
 					return;
 				case "run.failed":
@@ -112,7 +112,33 @@ function elapsedSuffix(run: Run): string {
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
 
-export function formatDuration(ms: number): string {
+export /**
+ * What the run computed and threw away, said out loud.
+ *
+ * A run that quietly discarded four candidates and failed to place one anchor
+ * looks identical, in a terminal, to one that found nothing — and the reader has
+ * no way to tell "nothing to say" from "everything was cut". Both numbers ride
+ * the run itself, so this costs no extra state; runs are ephemeral, which is why
+ * the tab keeps its own copy that survives a reload.
+ */
+function lossesSuffix(run: Run): string {
+	const losses: string[] = [];
+	const discarded = run.discardedCandidates ?? 0;
+	const skipped = run.skippedAnchors ?? 0;
+	if (discarded > 0) {
+		losses.push(
+			`${discarded} ${discarded === 1 ? "candidate" : "candidates"} did not make the cut`,
+		);
+	}
+	if (skipped > 0) {
+		losses.push(
+			`${skipped} ${skipped === 1 ? "anchor" : "anchors"} could not be placed`,
+		);
+	}
+	return losses.length === 0 ? "" : ` — ${losses.join(", ")}`;
+}
+
+function formatDuration(ms: number): string {
 	const totalSeconds = Math.max(0, Math.round(ms / MS_PER_SECOND));
 	const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE);
 	const seconds = totalSeconds % SECONDS_PER_MINUTE;

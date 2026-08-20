@@ -3,12 +3,16 @@ import type { ChangesetRef } from "../domain/changeset/ChangesetRef";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import { EngineError } from "../domain/errors/EngineError";
+import { toRepoRelativeLog } from "../domain/review/groundingGate";
 import type { ReviewDepth } from "../domain/review/ReviewDepth";
 import type { RunMeta } from "../domain/session/RunMeta";
 import type { SessionManifest } from "../domain/session/SessionManifest";
 import { ANALYSIS_IDLE_TIMEOUT_MS } from "./analysis/limits";
 import { consumeEngineRun } from "./consumeEngineRun";
-import { materializeAnnotations } from "./materializeAnnotations";
+import {
+	type AnnotationDraft,
+	materializeAnnotations,
+} from "./materializeAnnotations";
 import type { Engine } from "./ports/Engine";
 import type { PublishEvent } from "./ports/EventPublisher";
 import type { Git } from "./ports/Git";
@@ -24,6 +28,7 @@ import {
 	adjudicate,
 	type LensResult,
 } from "./review/adjudicate";
+import { readFrameSources } from "./review/frameSources";
 import { buildProjectFrame } from "./review/projectFrame";
 import { buildReviewOutSchema, type ReviewOut } from "./review/reviewSchemas";
 import { buildLensTask } from "./review/reviewTask";
@@ -55,13 +60,6 @@ export interface RunReviewInput {
 	ref: ChangesetRef;
 	files: readonly FileDiff[];
 	depth: ReviewDepth;
-	/** README / conventions / manifest text, read by the caller */
-	frameSources?: {
-		readme?: string;
-		conventions?: string;
-		manifest?: string;
-		tree?: string[];
-	};
 }
 
 export type RunReview = (input: RunReviewInput) => Promise<EnqueueResult>;
@@ -122,8 +120,19 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 	const startedAt = nowIso();
 	const { deps, input } = run;
 
+	/*
+	 * Stage 0, and the cheapest quality lever in the pipeline: what this repo is
+	 * and what it already checks automatically.
+	 *
+	 * Read here rather than accepted as an argument. It *was* an optional input,
+	 * and the route never passed it, so `detectTooling("")` returned nothing and
+	 * the "do not report anything these tools already catch" section shipped in
+	 * no preset at all — while the module claiming it shipped in every one sat
+	 * right next to it. An argument a caller can forget is the shape of that
+	 * bug; a read the run performs itself is not.
+	 */
 	const frame = buildProjectFrame({
-		...(input.frameSources ?? {}),
+		...(await readFrameSources(deps, { ref: input.ref, files: input.files })),
 		files: input.files,
 	});
 
@@ -203,14 +212,10 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 			if (!parsed.success) {
 				return null;
 			}
-			return {
-				lens,
-				out: parsed.data as ReviewOut,
-				readLog: {
-					reads: result.readLog.reads.map((path) => ({ path })),
-					searchHits: result.readLog.searchHits,
-				},
-			};
+			// the log is passed through whole: it carries the ranges now, and
+			// flattening them is what made the gate's `outside-read-range`
+			// verdict unreachable
+			return { lens, out: parsed.data as ReviewOut, readLog: result.readLog };
 		},
 	);
 
@@ -253,7 +258,7 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 		workspaceDir: run.workspaceDir,
 	});
 
-	const { annotations } = await materializeAnnotations(
+	const { annotations, skippedAnchors } = await materializeAnnotations(
 		{ git: deps.git, store: deps.store },
 		{
 			drafts: [
@@ -294,6 +299,23 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 	for (const annotation of annotations) {
 		deps.publish({ type: "annotation.upserted", annotation });
 	}
+	/*
+	 * What the pass decided, beyond the annotations it produced.
+	 *
+	 * Written before the event that tells clients to look, so a client that
+	 * refetches immediately cannot beat the record it is refetching. The read
+	 * log is stored repo-relative: for a PR the workspace is a cache directory
+	 * named after a head sha, which is released at shutdown, so paths relative
+	 * to it would be unusable by the time anything read them back.
+	 */
+	await deps.store.saveRoundReview(input.manifest.changesetId, input.roundId, {
+		discarded: adjudicated.discarded,
+		skippedAnchors,
+		readLog: toRepoRelativeLog(adjudicated.readLog, run.workspaceDir),
+		runId: run.context.runId,
+		producedAt: nowIso(),
+	});
+
 	deps.publish({ type: "findings.updated", roundId: input.roundId });
 
 	await recordRun(run, {
@@ -304,7 +326,19 @@ async function runLenses(run: ReviewRun): Promise<RunOutcome> {
 		endedAt: nowIso(),
 		status: "succeeded",
 	});
-	return { ok: true, skippedAnchors: 0 };
+	/*
+	 * Both losses ride the outcome, which is what puts them in the terminal.
+	 *
+	 * `skippedAnchors` was hardcoded to 0 while `materializeAnnotations` was
+	 * returning a real count, so a finding whose anchor named nothing placeable
+	 * vanished without a word anywhere. The discard count is the same kind of
+	 * fact and travels the same way.
+	 */
+	return {
+		ok: true,
+		skippedAnchors,
+		discardedCandidates: adjudicated.discarded.length,
+	};
 }
 
 /**
@@ -361,14 +395,18 @@ function nowIso(): string {
 /**
  * Everything adjudication decided, carried onto the stored annotation.
  *
- * In particular `groundingVerified`: the check runs once, against the union of
- * the round's read logs, and dropping its answer here would mean the gate ran
- * and told nobody.
+ * "Everything" is the point of this function, and it used to carry four of the
+ * seven things it was handed. `groundingVerified` says the gate ran; `marks`
+ * say *what* it found, which is the difference between "treat as a lead" and
+ * "cites a file nobody opened"; `citations` are what a later reword is
+ * re-grounded against, so dropping them left a rewrite checked against its
+ * anchor alone; and `reproTest` is an artifact the prompt promises the reader.
+ * A check whose answer is computed and then dropped is the same as no check.
  */
 function toDraft(
 	finding: AdjudicatedFinding,
 	species: "finding" | "related-finding",
-) {
+): AnnotationDraft {
 	return {
 		anchor: finding.anchor,
 		body: finding.body,
@@ -379,6 +417,11 @@ function toDraft(
 		groundingVerified: finding.groundingVerified,
 		proof: { mode: finding.proof.mode, how: finding.proof.how },
 		confidence: confidenceBand(finding.confidence),
+		...(finding.citations.length === 0 ? {} : { citations: finding.citations }),
+		...(finding.marks.length === 0 ? {} : { marks: finding.marks }),
+		...(finding.reproTest === undefined
+			? {}
+			: { reproTest: finding.reproTest }),
 	};
 }
 

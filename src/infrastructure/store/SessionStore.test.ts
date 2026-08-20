@@ -8,9 +8,10 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { loadDiffFixture } from "../../../test/helpers/loadDiffFixture";
+import type { RoundReview } from "../../application/review/RoundReview";
 import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import { parseDiff } from "../../domain/changeset/parseDiff";
 import { StoreError } from "../../domain/errors/StoreError";
@@ -343,7 +344,10 @@ describe("round analysis", () => {
 				},
 				uncoveredHunks: [{ path: "b.ts", hunkId: "F2h1" }],
 			},
-			readLog: { reads: ["/repo/a.ts"], searchHits: [] },
+			readLog: {
+				reads: [{ path: "/repo/a.ts", offset: 1, limit: 40 }],
+				searchHits: [],
+			},
 			runId: "run-1",
 			engineSessionId: "session-A",
 		};
@@ -369,6 +373,121 @@ describe("round analysis", () => {
 	it("returns null for a round that was never analyzed", async () => {
 		const { store } = await makeStore();
 		expect(await store.loadRoundAnalysis("worktree", "r1")).toBeNull();
+	});
+
+	/**
+	 * `readLog.reads` used to be a list of paths and now carries the range each
+	 * `Read` asked for. That is not an additive change, so a strict schema would
+	 * refuse every round already on disk — and a bare path has a faithful
+	 * reading, because an absent range is exactly what "the whole file was read"
+	 * means downstream.
+	 */
+	it("reads a log an older prreview wrote as bare paths", async () => {
+		const { store, dataDir } = await makeStore();
+		const path = join(
+			dataDir,
+			"sessions",
+			"worktree",
+			"rounds",
+			"r9",
+			"analysis.json",
+		);
+		await mkdir(dirname(path), { recursive: true });
+		await writeFile(
+			path,
+			JSON.stringify({
+				understanding: {
+					headline: "An older round.",
+					summary: ["written by a previous version"],
+					topics: [],
+					suggestedEntryPoint: "a.ts",
+					goalMatch: {
+						verdict: "unclear",
+						rationale: "no ticket",
+						basis: "inferred",
+						ticket: null,
+					},
+					uncoveredHunks: [],
+				},
+				readLog: { reads: ["/repo/a.ts", "/repo/b.ts"], searchHits: [] },
+				runId: "run-old",
+				engineSessionId: "session-old",
+			}),
+		);
+
+		const loaded = await store.loadRoundAnalysis("worktree", "r9");
+		expect(loaded?.readLog.reads).toEqual([
+			{ path: "/repo/a.ts" },
+			{ path: "/repo/b.ts" },
+		]);
+	});
+});
+
+describe("round review", () => {
+	it("round-trips the findings pass's own record under rounds/<id>/review.json", async () => {
+		const { store, dataDir } = await makeStore();
+		const review: RoundReview = {
+			discarded: [
+				{
+					title: "Too unsure to raise",
+					species: "finding",
+					severity: "consider",
+					lenses: ["design", "fresh-eyes"],
+					reason: { kind: "below-confidence-floor", confidence: 62, floor: 80 },
+				},
+			],
+			skippedAnchors: 2,
+			readLog: {
+				reads: [{ path: "src/a.ts", offset: 1, limit: 60 }],
+				searchHits: ["src/b.ts"],
+			},
+			runId: "run-7",
+			producedAt: "2026-08-19T10:00:00.000Z",
+		};
+
+		const write = store.saveRoundReview("worktree", "r1", review);
+		await store.flush();
+		await write;
+
+		expect(await store.loadRoundReview("worktree", "r1")).toEqual(review);
+		const stored = join(
+			dataDir,
+			"sessions",
+			"worktree",
+			"rounds",
+			"r1",
+			"review.json",
+		);
+		await expect(readFile(stored, "utf8")).resolves.toContain(
+			'"below-confidence-floor"',
+		);
+	});
+
+	it("returns null for a round that was never reviewed", async () => {
+		const { store } = await makeStore();
+		expect(await store.loadRoundReview("worktree", "r1")).toBeNull();
+	});
+
+	/**
+	 * Derived output: reproducible by re-running the pass, and never the only
+	 * copy of anything a person wrote. A moved shape costs a re-run, not the
+	 * session — annotations stay strict, because curation state is the
+	 * reviewer's own work.
+	 */
+	it("offers a fresh pass rather than refusing the session on a shape it cannot read", async () => {
+		const { store, dataDir } = await makeStore();
+		const path = join(
+			dataDir,
+			"sessions",
+			"worktree",
+			"rounds",
+			"r2",
+			"review.json",
+		);
+		await mkdir(dirname(path), { recursive: true });
+		await writeFile(path, JSON.stringify({ discarded: "not a list" }));
+
+		await expect(store.loadRoundReview("worktree", "r2")).resolves.toBeNull();
 	});
 });
 

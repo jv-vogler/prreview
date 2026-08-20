@@ -313,8 +313,8 @@ describe("ClaudeEngine.runTask results", () => {
 		// CON-007: Read inputs plus Grep/Glob hits harvested from tool_result
 		expect(result.readLog).toEqual({
 			reads: [
-				"/tmp/prreview-capture-33zpuC/miniweb/src/greeting.ts",
-				"/tmp/prreview-capture-33zpuC/miniweb/src/main.ts",
+				{ path: "/tmp/prreview-capture-33zpuC/miniweb/src/greeting.ts" },
+				{ path: "/tmp/prreview-capture-33zpuC/miniweb/src/main.ts" },
 			],
 			searchHits: [
 				"/tmp/prreview-capture-33zpuC/miniweb/src/greeting.ts",

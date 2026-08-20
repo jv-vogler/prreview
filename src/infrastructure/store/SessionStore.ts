@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { RoundAnalysis } from "../../application/analysis/RoundAnalysis";
+import type { RoundReview } from "../../application/review/RoundReview";
 import type { StoredAnnotation } from "../../domain/annotation/Annotation";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
@@ -22,6 +23,7 @@ import {
 	coverageSchema,
 	roundAnalysisSchema,
 	roundChangesetSchema,
+	roundReviewSchema,
 	sessionManifestSchema,
 } from "./schemas";
 import { sessionKeyFor } from "./sessionKey";
@@ -269,6 +271,41 @@ export class SessionStore {
 		);
 	}
 
+	// ── round review ──────────────────────────────────────────────────────
+
+	async loadRoundReview(
+		changesetId: ChangesetId,
+		roundId: string,
+	): Promise<RoundReview | null> {
+		const path = this.roundReviewPath(changesetId, roundId);
+		const raw = await this.readJsonFile(path);
+		if (raw === undefined) {
+			return null;
+		}
+		const parsed = roundReviewSchema.safeParse(raw);
+		if (!parsed.success) {
+			// same reasoning as analysis.json above: derived output, reproducible
+			// by re-running the pass, and never the only copy of anything a
+			// person wrote — so a moved shape costs a re-run, not the session
+			process.stderr.write(
+				`prreview: ${path} was written by an older prreview and cannot be read; the Suggested comments tab will offer a fresh pass.\n`,
+			);
+			return null;
+		}
+		return parsed.data;
+	}
+
+	saveRoundReview(
+		changesetId: ChangesetId,
+		roundId: string,
+		review: RoundReview,
+	): Promise<void> {
+		return this.scheduleWrite(
+			this.roundReviewPath(changesetId, roundId),
+			review,
+		);
+	}
+
 	// ── chat threads ──────────────────────────────────────────────────────
 
 	async loadChatThread(
@@ -499,6 +536,10 @@ export class SessionStore {
 			roundId,
 			"analysis.json",
 		);
+	}
+
+	private roundReviewPath(changesetId: ChangesetId, roundId: string): string {
+		return join(this.sessionDir(changesetId), "rounds", roundId, "review.json");
 	}
 
 	private coveragePath(changesetId: ChangesetId): string {
