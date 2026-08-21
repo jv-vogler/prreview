@@ -1,110 +1,51 @@
 # Engine notes
 
-In plain terms: this file records what we observed when driving the real `claude` CLI, so the
-engine adapter's mechanical choices trace back to experiments instead of guesses. The spike
-verdicts under `spikes/*/VERDICT.md` are the primary record; this file adds the answers measured
-after the spikes closed.
+Facts measured against the real `claude` CLI, carried forward across the rewrite because they
+are empirical claims about *the CLI*, not about prreview's old design. Rediscovering any of
+these costs a spike; that's why they're written down instead of re-learned. All measured against
+`claude` 2.1.233 in scratch repos outside this one. Re-verify against a new CLI release before
+trusting them again.
 
-## How the prompt is delivered
+- **`-p --output-format stream-json` requires `--verbose`**, or the CLI exits 1 emitting nothing
+  (`Error: When using --print, --output-format=stream-json requires --verbose`).
 
-The measurement ran on 2026-08-17 against `claude` 2.1.233 (Claude Code) with `--model haiku`,
-in a scratch git repo outside this repository, from `scripts/capture-claude-fixtures.mjs`
-(re-runnable with `PRREVIEW_REAL_CLAUDE=1`). Two probes, both
-`claude -p --output-format stream-json --verbose --model haiku --max-turns 2` with the prompt
-piped to stdin and **no positional prompt argument**:
+- **A concurrent `--resume <sid>` needs `--fork-session`.** Two plain `--resume` processes on the
+  same session both succeed, but their turns interleave into the *parent's* session file
+  (`user,user,assistant,assistant`) — not corruption, but a merged transcript a later resume can't
+  make sense of. `--resume <sid> --fork-session` gives each concurrent resume its own session id
+  and leaves the parent file untouched. Only a resume whose output should extend the shared
+  session may plain-resume, and never concurrently with another plain resume of the same session.
 
-| probe | prompt bytes | exit | result event |
-|---|---|---|---|
-| (a) tiny prompt on stdin | 31 | 0 | `is_error:false`, `num_turns:1`, answered correctly |
-| (b) ~200KB filler + one question on stdin | 200,082 | 0 | `is_error:false`, `num_turns:1`, valid result event |
+- **`--json-schema` must be draft-07.** The CLI validates it with Ajv 8, which has no
+  draft-2020-12 meta-schema registered — a schema carrying
+  `"$schema": "https://json-schema.org/draft/2020-12/schema"` makes Ajv's `validateSchema` throw,
+  and the CLI refuses the run at spawn before any turn happens. Emit schemas at `target:
+  "draft-7"` and strip the `$schema` key entirely so no meta-schema ever has to resolve.
 
-**The answer: stdin is the delivery path.** `claude -p` reads the whole prompt from stdin when
-no positional prompt is given, well past any argv limit (200KB accepted; the OS argv ceiling is
-~128KB per argument, so stdin is also the only path that scales). Probe (b) ran twice: the
-first run answered the embedded question verbatim; the second run's model commented on the
-filler-then-instruction pattern looking like prompt injection — but mechanically both runs
-accepted the 200KB prompt, exited 0, and produced a normal result event, which is the question
-this probe answers. Real task prompts are coherent documents, not adversarial-looking filler.
+- **`--json-schema` takes an inline JSON string only** — a file path is rejected outright. It
+  worked inline up to 85KB; a 171KB schema never reached the CLI (Linux's `Argument list too
+  long`, the ~128KB per-argument argv ceiling). Keep schemas well under that.
 
-**Fallback, documented but not needed:** if stdin delivery were ever rejected, write the
-prompt to `<runTempDir>/prompt.md` **outside the repo** and pass a short positional prompt
-instructing the agent to `Read` that absolute path (the file then legitimately appears in the
-read log). The adapter implements the stdin path and keeps this fallback behind a single constant
-in `src/infrastructure/engine/promptDelivery.ts`.
+- **The prompt goes on stdin, not argv.** `claude -p` reads the whole prompt from stdin when no
+  positional prompt is given — verified up to 200KB, far past the argv ceiling. This also keeps
+  nothing user-sized or user-authored inside argv.
 
-Corollaries baked into the adapter: the prompt is never an argv member (SEC-002 — nothing
-user-sized or user-authored is interpolated into argv), and `--json-schema` stays the only
-large argv value, capped at 85KB by a build-time assertion (CON-005).
+- **`--max-turns` is absent from `--help` but real and enforced.** A schema violation makes the
+  CLI retry the structured-output attempt itself, feeding the validation error back as an
+  `is_error` tool result; give it turn headroom (task turns + 2–3 retries) rather than
+  implementing a retry loop on top.
 
-## What `--max-budget-usd` actually does (CON-015)
+- **`--max-budget-usd` is a stopping rule, not a ceiling** — evaluated *between* turns, so the
+  first turn always runs and always bills, and a run can finish well over budget (0.0001 asked
+  for, 0.0125 actually spent). Never render it as "will not exceed"; budget concurrent children
+  as `N × (ceiling + one turn)`.
 
-In plain terms: the spend limit is a stopping rule, not a ceiling. The run halts once it has
-already gone over.
+- **Grep/Glob grounding must come from `tool_result`, not `tool_use.input`.** `Read`'s input
+  always carries an absolute `file_path`, but Grep/Glob inputs usually omit `path` — the files the
+  agent actually saw are in the tool_result content (newline-separated, cwd-relative), joined back
+  to the call via `tool_use_id`.
 
-Measured 2026-08-17 against `claude` 2.1.233 with `--model haiku`
-(`spikes/depth-and-fanout/VERDICT.md`). The budget is evaluated **between turns**, so the first
-turn always runs and always bills:
-
-| `--max-budget-usd` | actual `total_cost_usd` | turns |
-|---|---|---|
-| `0.0001` | 0.0125 (**125× over**) | 1 |
-| `0.01` | 0.0132 | 4 |
-
-Exhaustion is at least a clean typed failure, parallel to `error_max_turns`:
-`subtype: "error_max_budget_usd"`, `terminal_reason: "budget_exhausted"`, `is_error: true`,
-`structured_output: null`, **exit 1**.
-
-Consequences: never render the number as a cap ("stops once it has spent about $X", not "will not
-exceed"); budget N concurrent children as `N × (ceiling + one turn)`; and enforce a floor in the
-dialog, since a ceiling below one turn's cost does not prevent the run, only makes it fail after
-paying. The flag also `only works with --print`, which prreview always passes.
-
-`--effort` takes `low, medium, high, xhigh, max` and is accepted alongside prreview's full flag
-set, but showed no measurable turn/cost/duration difference on a trivial one-turn prompt — so no
-depth preset should claim it buys "more thinking" until that is shown on a real review task.
-
-## What JSON Schema dialect `--json-schema` accepts (CON-014)
-
-In plain terms: the CLI checks the schema you hand it before it does anything, and it only
-understands the older dialect. Give it the newer one and the run dies at startup.
-
-The CLI validates `--json-schema` with **Ajv 8 in draft-07 mode**. Ajv 8 has no draft-2020-12
-meta-schema registered, so a schema carrying
-`"$schema": "https://json-schema.org/draft/2020-12/schema"` makes `validateSchema` *throw*, and
-the CLI refuses the run with
-
-```
---json-schema is not a valid JSON Schema: no schema with key or ref "https://json-schema.org/draft/2020-12/schema"
-```
-
-Reproduced directly against `ajv@8.20.0`, the version pinned as a devDependency here for exactly
-this reason:
-
-| schema handed to Ajv 8 | `validateSchema` |
-|---|---|
-| `target: "draft-2020-12"` (what prreview used to emit) | **throws**, unresolvable `$schema` ref |
-| `target: "draft-7"`, `$schema` kept | `true` |
-| `target: "draft-7"`, `$schema` stripped | `true` |
-
-**What prreview does:** `toJsonSchema` converts at `target: "draft-7"` and strips `$schema`
-entirely, so no meta-schema ever has to resolve.
-
-**Why it went unnoticed, and what now prevents a repeat.** Every analysis run failed at spawn
-while the whole suite stayed green, because all three places that could have caught it were
-looking away: the fixture capture script hand-embedded its own schema (no `$schema` key, so the
-recording proved the CLI accepted a value prreview never sent), `test/bin/claude` treated
-`--json-schema` as an opaque string it never validated, and the unit test asserted the buggy
-`$schema` value as if it were the contract. All three are closed:
-
-- `src/application/analysis/taskSchemas.ts` registers every task schema, and
-  `toJsonSchema.test.ts` puts each one through a real Ajv 8 `validateSchema`;
-- `test/bin/claude` validates `--json-schema` the same way and fails the run at argv time, so the
-  failure is now a red unit test rather than a broken product;
-- `test/taskSchemaGate.test.ts` runs a real task spec end to end through the engine and the fake,
-  which is the arrangement nothing tested before;
-- `scripts/capture-claude-fixtures.mjs` obtains schemas from `scripts/dump-task-schemas.ts`, i.e.
-  through the production `toJsonSchema`, so a recording can only be made against the real value.
-
-The fake's exact stderr wording is modeled on the observed production failure rather than a
-byte-faithful capture; the behavior tests depend on is *reject before running*, and the prose is
-re-checked by the opt-in `test/realClaude.test.ts`.
+- **On WSL2, a connect to a port nothing is listening on is never refused.** The localhost relay
+  hands it to Windows and the connection stays pending — no ECONNREFUSED, ever — so anything that
+  waits on that socket hangs forever with no error to show. A dev proxy or health check needs its
+  own connect-timeout probe; it cannot rely on the OS to fail fast.

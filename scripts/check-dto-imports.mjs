@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,6 +27,13 @@ const SPECIFIER_PATTERNS = [
 ];
 
 const violations = [];
+if (!existsSync(DTO_DIR)) {
+	// mid-rewrite: the wire contract doesn't exist yet — nothing to violate
+	console.log(
+		"dto import rule: src/interface/http/dto does not exist yet — skipped",
+	);
+	process.exit(0);
+}
 for (const entry of readdirSync(DTO_DIR, {
 	recursive: true,
 	withFileTypes: true,

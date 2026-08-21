@@ -1,8 +1,0 @@
-.screen {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 100%;
-	color: var(--fgColor-muted);
-	font-size: var(--text-body-size-medium);
-}
