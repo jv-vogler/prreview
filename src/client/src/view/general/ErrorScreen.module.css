@@ -1,0 +1,55 @@
+.screen {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--base-size-8);
+	height: 100%;
+	padding: var(--base-size-32);
+	text-align: center;
+}
+
+.icon {
+	color: var(--fgColor-attention);
+	line-height: 0;
+}
+
+.title {
+	margin: 0;
+	font-size: var(--text-title-size-medium);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-default);
+}
+
+.detail {
+	margin: 0;
+	max-inline-size: 60ch;
+	line-height: var(--text-body-lineHeight-medium);
+	font-size: var(--text-body-size-medium);
+	color: var(--fgColor-muted);
+}
+
+.code {
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-codeInline-size);
+	padding: 0 var(--base-size-4);
+	background: var(--bgColor-neutral-muted);
+	border-radius: var(--borderRadius-small);
+	color: var(--fgColor-default);
+}
+
+.reload {
+	margin-top: var(--base-size-8);
+	padding: var(--base-size-4) var(--base-size-12);
+	background: var(--button-default-bgColor-rest);
+	border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+	color: var(--button-default-fgColor-rest);
+}
+
+.reload:hover {
+	background: var(--button-default-bgColor-hover);
+}

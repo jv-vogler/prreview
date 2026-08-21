@@ -12,6 +12,7 @@ import { RootPage } from "./pages/RootPage";
 import { UnderstandPage } from "./pages/UnderstandPage";
 import { ClientContainerProvider } from "./view/app/ClientContainerProvider";
 import { FindingSelectionProvider } from "./view/findings/FindingSelectionProvider";
+import { ErrorScreen } from "./view/general/ErrorScreen";
 import { TooltipProvider } from "./view/general/Tooltip";
 import { ThemeProvider } from "./view/styling/ThemeProvider";
 import "./view/styling/tokens.css";
@@ -45,18 +46,27 @@ const queryClient = new QueryClient({
  * charged a click for half a thought. Old links land on the whole thing.
  */
 const router = createBrowserRouter([
-	{ path: "/", element: <RootPage /> },
-	{ path: "/orient", element: <Navigate to="/understand" replace /> },
-	{ path: "/overview", element: <Navigate to="/understand" replace /> },
 	{
-		element: <ReviewLayout />,
+		// One boundary over everything, because there is exactly one way this
+		// app fails before it can draw: the session or the changeset does not
+		// arrive. Without it a suspending query's throw reached React Router's
+		// default page, which reads like a stack trace and names no remedy.
+		errorElement: <ErrorScreen />,
 		children: [
-			{ path: "/understand", element: <UnderstandPage /> },
-			{ path: "/diff", element: <DiffPage /> },
-			{ path: "/comments", element: <CommentsPage /> },
+			{ path: "/", element: <RootPage /> },
+			{ path: "/orient", element: <Navigate to="/understand" replace /> },
+			{ path: "/overview", element: <Navigate to="/understand" replace /> },
+			{
+				element: <ReviewLayout />,
+				children: [
+					{ path: "/understand", element: <UnderstandPage /> },
+					{ path: "/diff", element: <DiffPage /> },
+					{ path: "/comments", element: <CommentsPage /> },
+				],
+			},
+			{ path: "*", element: <RootPage /> },
 		],
 	},
-	{ path: "*", element: <RootPage /> },
 ]);
 
 const rootElement = document.getElementById("root");

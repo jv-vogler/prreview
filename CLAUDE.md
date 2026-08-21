@@ -36,7 +36,7 @@ gitignored — `plan/design-understanding-and-comments.md` is the current design
 
 | Command | Does |
 |---|---|
-| `npm run dev` | server via tsx watch (`--dev`, port 4973) + Vite client — open Vite's printed URL; it proxies `/api` |
+| `npm run dev` | server via tsx watch (`--dev`, port 4973) + Vite client — open Vite's printed URL; it proxies `/api`. `PRREVIEW_DEV_TARGET=<target>` chooses what to review; the scripts pass no target, so without it a clean tree on the default branch has nothing to auto-detect and the server refuses to boot |
 | `npm run dev:mock` | the same, with `scripts/mock-agent` on PATH as `claude` — real UI, generated answers, no spend |
 | `npm run build` | `dist/cli.js` (tsdown) + `dist/client/` (vite) — both targets |
 | `npm test` | vitest, two projects: `server` (node) and `client` (jsdom) |
@@ -45,6 +45,25 @@ gitignored — `plan/design-understanding-and-comments.md` is the current design
 | `npm run lint` | biome + stylelint + the dto import gate (`scripts/check-dto-imports.mjs`) |
 | `npm run typecheck` | `tsc -b` (solution: node side + client) |
 | `scripts/verify-pack.sh` | packs the tarball, asserts exact contents, installs it, serves, probes `/api/session` |
+
+**Which repo gets reviewed is the server's cwd, always.** The repo root comes from the process's
+own working directory, and `gh pr view <n>` runs there too — so a PR number or URL resolves
+against the repo you started the server in, never against the owner/repo in the URL, and the PR's
+head is fetched into that clone. `npm run dev` therefore reviews *this* repo. To point the dev
+loop at another checkout, start the two halves separately — the server from that checkout, Vite
+from here (it proxies `/api` to `127.0.0.1:4973` no matter where the server runs):
+
+```sh
+# terminal 1, in the checkout you want reviewed
+set -x PATH /path/to/prreview/scripts/mock-agent $PATH   # optional: mock agent instead of real spend
+/path/to/prreview/node_modules/.bin/tsx watch /path/to/prreview/src/interface/cli/index.ts --dev 11
+
+# terminal 2, in prreview
+npx vite src/client                                      # open http://localhost:5173
+```
+
+For plain "does it work on this PR", skip dev mode: `npm run link` here, then `prreview 11` in
+that checkout.
 
 ## Architecture
 
@@ -103,6 +122,21 @@ Key structural facts:
   The narrowing recipe lives in `domain/understanding/narrowToHunks.ts` —
   read its comment before touching it; filtering the `hunks` array does **not** work, and the
   failure renders nothing while logging a renderer error (`spikes/topic-render/VERDICT.md`).
+- **A missing API server is said, not waited on**: in dev the server is a second
+  process and is allowed to be absent — `npm run dev` leaves Vite up when the server
+  refuses to boot, and `tsx watch` drops it for a moment on every server edit. On WSL2 a
+  connect to a port nothing is listening on is never refused; the localhost relay hands
+  it to Windows and it stays pending, so no proxy error was ever emitted and the app sat
+  on "Loading review…" forever with the real reason printed in a terminal behind the
+  browser. Three pieces close it, and none of them is a timeout on the reader's socket:
+  `src/client/vite.config.ts` gates `/api` on a 500ms connect probe and answers
+  `503 {reason:"unreachable"}` itself (its `proxyTimeout` covers the other silence, a
+  server that accepts and then says nothing, and `/api/events` is exempt because SSE is
+  an open response), `httpClients/apiClient.ts` turns a fetch that never got an answer
+  into that same `HttpError`, and the router's one `errorElement`
+  (`view/general/ErrorScreen.tsx`) turns both into a screen naming what is missing. The
+  proxy entries carry `changeOrigin` explicitly, because Vite adds it only to the string
+  shorthand and the host allowlist rejects a forwarded `Host` without it.
 - **Engine layer**: the intelligence is the user's own `claude` CLI, driven as short-lived child
   processes. `src/infrastructure/engine/` spawns them (argv array, `shell: false`, prompt on
   stdin, line-delimited JSON back), and `runManager.ts` runs at most two **runs** at a time — one

@@ -37,7 +37,7 @@
 	},
 	"scripts": {
 		"build": "tsdown && vite build src/client",
-		"dev": "concurrently \"tsx watch src/interface/cli/index.ts --dev\" \"vite src/client\"",
+		"dev": "concurrently \"tsx watch src/interface/cli/index.ts --dev $PRREVIEW_DEV_TARGET\" \"vite src/client\"",
 		"dev:mock": "PATH=\"$PWD/scripts/mock-agent:$PATH\" npm run dev",
 		"link": "npm run build && npm link",
 		"unlink": "npm unlink -g @jv-vogler/prreview",

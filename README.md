@@ -52,6 +52,21 @@ keyboard shortcuts.
 If you use a version manager (nvm, mise, fnm), the link belongs to the Node version that was
 active when you made it — switch versions and you will need `npm run link` again.
 
+### A PR in another repo
+
+prreview reviews **the repository you run it in**. The PR lookup (`gh pr view`) and the fetch of
+the PR's head both happen in that repo, so a PR number *or* a full PR URL only resolves for the
+repo you are standing in — the owner/repo in the URL does not send prreview somewhere else. Clone
+it first:
+
+```sh
+git clone https://github.com/OWNER/REPO && cd REPO
+prreview 11                 # or: prreview https://github.com/OWNER/REPO/pull/11
+```
+
+The clone needs an `origin` pointing at that repo, and a `gh` login that can see it if it is
+private. The session lands in a `.prreview/` directory at that repo's root.
+
 ## What you can review
 
 ```
