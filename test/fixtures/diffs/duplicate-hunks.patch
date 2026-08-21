@@ -1,0 +1,22 @@
+diff --git a/twins.js b/twins.js
+index f8c58cf..67f4c01 100644
+--- a/twins.js
++++ b/twins.js
+@@ -2,7 +2,7 @@
+ alpha
+ beta
+ gamma
+-delta
++DELTA
+ epsilon
+ zeta
+ eta
+@@ -10,7 +10,7 @@ eta
+ alpha
+ beta
+ gamma
+-delta
++DELTA
+ epsilon
+ zeta
+ eta

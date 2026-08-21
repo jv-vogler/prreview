@@ -7,6 +7,9 @@ import type { Hono } from "hono";
 import open from "open";
 import { buildContainer } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
+import type { Toolchain } from "../../domain/session/Toolchain";
+import { GitClient } from "../../infrastructure/git/GitClient";
+import { GhCliGithubService } from "../../infrastructure/github/GhCliGithubService";
 import { createApp } from "../http/app";
 import { resolveClientDir } from "../http/static";
 import { parseCliArgs } from "./args";
@@ -24,7 +27,22 @@ async function main(): Promise<void> {
 	const args = parseCliArgs(process.argv);
 
 	const repoRoot = await detectRepoRoot(process.cwd());
-	const container = buildContainer({ repoRoot });
+	// Temporary, until the real toolchain probe lands (agent detection is a
+	// Phase 4 concern): the GitHub side is exactly what GhCliGithubService
+	// already answers, so ask it directly rather than inventing a value.
+	const toolchain: Toolchain = {
+		agent: { kind: "none" },
+		github: await new GhCliGithubService(
+			new GitClient(repoRoot),
+			repoRoot,
+		).probe(),
+	};
+	const container = buildContainer({ repoRoot }, toolchain);
+
+	const { announce: changesetAnnounce } = await container.resolveChangeset({
+		...(args.target === undefined ? {} : { target: args.target }),
+		...(args.base === undefined ? {} : { base: args.base }),
+	});
 
 	// --dev pins the port (the Vite proxy targets it) and leaves static
 	// serving to Vite
@@ -45,7 +63,7 @@ async function main(): Promise<void> {
 	await listen(app, port);
 
 	const url = `http://${BIND_HOST}:${port}/`;
-	announce(url, args);
+	announce(url, args, changesetAnnounce);
 
 	if (args.open && !args.dev) {
 		// fire-and-forget: a browser that cannot be opened (WSL2, headless
@@ -85,12 +103,24 @@ async function detectRepoRoot(cwd: string): Promise<string> {
 	}
 }
 
-function announce(url: string, args: { open: boolean; dev: boolean }): void {
+/** What was resolved, the explicit form that overrides it, and where to look. */
+function announce(
+	url: string,
+	args: { open: boolean; dev: boolean },
+	changeset: { resolved: string; overrideHint: string },
+): void {
 	const openLine =
 		args.open && !args.dev
 			? "opening your browser…"
 			: `open ${url} in your browser`;
-	process.stdout.write(`prreview: serving at ${url} — ${openLine}\n`);
+	process.stdout.write(
+		[
+			`prreview: reviewing ${changeset.resolved}`,
+			`  ${changeset.overrideHint}`,
+			`  serving at ${url} — ${openLine}`,
+			"",
+		].join("\n"),
+	);
 }
 
 /**
