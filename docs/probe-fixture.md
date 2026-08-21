@@ -4,9 +4,9 @@ line 001
 line 002
 line 003
 line 004
-line 005
-line 006
-line 007
+line 005 CHANGED
+line 006 CHANGED
+line 007 CHANGED
 line 008
 line 009
 line 010
@@ -19,7 +19,7 @@ line 016
 line 017
 line 018
 line 019
-line 020
+line 020 CHANGED
 line 021
 line 022
 line 023
@@ -34,7 +34,6 @@ line 031
 line 032
 line 033
 line 034
-line 035
 line 036
 line 037
 line 038
