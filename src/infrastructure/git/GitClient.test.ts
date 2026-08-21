@@ -59,6 +59,26 @@ describe("verifyRef", () => {
 		const client = new GitClient(repo.root);
 		await expect(client.verifyRef("no-such-branch")).rejects.toThrow();
 	});
+
+	/*
+		The one that only a real git can fail. `rev-parse --verify` handed a
+		full 40-hex string echoes it back without looking for the object, so
+		every fake that models the documented contract passes while the adapter
+		says "present" about a commit this repo has never seen. That answer is
+		what stopped a PR head from being fetched once its branch was deleted.
+	*/
+	it("rejects a full-length sha this repo does not have", async () => {
+		const repo = await fixtureRepo();
+		const client = new GitClient(repo.root);
+		await expect(client.verifyRef("d".repeat(40))).rejects.toThrow();
+	});
+
+	it("resolves a full-length sha this repo does have", async () => {
+		const repo = await fixtureRepo();
+		const client = new GitClient(repo.root);
+		const head = await repo.headSha();
+		expect(await client.verifyRef(head)).toBe(head);
+	});
 });
 
 describe("remoteUrl", () => {

@@ -73,10 +73,27 @@ export class GitClient {
 		).trim();
 	}
 
-	/** Resolves a ref to its commit sha; throws raw when the ref does not exist. */
+	/**
+	 * Resolves a revision to the sha of a commit that is actually here.
+	 *
+	 * The `^{commit}` peel is load-bearing. `rev-parse --verify` handed a full
+	 * 40-hex string succeeds and echoes it straight back without ever looking
+	 * for the object, so the bare form answered "yes, present" for every sha in
+	 * existence and the port's documented "rejects when it does not exist" was
+	 * false for precisely the input that matters. `commitExistsLocally` asked
+	 * this question about a PR's headRefOid, always heard yes, and so the head
+	 * of a PR whose branch is gone was never fetched — the run died one line
+	 * later in `merge-base`, which is where the sha's absence finally showed up.
+	 * Peeling also resolves an annotated tag to the commit a diff can use.
+	 */
 	async verifyRef(ref: string): Promise<string> {
 		return (
-			await this.git(["rev-parse", "--verify", "--end-of-options", ref])
+			await this.git([
+				"rev-parse",
+				"--verify",
+				"--end-of-options",
+				`${ref}^{commit}`,
+			])
 		).trim();
 	}
 
