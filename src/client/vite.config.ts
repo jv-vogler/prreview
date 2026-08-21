@@ -111,6 +111,8 @@ function unreachableOnError(proxy: HttpProxy.ProxyServer): void {
 
 export default defineConfig({
 	plugins: [apiUnreachableGate(), react()],
+	// @pierre/diffs ships ESM workers; the classic-worker default cannot load them
+	worker: { format: "es" },
 	resolve: {
 		alias: {
 			// the wire contract: the only server folder the client may import

@@ -1,0 +1,5 @@
+.codeView {
+	height: 100%;
+	overflow: auto;
+	background: var(--bgColor-default);
+}

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ReviewPage } from "./ReviewPage";
 
 describe("ReviewPage", () => {
-	it("renders", () => {
+	it("shows a loading state while the changeset is being fetched", () => {
 		render(<ReviewPage />);
-		expect(screen.getByText("prreview")).toBeTruthy();
+		expect(screen.getByText("Loading review…")).toBeTruthy();
 	});
 });

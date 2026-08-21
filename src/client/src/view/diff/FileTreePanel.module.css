@@ -1,0 +1,98 @@
+.panel {
+	height: 100%;
+	overflow-y: auto;
+	border-right: var(--borderWidth-thin) solid var(--borderColor-default);
+	background: var(--bgColor-default);
+	padding: var(--base-size-8);
+}
+
+.heading {
+	margin: 0;
+	padding: var(--base-size-4) var(--base-size-8);
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-muted);
+}
+
+.fileCount {
+	font-weight: var(--base-text-weight-normal);
+}
+
+.list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--base-size-2);
+}
+
+/* a folder boundary, told with air rather than a rule */
+.list > li[data-group-start="true"] {
+	margin-top: var(--base-size-12);
+}
+
+.file {
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-8);
+	width: 100%;
+	padding: var(--base-size-4) var(--base-size-8);
+	background: transparent;
+	border: none;
+	border-radius: var(--borderRadius-medium);
+	text-align: left;
+	font-size: var(--text-body-size-small);
+}
+
+.file:hover {
+	background: var(--control-transparent-bgColor-hover);
+}
+
+.file[aria-current="true"] {
+	background: var(--bgColor-accent-muted);
+}
+
+.fileIcon {
+	display: inline-flex;
+	color: var(--fgColor-muted);
+	flex-shrink: 0;
+}
+
+.path {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.directory {
+	color: var(--fgColor-muted);
+}
+
+.meta {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--base-size-6);
+	flex-shrink: 0;
+}
+
+.counts {
+	display: inline-flex;
+	gap: var(--base-size-4);
+	font-variant-numeric: tabular-nums;
+}
+
+.additions {
+	color: var(--fgColor-success);
+}
+
+.deletions {
+	color: var(--fgColor-danger);
+}
+
+.binaryTag {
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+}

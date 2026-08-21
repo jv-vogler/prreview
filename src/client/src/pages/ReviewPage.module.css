@@ -1,0 +1,44 @@
+.layout {
+	display: flex;
+	height: 100%;
+}
+
+.main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.overview {
+	flex-shrink: 0;
+	padding: var(--base-size-16) var(--base-size-24);
+	border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
+	background: var(--bgColor-default);
+}
+
+.resolved {
+	margin: 0;
+	font-size: var(--text-body-size-medium);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-default);
+}
+
+.overrideHint {
+	margin: var(--base-size-4) 0 0;
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-muted);
+}
+
+.diff {
+	flex: 1;
+	min-height: 0;
+}
+
+.centered {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: var(--fgColor-muted);
+}
