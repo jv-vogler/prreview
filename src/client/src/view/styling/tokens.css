@@ -1,0 +1,28 @@
+/*
+ * GitHub's published design tokens: base size, typography and motion,
+ * functional size/border/typography/motion, and the six functional themes.
+ * The theme files scope every color token under Primer's scheme attributes
+ * (data-color-mode / data-light-theme / data-dark-theme), which the
+ * ThemeProvider maintains on the root element.
+ *
+ * The base layer is not optional decoration under the functional one: every
+ * functional token is literally `var(--base-…)`, so a missing base import
+ * does not degrade a value, it deletes it. A `transition` or `animation`
+ * shorthand whose duration fails to substitute is invalid at computed-value
+ * time and is thrown away whole — the property computes to its initial
+ * `all 0s` and the motion silently never plays.
+ */
+@import "@primer/primitives/dist/css/base/size/size.css";
+@import "@primer/primitives/dist/css/base/typography/typography.css";
+@import "@primer/primitives/dist/css/base/motion/motion.css";
+@import "@primer/primitives/dist/css/functional/size/size.css";
+@import "@primer/primitives/dist/css/functional/size/border.css";
+@import "@primer/primitives/dist/css/functional/size/radius.css";
+@import "@primer/primitives/dist/css/functional/typography/typography.css";
+@import "@primer/primitives/dist/css/functional/motion/motion.css";
+@import "@primer/primitives/dist/css/functional/themes/light.css";
+@import "@primer/primitives/dist/css/functional/themes/dark.css";
+@import "@primer/primitives/dist/css/functional/themes/light-high-contrast.css";
+@import "@primer/primitives/dist/css/functional/themes/dark-high-contrast.css";
+@import "@primer/primitives/dist/css/functional/themes/light-colorblind.css";
+@import "@primer/primitives/dist/css/functional/themes/dark-colorblind.css";

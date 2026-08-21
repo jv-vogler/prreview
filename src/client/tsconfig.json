@@ -1,17 +1,20 @@
 {
 	"compilerOptions": {
 		"target": "ES2023",
-		"lib": ["ES2023"],
+		"lib": ["ES2023", "DOM", "DOM.Iterable"],
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"moduleDetection": "force",
-		"types": ["node"],
+		"jsx": "react-jsx",
+		"paths": {
+			"@dto/*": ["../interface/http/dto/*"]
+		},
+		"types": [],
 		"strict": true,
 		"verbatimModuleSyntax": true,
 		"isolatedModules": true,
 		"skipLibCheck": true,
 		"noEmit": true
 	},
-	"include": ["src", "scripts", "test"],
-	"exclude": ["src/client"]
+	"include": ["src"]
 }
