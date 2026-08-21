@@ -3,6 +3,9 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Container } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
 import type { ErrorDto } from "./dto/ErrorDto";
+import type { ReviewState } from "./reviewState";
+import { blobRoute } from "./routes/blob";
+import { changesetRoute } from "./routes/changeset";
 import { registerStatic } from "./static";
 
 /**
@@ -12,10 +15,17 @@ import { registerStatic } from "./static";
  */
 const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	validation: 400,
+	"branch-not-found": 404,
+	"pr-not-found": 404,
+	"gh-unauthenticated": 403,
+	"unsupported-backend": 503,
 };
 
 export interface AppDeps {
 	container: Container;
+	state: ReviewState;
+	/** absolute repo toplevel — the WORKING blob containment root (SEC-002) */
+	repoRoot: string;
 	/** built client directory; null skips static serving (--dev, tests) */
 	clientDir: string | null;
 	/** test seam; defaults to console.error */
@@ -48,6 +58,15 @@ export function createApp(deps: AppDeps): Hono {
 		context.json({
 			status: "ok",
 			serverTime: deps.container.clock.now().toISOString(),
+		}),
+	);
+	app.route("/api/changeset", changesetRoute({ state: deps.state }));
+	app.route(
+		"/api/blob",
+		blobRoute({
+			state: deps.state,
+			git: deps.container.git,
+			repoRoot: deps.repoRoot,
 		}),
 	);
 

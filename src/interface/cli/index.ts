@@ -5,12 +5,14 @@ import { CommanderError } from "commander";
 import getPort, { portNumbers } from "get-port";
 import type { Hono } from "hono";
 import open from "open";
+import { readChangesetFiles } from "../../application/readChangesetFiles";
 import { buildContainer } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
 import type { Toolchain } from "../../domain/session/Toolchain";
 import { GitClient } from "../../infrastructure/git/GitClient";
 import { GhCliGithubService } from "../../infrastructure/github/GhCliGithubService";
 import { createApp } from "../http/app";
+import { createReviewState } from "../http/reviewState";
 import { resolveClientDir } from "../http/static";
 import { parseCliArgs } from "./args";
 
@@ -39,10 +41,17 @@ async function main(): Promise<void> {
 	};
 	const container = buildContainer({ repoRoot }, toolchain);
 
-	const { announce: changesetAnnounce } = await container.resolveChangeset({
-		...(args.target === undefined ? {} : { target: args.target }),
-		...(args.base === undefined ? {} : { base: args.base }),
-	});
+	const { ref, announce: changesetAnnounce } = await container.resolveChangeset(
+		{
+			...(args.target === undefined ? {} : { target: args.target }),
+			...(args.base === undefined ? {} : { base: args.base }),
+		},
+	);
+	const files = await readChangesetFiles(
+		{ git: container.git, githubService: container.githubService },
+		ref,
+	);
+	const state = createReviewState({ ref, announce: changesetAnnounce, files });
 
 	// --dev pins the port (the Vite proxy targets it) and leaves static
 	// serving to Vite
@@ -59,7 +68,7 @@ async function main(): Promise<void> {
 		);
 	}
 
-	const app = createApp({ container, clientDir });
+	const app = createApp({ container, state, repoRoot, clientDir });
 	await listen(app, port);
 
 	const url = `http://${BIND_HOST}:${port}/`;
