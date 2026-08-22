@@ -75,7 +75,7 @@
 		border-color var(--motion-transition-hover);
 	animation:
 		marker-arrive var(--motion-duration-medium) var(--motion-easing-enter) both,
-		marker-pulse 2s var(--motion-easing-move) infinite;
+		marker-pulse 1.2s var(--motion-easing-move) infinite;
 }
 
 .marker:hover {
