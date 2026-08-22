@@ -17,7 +17,6 @@ export function toReviewPassDto(
 		overview: stored.pass.overview,
 		verdict: stored.pass.verdict,
 		ticket: stored.pass.ticket,
-		qualityPoints: stored.pass.qualityPoints,
 		residue: stored.residue,
 		published: stored.published,
 		comments: effectiveComments(stored, files).map(toReviewCommentDto),

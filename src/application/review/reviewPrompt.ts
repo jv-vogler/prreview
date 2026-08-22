@@ -2,15 +2,18 @@ import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { Hunk } from "../../domain/changeset/Hunk";
 
 /**
- * The vendored review prompt (TASK-031), adapted from the `pr:local-review`
- * skill. Its prose discipline is the product and is preserved exactly: the
- * ≤500-character pasteable budget, the mandatory cut pass, the four
- * severity tiers mapped to GitHub alert blocks, one evidence block maximum,
- * the Verified:/Inferred: proof line, "Quality points", and the
- * pre-existing-findings lane. The only thing adapted is the output
- * instruction — structured output instead of a markdown scratchfile, since
- * prreview places, edits and publishes comments itself rather than reading
- * a file back.
+ * The vendored review prompt, adapted from the `pr:local-review` skill.
+ * Committed here rather than invoked by name so a fresh install does not
+ * depend on the reader having that skill.
+ *
+ * Its prose discipline is the product: the ≤500-character budget on the
+ * paragraph, the mandatory cut pass, the four severity tiers mapped to
+ * GitHub alert blocks, and the Verified:/Inferred: proof line all carry
+ * over. Two things differ deliberately. Output is structured rather than a
+ * markdown scratchfile, since prreview places, edits and publishes comments
+ * itself. And visual aids are exempt from the character budget instead of
+ * counting toward it — the budget exists to prevent textwalls, and a diff
+ * or table is what cures one.
  */
 export interface ReviewPromptInput {
 	/** what was resolved, in the same words the CLI announced to the user */
@@ -61,29 +64,76 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"Torn between two tiers? Pick the lower.",
 		"",
-		"## Comment discipline",
+		"## What a comment is",
 		"",
-		"Each finding's `body` is the pasteable comment: the alert block (tier + the consequence in a few words) followed by one paragraph of at most two sentences — what breaks and what it costs, consequence first, in terms a non-engineer could follow. Bullets over prose whenever they are easier to scan.",
+		"Two of the four fields you fill are pasted into GitHub as one comment, and two are not. Know which is which before you write.",
 		"",
-		"**Budget: pasteable prose ≤ 500 characters per finding** (alert text + paragraph + any bullets). Count it, don't eyeball it. Named exception — incident risk: a warning about data loss, a security hole, or breaking prod keeps whatever length it needs; cut explanation, never warnings.",
+		"**Pasted, in this order:** `body` — the alert block, then the paragraph — followed by `evidence`, if the finding needs one.",
 		"",
-		"**Mandatory cut pass:** draft the comment, then cut half of it; only the cut version is your final `body`. First drafts calibrate to 'thorough'.",
+		"**Not pasted:** `title` (a plain-language scan aid for the reviewer's list) and `proof` (their triage line).",
+		"",
+		"Because `title` never reaches GitHub, `body` has to stand on its own: the alert block's tier line is what tells a reader how bad this is, so it is mandatory, not decoration.",
+		"",
+		"### The shape",
+		"",
+		"`body` is exactly this — a two-line alert block, a blank line, then the paragraph **outside** the quote:",
+		"",
+		"~~~",
+		"> [!WARNING]",
+		"> **Should-fix** — orders can disappear with no trace",
+		"",
+		"When the payment provider retries a webhook, the second save fails and the error is swallowed — the order is lost and nothing is logged.",
+		"~~~",
+		"",
+		"`evidence` for that same finding is separate, and holds the visual aid:",
+		"",
+		"~~~",
+		"```diff",
+		"-  } catch (e) {}",
+		"+  } catch (e) { logger.error(e); throw e; }",
+		"```",
+		"~~~",
+		"",
+		"Match that example's length and density. Never quote the paragraph into the alert block, and never repeat the tier in the paragraph.",
+		"",
+		"### The paragraph",
+		"",
+		"One paragraph, at most two sentences: what breaks and what it costs, consequence first, in terms a non-engineer could follow.",
+		"",
+		"**Budget: ≤ 500 characters for the alert line plus the paragraph.** Count it, don't eyeball it. Visual aids in `evidence` do not count. Named exception — incident risk: a warning about data loss, a security hole, or breaking prod keeps whatever length it needs; cut explanation, never warnings.",
+		"",
+		"**Mandatory cut pass:** draft the paragraph, then cut half of it; only the cut version is your final `body`. First drafts calibrate to 'thorough'.",
 		"",
 		"**Never hard-wrap prose.** GitHub renders every newline inside a comment as a line break, so one paragraph is one line of text; let the reader's editor soft-wrap it.",
 		"",
-		"Never include in `body`: the code restated in words or anything the diff makes obvious; background the author already has; how you found the problem; a second fix option (pick the best one, or name the options in one sentence if the choice genuinely belongs to the author); the same fact as both prose and bullets.",
+		"Never include: the code restated in words or anything the diff makes obvious; background the author already has; how you found the problem; a second fix option (pick the best one, or name the options in one sentence if the choice genuinely belongs to the author); the same fact twice in two forms.",
 		"",
-		"At most one `evidence` block per finding — a ```diff fix, a small table, or an input → expected vs got line. It shows what `body` claims; it never restates `body`. Backtick every identifier, column and path inside both fields.",
+		"### Visual aids",
 		"",
-		"`proof` is one line for the reviewer's triage, never pasted into GitHub: `Verified: <how>` (set `verified: true`) or `Inferred: <why still confident>` (set `verified: false`).",
+		"`evidence` exists to make a finding land faster than prose can. Use it when it does that, and leave it out when it doesn't — plenty of findings need nothing, and an aid that just restates the paragraph makes the comment worse. One is typical; more than one has to earn it.",
+		"",
+		"Reach for, in this order of preference:",
+		"",
+		"- a ```diff block, whenever the fix is concrete — GitHub renders it red/green, and it is the most useful thing you can hand an author;",
+		"- a small table, when the point is several parallel facts (which of these are wired up, which of these paths handle the error);",
+		"- an `input → expected vs got` line, when the bug is behavioural;",
+		"- a short sequence sketch, only when the finding is genuinely about ordering — a race, a retry path.",
+		"",
+		"These are aids, not prose: they are exempt from the character budget precisely because they replace explanation rather than adding to it. A wall of bullets is prose wearing dashes — if an aid reads as paragraphs in disguise, it counts against the budget like the prose it is.",
+		"",
+		"Backtick every identifier, column and path, in both fields. Reference another file with a markdown link and a relative path.",
+		"",
+		"`proof` is one line for the reviewer's triage: `Verified: <how>` (set `verified: true`) or `Inferred: <why still confident>` (set `verified: false`).",
+		"",
+		"### The title",
+		"",
+		'`title` is plain language, names the consequence rather than the mechanism, and carries no identifiers — it is what the reviewer scans a list of findings by. "Retried webhooks silently drop orders", not "missing catch in `saveOrder`".',
 		"",
 		"## Lanes",
 		"",
 		'`lane: "review"` is feedback on this change. `lane: "pre-existing"` is a problem you noticed that predates this change — never review feedback on this PR, and never publishable as a comment on it. Only use `pre-existing` for something genuinely worth a follow-up; most runs have none.',
 		"",
-		"## Quality points",
-		"",
-		"At most 3 bullets, each a fact the author cannot already see: something you verified beyond what CI runs, or a non-obvious decision that is right. CI results, linter output, and praise adjectives never qualify. Nothing qualifies → leave the array empty. Do not invent findings or quality points to fill space — a clean PR with an honest empty list is a valid, complete review.",
+		"Do not invent findings to fill space — a clean PR with no findings is a valid, complete review.",
 		"",
 		"## Anchoring",
 		"",
@@ -91,7 +141,7 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"## Tone",
 		"",
-		'No fake-personal voice in either direction — never write "I really like this PR" or perform enthusiasm. State facts plainly; let the reviewer supply their own compliments from `qualityPoints`.',
+		'No fake-personal voice in either direction — never write "I really like this PR" or perform enthusiasm, and do not soften a finding to be polite. State facts plainly and let them carry their own weight.',
 		"",
 		"## The change",
 		"",

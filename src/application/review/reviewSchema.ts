@@ -26,13 +26,12 @@ const TITLE_MAX = 80;
  * one the engine wrote.
  */
 export const BODY_MAX = 900;
-const EVIDENCE_MAX = 600;
+/** aids are exempt from the prose budget, so this has to fit a diff and a table */
+const EVIDENCE_MAX = 1200;
 const PROOF_MAX = 240;
 const OVERVIEW_MAX = 1500;
 const VERDICT_MAX = 300;
 const TICKET_MAX = 300;
-const QUALITY_POINT_MAX = 300;
-const MAX_QUALITY_POINTS = 3;
 const MAX_FINDINGS = 40;
 
 const findingSchema = z.object({
@@ -40,10 +39,11 @@ const findingSchema = z.object({
 	startLine: z.int().min(1),
 	endLine: z.int().min(1),
 	tier: z.enum(TIER),
+	/** plain-language scan aid for the reviewer's list; never published */
 	title: z.string().max(TITLE_MAX),
 	/** the alert block plus the pasteable paragraph — never restates the diff */
 	body: z.string().max(BODY_MAX),
-	/** the single optional evidence block: a ```diff fix, a table, or input → expected/got */
+	/** the visual aid pasted under `body`: a ```diff fix, a table, or input → expected/got */
 	evidence: z.string().max(EVIDENCE_MAX).optional(),
 	/** "Verified: <how>" or "Inferred: <why still confident>" — the triage line */
 	proof: z.string().max(PROOF_MAX),
@@ -59,10 +59,6 @@ export const reviewPassSchema = z.object({
 	verdict: z.string().max(VERDICT_MAX),
 	/** null when no ticket reference was found anywhere */
 	ticket: z.string().max(TICKET_MAX).nullable(),
-	/** at most 3 facts the author cannot already see; empty when none qualify */
-	qualityPoints: z
-		.array(z.string().max(QUALITY_POINT_MAX))
-		.max(MAX_QUALITY_POINTS),
 	/** no minimum: a clean PR is a valid, complete review with no findings */
 	findings: z.array(findingSchema).max(MAX_FINDINGS),
 });

@@ -11,7 +11,6 @@ const PASS = {
 	overview: "adds a greeting endpoint",
 	verdict: "matches the ticket",
 	ticket: null,
-	qualityPoints: [],
 	findings: [],
 };
 

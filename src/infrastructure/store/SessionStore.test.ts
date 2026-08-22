@@ -9,7 +9,6 @@ const PASS: StoredReview["pass"] = {
 	overview: "adds a greeting endpoint",
 	verdict: "matches the ticket",
 	ticket: "PROJ-1",
-	qualityPoints: [],
 	findings: [],
 };
 

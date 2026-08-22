@@ -77,7 +77,6 @@ describe("POST /api/review", () => {
 					overview: "x",
 					verdict: "x",
 					ticket: null,
-					qualityPoints: [],
 					findings: [],
 				},
 				text: null,
@@ -130,7 +129,6 @@ describe("GET /api/review", () => {
 					overview: "x",
 					verdict: "x",
 					ticket: null,
-					qualityPoints: [],
 					findings: [],
 				},
 				text: null,
@@ -183,7 +181,6 @@ describe("GET /api/review", () => {
 					overview: "x",
 					verdict: "x",
 					ticket: null,
-					qualityPoints: [],
 					findings: [
 						{
 							path: "src/greeting.ts",
@@ -263,7 +260,6 @@ async function appWithOneFinding(
 				overview: "x",
 				verdict: "x",
 				ticket: null,
-				qualityPoints: [],
 				findings: options.findings ?? [
 					{
 						path: "src/greeting.ts",

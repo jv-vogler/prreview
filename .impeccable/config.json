@@ -1,23 +1,21 @@
 {
-  "detector": {
-    "ignoreRules": [],
-    "ignoreFiles": [],
-    "ignoreValues": [
-      {
-        "rule": "side-tab",
-        "value": "*",
-        "files": [
-          "spikes/pierre/src/AnnotationCard.tsx"
-        ],
-        "createdAt": "2026-08-15T05:50:43.037Z",
-        "reason": "plan TASK-010 fixture: 3 visually distinct annotation species to test @pierre/diffs renderAnnotation heights; spike code excluded from npm tarball, never shipped UI"
-      },
-      {
-        "rule": "overused-font",
-        "value": "mona sans",
-        "createdAt": "2026-08-22T04:43:17.925Z",
-        "reason": "matches GitHub's actual UI font to visually replicate github.com per user request, not a generic trendy pick"
-      }
-    ]
-  }
+	"detector": {
+		"ignoreRules": [],
+		"ignoreFiles": [],
+		"ignoreValues": [
+			{
+				"rule": "side-tab",
+				"value": "*",
+				"files": ["spikes/pierre/src/AnnotationCard.tsx"],
+				"createdAt": "2026-08-15T05:50:43.037Z",
+				"reason": "plan TASK-010 fixture: 3 visually distinct annotation species to test @pierre/diffs renderAnnotation heights; spike code excluded from npm tarball, never shipped UI"
+			},
+			{
+				"rule": "overused-font",
+				"value": "mona sans",
+				"createdAt": "2026-08-22T04:43:17.925Z",
+				"reason": "matches GitHub's actual UI font to visually replicate github.com per user request, not a generic trendy pick"
+			}
+		]
+	}
 }

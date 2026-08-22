@@ -11,7 +11,6 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 			overview: "x",
 			verdict: "x",
 			ticket: null,
-			qualityPoints: [],
 			findings: [
 				{
 					path: "src/a.ts",

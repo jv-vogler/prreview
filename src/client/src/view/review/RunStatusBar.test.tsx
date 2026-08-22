@@ -10,7 +10,6 @@ function passWithResidue(residue: string[]): ReviewPassDto {
 		overview: "x",
 		verdict: "x",
 		ticket: null,
-		qualityPoints: [],
 		comments: [],
 		residue,
 		published: null,

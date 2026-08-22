@@ -34,7 +34,6 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 			overview: "x",
 			verdict: "x",
 			ticket: null,
-			qualityPoints: [],
 			findings: [finding()],
 		},
 		residue: [],
@@ -117,6 +116,15 @@ describe("buildPublishPayload", () => {
 				wire: { path: "src/a.ts", line: 1, side: "RIGHT", body: "a finding" },
 			},
 		]);
+	});
+
+	it("pastes the visual aid under the body, leaving title and proof behind", () => {
+		const { included } = buildPublishPayload([
+			effective({ evidence: "```diff\n-  old\n+  new\n```" }),
+		]);
+		expect(included[0].wire.body).toBe(
+			"a finding\n\n```diff\n-  old\n+  new\n```",
+		);
 	});
 
 	it("carries a genuine multi-line exact placement as a range", () => {
@@ -209,7 +217,6 @@ describe("publishReview", () => {
 					overview: "x",
 					verdict: "x",
 					ticket: null,
-					qualityPoints: [],
 					findings: [finding({ lane: "pre-existing" })],
 				},
 			}),
@@ -247,7 +254,6 @@ describe("publishReview", () => {
 					overview: "x",
 					verdict: "x",
 					ticket: null,
-					qualityPoints: [],
 					findings: [
 						finding({ path: "src/a.ts", startLine: 1, endLine: 1 }),
 						finding({ path: "src/missing.ts", lane: "review" }),
