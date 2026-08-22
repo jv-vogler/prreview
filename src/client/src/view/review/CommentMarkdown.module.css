@@ -1,0 +1,111 @@
+.alert {
+	padding: var(--base-size-8) var(--base-size-12);
+	margin-bottom: var(--base-size-8);
+	border-left: var(--borderWidth-thick) solid var(--borderColor-default);
+	border-radius: var(--borderRadius-medium);
+	background: var(--bgColor-neutral-muted);
+}
+
+.alertLabel {
+	display: block;
+	margin-bottom: var(--base-size-4);
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-default);
+}
+
+.alert[data-alert-type="CAUTION"] {
+	background: var(--bgColor-danger-muted);
+	border-left-color: var(--fgColor-danger);
+}
+
+.alert[data-alert-type="CAUTION"] .alertLabel {
+	color: var(--fgColor-danger);
+}
+
+.alert[data-alert-type="WARNING"] {
+	background: var(--bgColor-attention-muted);
+	border-left-color: var(--fgColor-attention);
+}
+
+.alert[data-alert-type="WARNING"] .alertLabel {
+	color: var(--fgColor-attention);
+}
+
+.alert[data-alert-type="IMPORTANT"] {
+	background: var(--bgColor-done-muted);
+	border-left-color: var(--fgColor-done);
+}
+
+.alert[data-alert-type="IMPORTANT"] .alertLabel {
+	color: var(--fgColor-done);
+}
+
+.alert[data-alert-type="TIP"] {
+	background: var(--bgColor-success-muted);
+	border-left-color: var(--fgColor-success);
+}
+
+.alert[data-alert-type="TIP"] .alertLabel {
+	color: var(--fgColor-success);
+}
+
+.alert[data-alert-type="NOTE"] {
+	background: var(--bgColor-accent-muted);
+	border-left-color: var(--fgColor-accent);
+}
+
+.alert[data-alert-type="NOTE"] .alertLabel {
+	color: var(--fgColor-accent);
+}
+
+.prose {
+	font-size: var(--text-body-size-small);
+	color: var(--fgColor-default);
+	overflow-wrap: anywhere;
+}
+
+.prose :global(p) {
+	margin: 0 0 var(--base-size-8);
+}
+
+.prose :global(p:last-child) {
+	margin-bottom: 0;
+}
+
+.prose :global(ul),
+.prose :global(ol) {
+	margin: 0 0 var(--base-size-8);
+	padding-left: var(--base-size-20);
+}
+
+.prose :global(code) {
+	padding: 0 var(--base-size-4);
+	background: var(--bgColor-neutral-muted);
+	border-radius: var(--borderRadius-small);
+	font-family: var(--fontStack-monospace);
+	font-size: 0.9em;
+}
+
+.prose :global(pre) {
+	padding: var(--base-size-8);
+	overflow-x: auto;
+	background: var(--bgColor-neutral-muted);
+	border-radius: var(--borderRadius-medium);
+}
+
+.prose :global(pre code) {
+	padding: 0;
+	background: none;
+}
+
+.prose :global(table) {
+	border-collapse: collapse;
+	font-size: var(--text-body-size-small);
+}
+
+.prose :global(th),
+.prose :global(td) {
+	padding: var(--base-size-4) var(--base-size-8);
+	border: var(--borderWidth-thin) solid var(--borderColor-default);
+}

@@ -1,0 +1,146 @@
+import type { ReviewCommentDto, ReviewTierDto } from "@dto/ReviewDto";
+import { CommentBalloon } from "./CommentBalloon";
+import styles from "./CommentWorklist.module.css";
+import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "./reviewTier";
+
+export interface CommentWorklistProps {
+	comments: readonly ReviewCommentDto[];
+	expandedCommentIds: ReadonlySet<string>;
+	/** row clicked: expand it and, if it has a place on the diff, scroll there */
+	onJumpTo(comment: ReviewCommentDto): void;
+	/** the balloon's own collapse control: just closes it, no scrolling */
+	onCollapse(commentId: string): void;
+}
+
+/**
+ * The comment sidebar worklist (TASK-044, REQ-005): per-tier counts, then
+ * three sections so nothing is ever silently missing — the on-diff review
+ * comments, anything `clamped`/`unplaceable` that the diff cannot show
+ * (REQ-010), and pre-existing findings in their own lane (REQ-011).
+ */
+export function CommentWorklist({
+	comments,
+	expandedCommentIds,
+	onJumpTo,
+	onCollapse,
+}: CommentWorklistProps) {
+	const reviewComments = comments.filter(
+		(comment) => comment.lane === "review",
+	);
+	const onDiff = reviewComments.filter(
+		(comment) => comment.placement.kind === "exact",
+	);
+	const offDiff = reviewComments.filter(
+		(comment) => comment.placement.kind !== "exact",
+	);
+	const preExisting = comments.filter(
+		(comment) => comment.lane === "pre-existing",
+	);
+	const counts = countByTier(reviewComments);
+
+	return (
+		<aside className={styles.panel} aria-label="Review comments">
+			<h2 className={styles.heading}>Comments</h2>
+			{comments.length === 0 ? (
+				<p className={styles.empty}>No comments.</p>
+			) : (
+				<ul className={styles.counts}>
+					{REVIEW_TIER_ORDER.filter((tier) => counts[tier] > 0).map((tier) => (
+						<li key={tier} className={styles.count} data-tier={tier}>
+							{counts[tier]} {REVIEW_TIER_LABEL[tier]}
+						</li>
+					))}
+				</ul>
+			)}
+			<CommentSection
+				title={null}
+				comments={onDiff}
+				expandedCommentIds={expandedCommentIds}
+				onJumpTo={onJumpTo}
+				onCollapse={onCollapse}
+			/>
+			{offDiff.length > 0 && (
+				<CommentSection
+					title="Not shown in the diff"
+					comments={offDiff}
+					expandedCommentIds={expandedCommentIds}
+					onJumpTo={onJumpTo}
+					onCollapse={onCollapse}
+				/>
+			)}
+			{preExisting.length > 0 && (
+				<CommentSection
+					title="Pre-existing (noticed nearby, not part of this change)"
+					comments={preExisting}
+					expandedCommentIds={expandedCommentIds}
+					onJumpTo={onJumpTo}
+					onCollapse={onCollapse}
+				/>
+			)}
+		</aside>
+	);
+}
+
+function CommentSection({
+	title,
+	comments,
+	expandedCommentIds,
+	onJumpTo,
+	onCollapse,
+}: {
+	title: string | null;
+	comments: readonly ReviewCommentDto[];
+	expandedCommentIds: ReadonlySet<string>;
+	onJumpTo(comment: ReviewCommentDto): void;
+	onCollapse(commentId: string): void;
+}) {
+	if (comments.length === 0) {
+		return null;
+	}
+	return (
+		<section className={styles.section}>
+			{title !== null && <h3 className={styles.sectionTitle}>{title}</h3>}
+			<ul className={styles.list}>
+				{comments.map((comment) => (
+					<li key={comment.id}>
+						<button
+							type="button"
+							className={styles.row}
+							data-comment-row={comment.id}
+							data-tier={comment.tier}
+							onClick={() => onJumpTo(comment)}
+						>
+							<span className={styles.rowTier}>
+								{REVIEW_TIER_LABEL[comment.tier]}
+							</span>
+							<span className={styles.rowTitle}>{comment.title}</span>
+						</button>
+						{expandedCommentIds.has(comment.id) && (
+							<div className={styles.rowExpanded}>
+								<CommentBalloon
+									comment={comment}
+									onCollapse={() => onCollapse(comment.id)}
+								/>
+							</div>
+						)}
+					</li>
+				))}
+			</ul>
+		</section>
+	);
+}
+
+function countByTier(
+	comments: readonly ReviewCommentDto[],
+): Record<ReviewTierDto, number> {
+	const counts: Record<ReviewTierDto, number> = {
+		blocker: 0,
+		"should-fix": 0,
+		suggestion: 0,
+		nitpick: 0,
+	};
+	for (const comment of comments) {
+		counts[comment.tier]++;
+	}
+	return counts;
+}

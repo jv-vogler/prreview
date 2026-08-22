@@ -1,0 +1,41 @@
+.panel {
+	padding-top: var(--base-size-12);
+	margin-top: var(--base-size-12);
+	border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+.overview {
+	margin: 0;
+	color: var(--fgColor-default);
+	font-size: var(--text-body-size-medium);
+}
+
+.verdict {
+	margin: var(--base-size-8) 0 0;
+	color: var(--fgColor-muted);
+	font-style: italic;
+}
+
+.ticket {
+	margin: var(--base-size-4) 0 0;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+}
+
+.qualityPoints {
+	margin-top: var(--base-size-12);
+}
+
+.qualityHeading {
+	margin: 0 0 var(--base-size-4);
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	color: var(--fgColor-default);
+}
+
+.qualityList {
+	margin: 0;
+	padding-left: var(--base-size-20);
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+}

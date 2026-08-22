@@ -1,4 +1,5 @@
 import type { ChangesetDto } from "@dto/ChangesetDto";
+import type { ReviewCommentDto } from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getChangeset } from "../infrastructure/endpoints/getChangeset";
 import { getSession } from "../infrastructure/endpoints/getSession";
@@ -10,6 +11,8 @@ import {
 import { FileTreePanel } from "../view/diff/FileTreePanel";
 import { SidebarResizer } from "../view/diff/SidebarResizer";
 import { useSidebarWidth } from "../view/diff/useSidebarWidth";
+import { CommentWorklist } from "../view/review/CommentWorklist";
+import { OverviewPanel } from "../view/review/OverviewPanel";
 import { RunStatusBar } from "../view/review/RunStatusBar";
 import { useReviewRun } from "../view/review/useReviewRun";
 import styles from "./ReviewPage.module.css";
@@ -79,6 +82,30 @@ function ResolvedReview({
 	);
 	const handleRef = useRef<DiffWorkspaceHandle>(null);
 	const review = useReviewRun(api);
+	const [expandedCommentIds, setExpandedCommentIds] = useState<
+		ReadonlySet<string>
+	>(() => new Set());
+	const comments = useMemo<readonly ReviewCommentDto[]>(
+		() => review.pass?.comments ?? [],
+		[review.pass],
+	);
+
+	const onToggleComment = useCallback((commentId: string) => {
+		setExpandedCommentIds((current) => {
+			const next = new Set(current);
+			if (next.has(commentId)) {
+				next.delete(commentId);
+			} else {
+				next.add(commentId);
+			}
+			return next;
+		});
+	}, []);
+
+	const onJumpToComment = useCallback((comment: ReviewCommentDto) => {
+		setExpandedCommentIds((current) => new Set(current).add(comment.id));
+		handleRef.current?.scrollToComment(comment);
+	}, []);
 
 	// files without hunks (binary, mode-only, pure renames) have no rows to
 	// render; they stay in the tree but not in the code view
@@ -146,6 +173,7 @@ function ResolvedReview({
 					{review.startError !== null && (
 						<p className={styles.startError}>{review.startError}</p>
 					)}
+					{review.pass !== null && <OverviewPanel pass={review.pass} />}
 				</div>
 				{renderedFiles.length === 0 ? (
 					<div className={styles.centered}>Nothing to review.</div>
@@ -158,10 +186,21 @@ function ResolvedReview({
 							foldedFileIds={foldedFileIds}
 							onToggleFold={onToggleFold}
 							handleRef={handleRef}
+							comments={comments}
+							expandedCommentIds={expandedCommentIds}
+							onToggleComment={onToggleComment}
 						/>
 					</div>
 				)}
 			</div>
+			{review.pass !== null && comments.length > 0 && (
+				<CommentWorklist
+					comments={comments}
+					expandedCommentIds={expandedCommentIds}
+					onJumpTo={onJumpToComment}
+					onCollapse={onToggleComment}
+				/>
+			)}
 		</div>
 	);
 }
