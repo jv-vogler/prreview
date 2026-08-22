@@ -24,8 +24,15 @@
  * rule keep serving Firefox.
  */
 const SCROLLBAR_CSS = `
+	/*
+	 * Width stays 0, as Pierre's own rule has it: this element scrolls
+	 * horizontally and carries \`scrollbar-gutter: stable\`, so any width here
+	 * is reserved at the end of every row whether a bar is there or not —
+	 * which left every line, separator and annotation stopping 12px short of
+	 * the file header above them.
+	 */
 	[data-code]::-webkit-scrollbar {
-		width: var(--base-size-12);
+		width: 0;
 		height: var(--base-size-12);
 	}
 	[data-code]::-webkit-scrollbar-track {
@@ -105,5 +112,43 @@ const DIFF_LINE_COLORS_CSS = `
 	}
 `;
 
+/**
+ * The unfold, softened.
+ *
+ * Pierre rebuilds a file's rows when `collapsed` flips, so the body cannot be
+ * height-animated from out here — the rows do not exist to animate, and the
+ * list they land in is virtualized. What is available is the arrival: the code
+ * block fades and settles the last few pixels into place, which reads as the
+ * file opening rather than the page jumping. The header never animates, so the
+ * bar the reader clicked stays put under the cursor.
+ */
+const FOLD_CSS = `
+	@keyframes prreview-unfold {
+		from {
+			opacity: 0;
+			transform: translateY(calc(-1 * var(--base-size-4)));
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+	[data-diffs-header="default"] ~ [data-diff],
+	[data-diffs-header="default"] ~ [data-file] {
+		animation: prreview-unfold var(--motion-duration-short)
+			var(--motion-easing-enter) both;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		[data-diffs-header="default"] ~ [data-diff],
+		[data-diffs-header="default"] ~ [data-file] {
+			animation-name: prreview-unfold-reduced;
+		}
+		@keyframes prreview-unfold-reduced {
+			from { opacity: 0; }
+			to { opacity: 1; }
+		}
+	}
+`;
+
 /** for the Diff view's CodeView, where files fold */
-export const PIERRE_DIFF_CHROME_CSS = `${SCROLLBAR_CSS}${CLICKABLE_HEADER_CSS}${DIFF_LINE_COLORS_CSS}`;
+export const PIERRE_DIFF_CHROME_CSS = `${SCROLLBAR_CSS}${CLICKABLE_HEADER_CSS}${DIFF_LINE_COLORS_CSS}${FOLD_CSS}`;

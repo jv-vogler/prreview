@@ -102,9 +102,77 @@
 	border-left-color: var(--fgColor-success);
 }
 
+.row {
+	transition:
+		background-color var(--motion-transition-hover),
+		border-left-color var(--motion-transition-hover),
+		transform var(--motion-transition-hover);
+}
+
 .row:hover {
 	background: var(--bgColor-neutral-muted);
 	filter: brightness(0.97);
+}
+
+/*
+ * A dismissed comment is not deleted, it moves — out of its tier's section and
+ * into Dismissed. React unmounts it from one list and mounts it in the other,
+ * so the arrival is the only half that can be animated; sliding it in from the
+ * side is what makes it read as the same comment relocating rather than a new
+ * one appearing.
+ */
+@keyframes row-arrive {
+	from {
+		opacity: 0;
+		transform: translateX(var(--base-size-16));
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.section[data-lane="dismissed"] .row {
+	animation: row-arrive var(--motion-duration-medium) var(--motion-easing-enter)
+		both;
+}
+
+.rowExpanded {
+	margin-top: var(--base-size-4);
+	overflow: hidden;
+	animation: row-expand var(--motion-duration-medium) var(--motion-easing-enter)
+		both;
+}
+
+@keyframes row-expand {
+	from {
+		opacity: 0;
+		transform: translateY(calc(-1 * var(--base-size-4)));
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.section[data-lane="dismissed"] .row,
+	.rowExpanded {
+		animation-name: fade-only;
+	}
+
+	.row:hover {
+		transform: none;
+	}
+
+	@keyframes fade-only {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
 }
 
 .rowTier {
@@ -116,8 +184,4 @@
 .rowTitle {
 	color: var(--fgColor-default);
 	font-size: var(--text-body-size-small);
-}
-
-.rowExpanded {
-	margin-top: var(--base-size-4);
 }

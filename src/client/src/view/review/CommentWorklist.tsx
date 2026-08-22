@@ -86,6 +86,7 @@ export function CommentWorklist({
 			{dismissed.length > 0 && (
 				<CommentSection
 					title="Dismissed"
+					lane="dismissed"
 					comments={dismissed}
 					expandedCommentIds={expandedCommentIds}
 					onJumpTo={onJumpTo}
@@ -99,6 +100,7 @@ export function CommentWorklist({
 
 function CommentSection({
 	title,
+	lane,
 	comments,
 	expandedCommentIds,
 	onJumpTo,
@@ -106,6 +108,7 @@ function CommentSection({
 	actions,
 }: {
 	title: string | null;
+	lane?: string;
 	comments: readonly ReviewCommentDto[];
 	expandedCommentIds: ReadonlySet<string>;
 	onJumpTo(comment: ReviewCommentDto): void;
@@ -116,7 +119,7 @@ function CommentSection({
 		return null;
 	}
 	return (
-		<section className={styles.section}>
+		<section className={styles.section} data-lane={lane}>
 			{title !== null && <h3 className={styles.sectionTitle}>{title}</h3>}
 			<ul className={styles.list}>
 				{comments.map((comment) => (
