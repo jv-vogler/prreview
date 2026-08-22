@@ -1,0 +1,69 @@
+.controls {
+	display: flex;
+	gap: var(--base-size-4);
+	margin-top: var(--base-size-8);
+}
+
+.instruction {
+	padding: var(--base-size-2) var(--base-size-8);
+	background: var(--button-default-bgColor-rest);
+	border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	color: var(--fgColor-default);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+}
+
+.instruction:hover {
+	background: var(--button-default-bgColor-hover);
+}
+
+.status {
+	margin-top: var(--base-size-8);
+	padding: var(--base-size-8);
+	border-radius: var(--borderRadius-medium);
+	background: var(--bgColor-neutral-muted);
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+}
+
+.proposal {
+	margin-top: var(--base-size-8);
+	padding: var(--base-size-8);
+	border: var(--borderWidth-thin) solid var(--borderColor-accent-emphasis);
+	border-radius: var(--borderRadius-medium);
+	background: var(--bgColor-accent-muted);
+}
+
+.proposalLabel {
+	margin: 0 0 var(--base-size-4);
+	color: var(--fgColor-accent);
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+}
+
+.proposalBody {
+	margin: 0;
+	color: var(--fgColor-default);
+	font-size: var(--text-body-size-small);
+	overflow-wrap: anywhere;
+}
+
+.proposalActions {
+	display: flex;
+	gap: var(--base-size-8);
+	margin-top: var(--base-size-8);
+}
+
+.proposalActions button {
+	padding: var(--base-size-2) var(--base-size-8);
+	background: var(--button-default-bgColor-rest);
+	border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+}
+
+.proposalActions button:hover {
+	background: var(--button-default-bgColor-hover);
+}

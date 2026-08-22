@@ -5,6 +5,7 @@ export interface ApiClient {
 	get(path: string): Promise<unknown>;
 	put(path: string, body: unknown): Promise<unknown>;
 	post(path: string, body?: unknown): Promise<unknown>;
+	patch(path: string, body: unknown): Promise<unknown>;
 	delete(path: string): Promise<unknown>;
 }
 
@@ -36,6 +37,7 @@ export function createApiClient(fetchImpl: typeof fetch = fetch): ApiClient {
 		get: (path) => request(path),
 		put: (path, body) => request(path, jsonInit("PUT", body)),
 		post: (path, body) => request(path, jsonInit("POST", body)),
+		patch: (path, body) => request(path, jsonInit("PATCH", body)),
 		delete: (path) => request(path, { method: "DELETE" }),
 	};
 }

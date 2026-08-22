@@ -1,4 +1,5 @@
 import type { ReviewCommentDto, ReviewTierDto } from "@dto/ReviewDto";
+import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./CommentWorklist.module.css";
 import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "./reviewTier";
@@ -10,6 +11,7 @@ export interface CommentWorklistProps {
 	onJumpTo(comment: ReviewCommentDto): void;
 	/** the balloon's own collapse control: just closes it, no scrolling */
 	onCollapse(commentId: string): void;
+	actions: CommentActions;
 }
 
 /**
@@ -23,6 +25,7 @@ export function CommentWorklist({
 	expandedCommentIds,
 	onJumpTo,
 	onCollapse,
+	actions,
 }: CommentWorklistProps) {
 	const reviewComments = comments.filter(
 		(comment) => comment.lane === "review",
@@ -58,6 +61,7 @@ export function CommentWorklist({
 				expandedCommentIds={expandedCommentIds}
 				onJumpTo={onJumpTo}
 				onCollapse={onCollapse}
+				actions={actions}
 			/>
 			{offDiff.length > 0 && (
 				<CommentSection
@@ -66,6 +70,7 @@ export function CommentWorklist({
 					expandedCommentIds={expandedCommentIds}
 					onJumpTo={onJumpTo}
 					onCollapse={onCollapse}
+					actions={actions}
 				/>
 			)}
 			{preExisting.length > 0 && (
@@ -75,6 +80,7 @@ export function CommentWorklist({
 					expandedCommentIds={expandedCommentIds}
 					onJumpTo={onJumpTo}
 					onCollapse={onCollapse}
+					actions={actions}
 				/>
 			)}
 		</aside>
@@ -87,12 +93,14 @@ function CommentSection({
 	expandedCommentIds,
 	onJumpTo,
 	onCollapse,
+	actions,
 }: {
 	title: string | null;
 	comments: readonly ReviewCommentDto[];
 	expandedCommentIds: ReadonlySet<string>;
 	onJumpTo(comment: ReviewCommentDto): void;
 	onCollapse(commentId: string): void;
+	actions: CommentActions;
 }) {
 	if (comments.length === 0) {
 		return null;
@@ -120,6 +128,7 @@ function CommentSection({
 								<CommentBalloon
 									comment={comment}
 									onCollapse={() => onCollapse(comment.id)}
+									actions={actions}
 								/>
 							</div>
 						)}

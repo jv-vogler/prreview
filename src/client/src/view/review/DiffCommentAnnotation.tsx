@@ -1,5 +1,6 @@
 import type { ReviewCommentDto } from "@dto/ReviewDto";
 import { AlertFillIcon, CommentIcon } from "@primer/octicons-react";
+import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./DiffCommentAnnotation.module.css";
 
@@ -8,6 +9,7 @@ export interface DiffCommentAnnotationProps {
 	commentsById: ReadonlyMap<string, ReviewCommentDto>;
 	expandedCommentIds: ReadonlySet<string>;
 	onToggle(commentId: string): void;
+	actions: CommentActions;
 }
 
 /**
@@ -21,6 +23,7 @@ export function DiffCommentAnnotation({
 	commentsById,
 	expandedCommentIds,
 	onToggle,
+	actions,
 }: DiffCommentAnnotationProps) {
 	const comments = commentIds
 		.map((id) => commentsById.get(id))
@@ -64,6 +67,7 @@ export function DiffCommentAnnotation({
 					key={comment.id}
 					comment={comment}
 					onCollapse={() => onToggle(comment.id)}
+					actions={actions}
 				/>
 			))}
 		</div>

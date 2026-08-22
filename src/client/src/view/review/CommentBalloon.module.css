@@ -57,7 +57,8 @@
 	white-space: nowrap;
 }
 
-.collapse {
+.collapse,
+.iconButton {
 	flex: none;
 	display: flex;
 	align-items: center;
@@ -68,8 +69,13 @@
 	cursor: pointer;
 }
 
-.collapse:hover {
+.collapse:hover,
+.iconButton:hover {
 	color: var(--fgColor-default);
+}
+
+.iconButton[aria-pressed="true"] {
+	color: var(--fgColor-accent);
 }
 
 .proof {
@@ -79,4 +85,23 @@
 	margin: var(--base-size-8) 0 0;
 	color: var(--fgColor-muted);
 	font-size: var(--text-body-size-small);
+}
+
+.editor {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 6em;
+	padding: var(--base-size-8);
+	border: var(--borderWidth-thin) solid var(--borderColor-default);
+	border-radius: var(--borderRadius-medium);
+	background: var(--bgColor-default);
+	color: var(--fgColor-default);
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-body-size-small);
+	resize: vertical;
+}
+
+.editor:focus {
+	outline: none;
+	border-color: var(--borderColor-accent-emphasis);
 }

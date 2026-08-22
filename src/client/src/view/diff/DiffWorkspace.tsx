@@ -20,6 +20,7 @@ import {
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
 import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
+import type { CommentActions } from "../review/CommentActions";
 import { DiffCommentAnnotation } from "../review/DiffCommentAnnotation";
 import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import styles from "./DiffWorkspace.module.css";
@@ -48,6 +49,7 @@ export interface DiffWorkspaceProps {
 	comments: readonly ReviewCommentDto[];
 	expandedCommentIds: ReadonlySet<string>;
 	onToggleComment(commentId: string): void;
+	actions: CommentActions;
 }
 
 const ANNOTATION_SIDE: Record<CommentAnchorSideDto, "deletions" | "additions"> =
@@ -67,6 +69,7 @@ export function DiffWorkspace({
 	comments,
 	expandedCommentIds,
 	onToggleComment,
+	actions,
 }: DiffWorkspaceProps) {
 	const codeViewRef = useRef<CodeViewHandle<DiffAnnotationMeta>>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -229,6 +232,7 @@ export function DiffWorkspace({
 					commentsById={commentsById}
 					expandedCommentIds={expandedCommentIds}
 					onToggle={onToggleComment}
+					actions={actions}
 				/>
 			)}
 			options={{
