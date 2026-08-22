@@ -8,10 +8,12 @@ import open from "open";
 import { readChangesetFiles } from "../../application/readChangesetFiles";
 import { buildContainer } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
-import type { Toolchain } from "../../domain/session/Toolchain";
 import { GitClient } from "../../infrastructure/git/GitClient";
-import { GhCliGithubService } from "../../infrastructure/github/GhCliGithubService";
+import { probeToolchain } from "../../infrastructure/toolchain/probeToolchain";
 import { createApp } from "../http/app";
+import { createAppEventPublisher } from "../http/events/appEventPublisher";
+import { createSseHub } from "../http/events/sseHub";
+import { createReviewRunner } from "../http/reviewRunner";
 import { createReviewState } from "../http/reviewState";
 import { resolveClientDir } from "../http/static";
 import { parseCliArgs } from "./args";
@@ -29,17 +31,11 @@ async function main(): Promise<void> {
 	const args = parseCliArgs(process.argv);
 
 	const repoRoot = await detectRepoRoot(process.cwd());
-	// Temporary, until the real toolchain probe lands (agent detection is a
-	// Phase 4 concern): the GitHub side is exactly what GhCliGithubService
-	// already answers, so ask it directly rather than inventing a value.
-	const toolchain: Toolchain = {
-		agent: { kind: "none" },
-		github: await new GhCliGithubService(
-			new GitClient(repoRoot),
-			repoRoot,
-		).probe(),
-	};
+	const toolchain = await probeToolchain(new GitClient(repoRoot), repoRoot);
 	const container = buildContainer({ repoRoot }, toolchain);
+	await container.sessionStore.ensureExcluded(
+		await container.git.gitCommonDir(),
+	);
 
 	const { ref, announce: changesetAnnounce } = await container.resolveChangeset(
 		{
@@ -52,6 +48,13 @@ async function main(): Promise<void> {
 		ref,
 	);
 	const state = createReviewState({ ref, announce: changesetAnnounce, files });
+
+	const hub = createSseHub();
+	const runner = createReviewRunner(
+		container,
+		state,
+		createAppEventPublisher(hub),
+	);
 
 	// --dev pins the port (the Vite proxy targets it) and leaves static
 	// serving to Vite
@@ -68,7 +71,7 @@ async function main(): Promise<void> {
 		);
 	}
 
-	const app = createApp({ container, state, repoRoot, clientDir });
+	const app = createApp({ container, state, runner, hub, repoRoot, clientDir });
 	await listen(app, port);
 
 	const url = `http://${BIND_HOST}:${port}/`;

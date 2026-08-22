@@ -4,8 +4,10 @@ import {
 	createFixtureRepo,
 	type FixtureRepo,
 } from "../../../../test/helpers/createFixtureRepo";
+import { stubReviewRunner } from "../../../../test/helpers/stubReviewRunner";
 import type { FileDiff } from "../../../domain/changeset/FileDiff";
 import { createApp } from "../app";
+import { createSseHub } from "../events/sseHub";
 import { createReviewState } from "../reviewState";
 
 const disposables: FixtureRepo[] = [];
@@ -46,6 +48,8 @@ async function fixtureApp(files: FileDiff[]) {
 	const app = createApp({
 		container,
 		state,
+		runner: stubReviewRunner(),
+		hub: createSseHub(),
 		repoRoot: repo.root,
 		clientDir: null,
 	});

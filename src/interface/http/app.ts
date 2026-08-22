@@ -2,10 +2,16 @@ import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Container } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
+import { deriveFeatureFlags } from "../../domain/session/deriveFeatureFlags";
 import type { ErrorDto } from "./dto/ErrorDto";
+import type { SessionDto } from "./dto/SessionDto";
+import type { SseHub } from "./events/sseHub";
+import type { ReviewRunner } from "./reviewRunner";
 import type { ReviewState } from "./reviewState";
 import { blobRoute } from "./routes/blob";
 import { changesetRoute } from "./routes/changeset";
+import { eventsRoute } from "./routes/events";
+import { reviewRoute } from "./routes/review";
 import { registerStatic } from "./static";
 
 /**
@@ -19,11 +25,14 @@ const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	"pr-not-found": 404,
 	"gh-unauthenticated": 403,
 	"unsupported-backend": 503,
+	"agent-missing": 503,
 };
 
 export interface AppDeps {
 	container: Container;
 	state: ReviewState;
+	runner: ReviewRunner;
+	hub: SseHub;
 	/** absolute repo toplevel — the WORKING blob containment root (SEC-002) */
 	repoRoot: string;
 	/** built client directory; null skips static serving (--dev, tests) */
@@ -54,12 +63,14 @@ export function createApp(deps: AppDeps): Hono {
 		return context.json(body, 500);
 	});
 
-	app.get("/api/session", (context) =>
-		context.json({
+	app.get("/api/session", (context) => {
+		const body: SessionDto = {
 			status: "ok",
 			serverTime: deps.container.clock.now().toISOString(),
-		}),
-	);
+			featureFlags: deriveFeatureFlags(deps.container.toolchain),
+		};
+		return context.json(body);
+	});
 	app.route("/api/changeset", changesetRoute({ state: deps.state }));
 	app.route(
 		"/api/blob",
@@ -69,6 +80,8 @@ export function createApp(deps: AppDeps): Hono {
 			repoRoot: deps.repoRoot,
 		}),
 	);
+	app.route("/api/review", reviewRoute({ runner: deps.runner }));
+	app.route("/api/events", eventsRoute({ hub: deps.hub }));
 
 	if (deps.clientDir !== null) {
 		registerStatic(app, deps.clientDir);

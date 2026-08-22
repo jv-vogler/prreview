@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildTestContainer } from "../../../../test/helpers/buildTestContainer";
+import { stubReviewRunner } from "../../../../test/helpers/stubReviewRunner";
 import { createApp } from "../app";
+import { createSseHub } from "../events/sseHub";
 import { createReviewState } from "../reviewState";
 
 describe("GET /api/changeset", () => {
@@ -22,6 +24,8 @@ describe("GET /api/changeset", () => {
 		const app = createApp({
 			container,
 			state,
+			runner: stubReviewRunner(),
+			hub: createSseHub(),
 			repoRoot: "/repo",
 			clientDir: null,
 		});
