@@ -26,8 +26,7 @@
 		"prreview": "./dist/cli.js"
 	},
 	"files": [
-		"dist",
-		"skills"
+		"dist"
 	],
 	"publishConfig": {
 		"access": "public"

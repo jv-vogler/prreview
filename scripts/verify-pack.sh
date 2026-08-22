@@ -41,16 +41,16 @@ TARBALL="$WORK_DIR/$TARBALL_NAME"
 [ -f "$TARBALL" ] || fail "npm pack produced no tarball at $TARBALL"
 
 # ── 2. contents: nothing unexpected, nothing missing ─────────────────────
-# Allowed: dist/**, skills/**, README.md, LICENSE, package.json — and nothing else.
+# Allowed: dist/**, README.md, LICENSE, package.json — and nothing else.
 tar -tzf "$TARBALL" | sed 's|^package/||' | sort >"$WORK_DIR/contents.txt"
 
-UNEXPECTED="$(grep -Ev '^(dist/|skills/|README\.md$|LICENSE$|package\.json$)' "$WORK_DIR/contents.txt" || true)"
+UNEXPECTED="$(grep -Ev '^(dist/|README\.md$|LICENSE$|package\.json$)' "$WORK_DIR/contents.txt" || true)"
 if [ -n "$UNEXPECTED" ]; then
 	fail "unexpected files in the tarball:
 $UNEXPECTED"
 fi
 
-for required in dist/cli.js dist/client/index.html skills/prreview/SKILL.md README.md LICENSE package.json; do
+for required in dist/cli.js dist/client/index.html README.md LICENSE package.json; do
 	grep -qx "$required" "$WORK_DIR/contents.txt" ||
 		fail "required file missing from the tarball: $required"
 done
