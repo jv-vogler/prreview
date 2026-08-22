@@ -65,6 +65,8 @@ export const reviewCommentDtoSchema = z.object({
 	placement: commentPlacementDtoSchema,
 	/** true once the reader has overwritten `body` (TASK-046) */
 	edited: z.boolean(),
+	/** dismissed, not published — but still shown, so a restore is possible */
+	deleted: z.boolean(),
 });
 
 export type ReviewCommentDto = z.infer<typeof reviewCommentDtoSchema>;

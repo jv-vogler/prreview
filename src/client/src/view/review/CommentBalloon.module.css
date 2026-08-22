@@ -26,6 +26,12 @@
 	border-left-color: var(--fgColor-muted);
 }
 
+/* dismissed, not gone: still readable, visibly no longer in play */
+.balloon[data-dismissed="true"] {
+	border-left-color: var(--borderColor-muted);
+	opacity: 0.6;
+}
+
 .header {
 	display: flex;
 	align-items: baseline;

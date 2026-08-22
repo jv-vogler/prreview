@@ -1,6 +1,6 @@
 import type { ReviewCommentDto } from "@dto/ReviewDto";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 
@@ -17,12 +17,14 @@ const COMMENT: ReviewCommentDto = {
 	lane: "review",
 	placement: { kind: "unplaceable" },
 	edited: false,
+	deleted: false,
 };
 
 function actions(overrides: Partial<CommentActions> = {}): CommentActions {
 	return {
 		onEdit: vi.fn(),
 		onDelete: vi.fn(),
+		onRestore: vi.fn(),
 		reworkProposal: null,
 		onAcceptRework: vi.fn(),
 		onDismissRework: vi.fn(),
@@ -31,10 +33,6 @@ function actions(overrides: Partial<CommentActions> = {}): CommentActions {
 }
 
 describe("CommentBalloon", () => {
-	beforeEach(() => {
-		vi.spyOn(window, "confirm").mockReturnValue(true);
-	});
-
 	it("commits an edit on blur (TASK-047)", () => {
 		const onEdit = vi.fn();
 		render(
@@ -69,7 +67,7 @@ describe("CommentBalloon", () => {
 		expect(onEdit).not.toHaveBeenCalled();
 	});
 
-	it("deletes only after the reader confirms", () => {
+	it("calls onDelete when the delete button is clicked", () => {
 		const onDelete = vi.fn();
 		render(
 			<CommentBalloon
@@ -82,18 +80,21 @@ describe("CommentBalloon", () => {
 		expect(onDelete).toHaveBeenCalledWith("finding-0");
 	});
 
-	it("skips the delete when the reader cancels the confirm", () => {
-		vi.spyOn(window, "confirm").mockReturnValue(false);
-		const onDelete = vi.fn();
+	it("shows a restore button instead of edit/delete once dismissed", () => {
+		const onRestore = vi.fn();
 		render(
 			<CommentBalloon
-				comment={COMMENT}
+				comment={{ ...COMMENT, deleted: true }}
 				onCollapse={() => {}}
-				actions={actions({ onDelete })}
+				actions={actions({ onRestore })}
 			/>,
 		);
-		fireEvent.click(screen.getByRole("button", { name: /delete comment/i }));
-		expect(onDelete).not.toHaveBeenCalled();
+		expect(screen.queryByRole("button", { name: /edit comment/i })).toBeNull();
+		expect(
+			screen.queryByRole("button", { name: /delete comment/i }),
+		).toBeNull();
+		fireEvent.click(screen.getByRole("button", { name: /restore comment/i }));
+		expect(onRestore).toHaveBeenCalledWith("finding-0");
 	});
 
 	it("hides the rework control entirely when no agent is available (REQ-009)", () => {

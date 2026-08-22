@@ -57,7 +57,9 @@ export async function publishReview(
 		);
 	}
 
-	const { included } = buildPublishPayload(effectiveComments(stored, files));
+	const { included } = buildPublishPayload(
+		effectiveComments(stored, files).filter((comment) => !comment.deleted),
+	);
 	if (included.length === 0) {
 		throw new PublishError(
 			"nothing-publishable",

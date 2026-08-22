@@ -87,6 +87,7 @@ function effective(
 		lane: "review",
 		placement: { kind: "exact", fileId: "file-1", side: "new", line: 1 },
 		edited: false,
+		deleted: false,
 		...overrides,
 	};
 }
@@ -212,6 +213,21 @@ describe("publishReview", () => {
 					findings: [finding({ lane: "pre-existing" })],
 				},
 			}),
+		);
+		await expect(
+			publishReview(
+				{ githubService: new FakeGithubService(), sessionStore },
+				CHANGESET_ID,
+				PR_SOURCE,
+				[FILE],
+			),
+		).rejects.toMatchObject({ reason: "nothing-publishable" });
+	});
+
+	it("refuses when the only finding has been dismissed", async () => {
+		const sessionStore = new FakeSessionStore();
+		await sessionStore.saveReview(
+			storedReview({ commentEdits: { "finding-0": { deleted: true } } }),
 		);
 		await expect(
 			publishReview(

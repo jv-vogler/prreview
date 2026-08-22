@@ -39,5 +39,6 @@ function toReviewCommentDto(comment: EffectiveComment): ReviewCommentDto {
 		lane: comment.lane,
 		placement: comment.placement,
 		edited: comment.edited,
+		deleted: comment.deleted,
 	};
 }

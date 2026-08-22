@@ -27,16 +27,16 @@ export function CommentWorklist({
 	onCollapse,
 	actions,
 }: CommentWorklistProps) {
-	const reviewComments = comments.filter(
-		(comment) => comment.lane === "review",
-	);
+	const active = comments.filter((comment) => !comment.deleted);
+	const dismissed = comments.filter((comment) => comment.deleted);
+	const reviewComments = active.filter((comment) => comment.lane === "review");
 	const onDiff = reviewComments.filter(
 		(comment) => comment.placement.kind === "exact",
 	);
 	const offDiff = reviewComments.filter(
 		(comment) => comment.placement.kind !== "exact",
 	);
-	const preExisting = comments.filter(
+	const preExisting = active.filter(
 		(comment) => comment.lane === "pre-existing",
 	);
 	const counts = countByTier(reviewComments);
@@ -77,6 +77,16 @@ export function CommentWorklist({
 				<CommentSection
 					title="Pre-existing (noticed nearby, not part of this change)"
 					comments={preExisting}
+					expandedCommentIds={expandedCommentIds}
+					onJumpTo={onJumpTo}
+					onCollapse={onCollapse}
+					actions={actions}
+				/>
+			)}
+			{dismissed.length > 0 && (
+				<CommentSection
+					title="Dismissed"
+					comments={dismissed}
 					expandedCommentIds={expandedCommentIds}
 					onJumpTo={onJumpTo}
 					onCollapse={onCollapse}

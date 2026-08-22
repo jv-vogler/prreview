@@ -24,6 +24,7 @@ export interface ReworkProposal {
 export interface CommentActions {
 	onEdit(commentId: string, body: string): void;
 	onDelete(commentId: string): void;
+	onRestore(commentId: string): void;
 	onRework?(commentId: string, instruction: ReworkInstructionDto): void;
 	reworkProposal: ReworkProposal | null;
 	onAcceptRework(commentId: string, body: string): void;

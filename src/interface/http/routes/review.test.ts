@@ -338,24 +338,29 @@ describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
 });
 
 describe("DELETE /api/review/comments/:id and .../restore (TASK-046, TASK-047)", () => {
-	it("removes a comment from the answered pass, then restore brings it back", async () => {
+	it("marks a comment deleted rather than removing it, then restore clears that", async () => {
 		const { app } = await appWithOneFinding();
 		const deleted = await app.request("/api/review/comments/finding-0", {
 			method: "DELETE",
 		});
 		expect(deleted.status).toBe(200);
-		expect(
-			((await deleted.json()) as { comments: unknown[] }).comments,
-		).toEqual([]);
+		const deletedBody = (await deleted.json()) as {
+			comments: { id: string; deleted: boolean }[];
+		};
+		expect(deletedBody.comments).toEqual([
+			expect.objectContaining({ id: "finding-0", deleted: true }),
+		]);
 
 		const restored = await app.request(
 			"/api/review/comments/finding-0/restore",
 			{ method: "POST" },
 		);
 		expect(restored.status).toBe(200);
-		const body = (await restored.json()) as { comments: { id: string }[] };
+		const body = (await restored.json()) as {
+			comments: { id: string; deleted: boolean }[];
+		};
 		expect(body.comments).toEqual([
-			expect.objectContaining({ id: "finding-0" }),
+			expect.objectContaining({ id: "finding-0", deleted: false }),
 		]);
 	});
 });

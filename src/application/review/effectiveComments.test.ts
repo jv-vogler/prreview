@@ -75,11 +75,12 @@ describe("effectiveComments", () => {
 		expect(comment).toMatchObject({ body: "reworded", edited: true });
 	});
 
-	it("leaves a deleted finding out entirely rather than tagging it", () => {
+	it("tags a deleted finding rather than dropping it, so it can be restored", () => {
 		const stored = storedReview({
 			commentEdits: { "finding-0": { deleted: true } },
 		});
-		expect(effectiveComments(stored, [FILE])).toEqual([]);
+		const [comment] = effectiveComments(stored, [FILE]);
+		expect(comment).toMatchObject({ id: "finding-0", deleted: true });
 	});
 
 	it("marks a finding unplaceable when its path is not in the diff", () => {

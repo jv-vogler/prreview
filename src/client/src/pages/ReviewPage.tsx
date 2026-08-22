@@ -7,6 +7,7 @@ import { publishReview } from "../infrastructure/endpoints/publishReview";
 import {
 	deleteComment,
 	editComment,
+	restoreComment,
 	reworkComment,
 } from "../infrastructure/endpoints/reviewComments";
 import { createApiClient } from "../infrastructure/httpClients/apiClient";
@@ -117,6 +118,10 @@ function ResolvedReview({
 		() => review.pass?.comments ?? [],
 		[review.pass],
 	);
+	const activeComments = useMemo(
+		() => comments.filter((comment) => !comment.deleted),
+		[comments],
+	);
 
 	const onToggleComment = useCallback((commentId: string) => {
 		setExpandedCommentIds((current) => {
@@ -147,6 +152,15 @@ function ResolvedReview({
 	const onDeleteComment = useCallback(
 		(commentId: string) => {
 			deleteComment(api, commentId).then(review.applyPass, (cause) => {
+				setCurationError(describeError(cause));
+			});
+		},
+		[review.applyPass],
+	);
+
+	const onRestoreComment = useCallback(
+		(commentId: string) => {
+			restoreComment(api, commentId).then(review.applyPass, (cause) => {
 				setCurationError(describeError(cause));
 			});
 		},
@@ -248,6 +262,7 @@ function ResolvedReview({
 		() => ({
 			onEdit: onEditComment,
 			onDelete: onDeleteComment,
+			onRestore: onRestoreComment,
 			onRework: aiAvailable ? onRework : undefined,
 			reworkProposal,
 			onAcceptRework,
@@ -256,6 +271,7 @@ function ResolvedReview({
 		[
 			onEditComment,
 			onDeleteComment,
+			onRestoreComment,
 			onRework,
 			reworkProposal,
 			onAcceptRework,
@@ -338,7 +354,7 @@ function ResolvedReview({
 					{review.pass !== null && <OverviewPanel pass={review.pass} />}
 					{canPublish && review.pass !== null && (
 						<PublishControl
-							comments={comments}
+							comments={activeComments}
 							published={review.pass.published}
 							publishing={publishing}
 							error={publishError}
@@ -357,7 +373,7 @@ function ResolvedReview({
 							foldedFileIds={foldedFileIds}
 							onToggleFold={onToggleFold}
 							handleRef={handleRef}
-							comments={comments}
+							comments={activeComments}
 							expandedCommentIds={expandedCommentIds}
 							onToggleComment={onToggleComment}
 							actions={actions}
