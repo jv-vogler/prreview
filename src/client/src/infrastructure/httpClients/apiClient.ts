@@ -5,6 +5,7 @@ export interface ApiClient {
 	get(path: string): Promise<unknown>;
 	put(path: string, body: unknown): Promise<unknown>;
 	post(path: string, body?: unknown): Promise<unknown>;
+	delete(path: string): Promise<unknown>;
 }
 
 const NO_CONTENT = 204;
@@ -35,6 +36,7 @@ export function createApiClient(fetchImpl: typeof fetch = fetch): ApiClient {
 		get: (path) => request(path),
 		put: (path, body) => request(path, jsonInit("PUT", body)),
 		post: (path, body) => request(path, jsonInit("POST", body)),
+		delete: (path) => request(path, { method: "DELETE" }),
 	};
 }
 
@@ -90,7 +92,14 @@ async function toHttpError(response: Response): Promise<HttpError> {
 		const body = await response.json();
 		const parsed = errorDtoSchema.safeParse(body);
 		if (!parsed.success) {
-			return fallback;
+			// not an ErrorDto — a route like the review conflict answers its own
+			// shape, and the endpoint that called us is the one that knows it
+			return new HttpError(
+				response.status,
+				fallback.reason,
+				fallback.message,
+				body,
+			);
 		}
 		return new HttpError(
 			response.status,

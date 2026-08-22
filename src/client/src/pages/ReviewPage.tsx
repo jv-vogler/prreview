@@ -1,6 +1,7 @@
 import type { ChangesetDto } from "@dto/ChangesetDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getChangeset } from "../infrastructure/endpoints/getChangeset";
+import { getSession } from "../infrastructure/endpoints/getSession";
 import { createApiClient } from "../infrastructure/httpClients/apiClient";
 import {
 	DiffWorkspace,
@@ -9,6 +10,8 @@ import {
 import { FileTreePanel } from "../view/diff/FileTreePanel";
 import { SidebarResizer } from "../view/diff/SidebarResizer";
 import { useSidebarWidth } from "../view/diff/useSidebarWidth";
+import { RunStatusBar } from "../view/review/RunStatusBar";
+import { useReviewRun } from "../view/review/useReviewRun";
 import styles from "./ReviewPage.module.css";
 
 const api = createApiClient();
@@ -19,6 +22,9 @@ const api = createApiClient();
  */
 export function ReviewPage() {
 	const [changeset, setChangeset] = useState<ChangesetDto | null>(null);
+	// null = not yet known; the AI surface stays absent, not disabled, until
+	// the session answers (REQ-009) — never assume availability while waiting
+	const [aiAvailable, setAiAvailable] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 
 	useEffect(() => {
@@ -35,6 +41,16 @@ export function ReviewPage() {
 				}
 			},
 		);
+		getSession(api).then(
+			(session) => {
+				if (!cancelled) {
+					setAiAvailable(session.featureFlags.aiAvailable);
+				}
+			},
+			() => {
+				// the diff still works with no agent surface; nothing to recover
+			},
+		);
 		return () => {
 			cancelled = true;
 		};
@@ -46,16 +62,23 @@ export function ReviewPage() {
 	if (changeset === null) {
 		return <div className={styles.centered}>Loading review…</div>;
 	}
-	return <ResolvedReview changeset={changeset} />;
+	return <ResolvedReview changeset={changeset} aiAvailable={aiAvailable} />;
 }
 
-function ResolvedReview({ changeset }: { changeset: ChangesetDto }) {
+function ResolvedReview({
+	changeset,
+	aiAvailable,
+}: {
+	changeset: ChangesetDto;
+	aiAvailable: boolean;
+}) {
 	const { width, setWidth } = useSidebarWidth();
 	const [cursorFileIndex, setCursorFileIndex] = useState(0);
 	const [foldedFileIds, setFoldedFileIds] = useState<ReadonlySet<string>>(
 		() => new Set(),
 	);
 	const handleRef = useRef<DiffWorkspaceHandle>(null);
+	const review = useReviewRun(api);
 
 	// files without hunks (binary, mode-only, pure renames) have no rows to
 	// render; they stay in the tree but not in the code view
@@ -98,6 +121,7 @@ function ResolvedReview({ changeset }: { changeset: ChangesetDto }) {
 			</div>
 			<SidebarResizer width={width} onWidth={setWidth} />
 			<div className={styles.main}>
+				{aiAvailable && <RunStatusBar review={review} />}
 				<div className={styles.overview}>
 					<p className={styles.resolved}>
 						{capitalize(changeset.announce.resolved)}
@@ -105,6 +129,23 @@ function ResolvedReview({ changeset }: { changeset: ChangesetDto }) {
 					<p className={styles.overrideHint}>
 						{changeset.announce.overrideHint}
 					</p>
+					{aiAvailable && (
+						<button
+							type="button"
+							className={styles.reviewButton}
+							disabled={
+								review.starting ||
+								review.run?.status === "queued" ||
+								review.run?.status === "running"
+							}
+							onClick={review.start}
+						>
+							Review
+						</button>
+					)}
+					{review.startError !== null && (
+						<p className={styles.startError}>{review.startError}</p>
+					)}
 				</div>
 				{renderedFiles.length === 0 ? (
 					<div className={styles.centered}>Nothing to review.</div>

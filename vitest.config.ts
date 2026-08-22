@@ -28,6 +28,7 @@ export default defineConfig({
 					name: "client",
 					environment: "jsdom",
 					include: ["src/client/**/*.test.{ts,tsx}"],
+					setupFiles: ["./test/setup/reactTestingLibrary.ts"],
 				},
 			},
 		],

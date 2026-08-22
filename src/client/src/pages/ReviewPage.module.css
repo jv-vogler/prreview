@@ -30,6 +30,33 @@
 	color: var(--fgColor-muted);
 }
 
+.reviewButton {
+	margin-top: var(--base-size-12);
+	padding: var(--base-size-4) var(--base-size-16);
+	background: var(--button-primary-bgColor-rest);
+	border: var(--borderWidth-thin) solid var(--button-primary-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	color: var(--button-primary-fgColor-rest);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+}
+
+.reviewButton:hover:not(:disabled) {
+	background: var(--button-primary-bgColor-hover);
+}
+
+.reviewButton:disabled {
+	cursor: default;
+	opacity: 0.6;
+}
+
+.startError {
+	margin: var(--base-size-8) 0 0;
+	color: var(--fgColor-danger);
+	font-size: var(--text-body-size-small);
+}
+
 .diff {
 	flex: 1;
 	min-height: 0;
