@@ -47,25 +47,22 @@ const SCROLLBAR_CSS = `
 `;
 
 /**
- * The whole file header is the fold control.
+ * The whole file header is the fold control (hover shows the strip is live).
  *
- * A bar with a filename, a change count, and a chevron, where only the
- * chevron does anything, spends a wide target on nothing. GitHub folds on
- * the header, and so does this: the hover tells you the whole strip is live
- * before you commit to the click, which is the part that makes it discoverable
- * rather than merely true.
- *
- * The hover color has to be opaque. A sticky header paints over the code
- * scrolling beneath it, and a translucent background would let the code show
- * through exactly when the header is doing its job.
+ * Pierre's own default paints it in `--diffs-bg`, same as the code below it,
+ * so left alone it has no background of its own. GitHub's real header sits
+ * one step up, in canvas-subtle — overridden here at rest, with hover a
+ * further opaque step past that (a sticky header can't use a translucent
+ * hover: the code scrolling under it would show through).
  */
 const CLICKABLE_HEADER_CSS = `
 	[data-diffs-header="default"] {
 		cursor: pointer;
+		background-color: var(--bgColor-muted);
 		transition: background-color var(--motion-transition-hover);
 	}
 	[data-diffs-header="default"]:hover {
-		background-color: var(--bgColor-muted);
+		background-color: var(--bgColor-emphasis);
 	}
 `;
 

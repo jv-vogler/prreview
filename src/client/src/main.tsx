@@ -6,6 +6,7 @@ import { ReviewPage } from "./pages/ReviewPage";
 import { WorkerPoolHost } from "./view/app/WorkerPoolHost";
 import { ErrorScreen } from "./view/general/ErrorScreen";
 import { ThemeProvider } from "./view/styling/ThemeProvider";
+import "./view/styling/fonts.css";
 import "./view/styling/tokens.css";
 import "./view/styling/global.css";
 import "./view/styling/pierre-theme.css";
