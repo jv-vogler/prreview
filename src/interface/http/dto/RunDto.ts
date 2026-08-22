@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reviewPassDtoSchema } from "./ReviewDto";
 
 /**
  * Why a run ended badly. Spelled out rather than left a free string so the
@@ -81,15 +82,15 @@ export const runConflictDtoSchema = z.object({
 
 export type RunConflictDto = z.infer<typeof runConflictDtoSchema>;
 
-/** `GET /api/review`'s answer: the current run, or null between runs */
+/**
+ * `GET /api/review`'s answer: the current run (if any this process has
+ * seen), and the last completed pass (if any is on disk) — decoupled from
+ * each other, so a persisted pass from before a server restart still shows
+ * even though `run` is null.
+ */
 export const reviewStatusDtoSchema = z.object({
 	run: runDtoSchema.nullable(),
-	/**
-	 * SEC-003/TASK-030's honesty measure: files the last successful run left
-	 * behind on the tree. Absent (not an empty array) when there is no
-	 * succeeded run to report residue for.
-	 */
-	residue: z.array(z.string()).optional(),
+	pass: reviewPassDtoSchema.nullable(),
 });
 
 export type ReviewStatusDto = z.infer<typeof reviewStatusDtoSchema>;

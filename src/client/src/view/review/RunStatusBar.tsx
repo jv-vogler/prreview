@@ -17,7 +17,7 @@ import type { ReviewRunState } from "./useReviewRun";
 const STALL_MS = 90_000;
 
 export function RunStatusBar({ review }: { review: ReviewRunState }) {
-	const { run, residue } = review;
+	const { run, pass } = review;
 	if (run === null) {
 		return null;
 	}
@@ -27,8 +27,8 @@ export function RunStatusBar({ review }: { review: ReviewRunState }) {
 	if (run.status === "queued" || run.status === "running") {
 		return <ActiveRun run={run} onCancel={review.cancel} />;
 	}
-	if (run.status === "succeeded" && residue !== null && residue.length > 0) {
-		return <ResidueWarning files={residue} />;
+	if (run.status === "succeeded" && pass !== null && pass.residue.length > 0) {
+		return <ResidueWarning files={pass.residue} />;
 	}
 	return null;
 }

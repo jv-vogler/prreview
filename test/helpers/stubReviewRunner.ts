@@ -6,6 +6,6 @@ export function stubReviewRunner(): ReviewRunner {
 		start: () => ({ kind: "agent-missing" }),
 		cancelCurrent: () => false,
 		current: () => null,
-		currentResidue: async () => null,
+		currentPass: async () => null,
 	};
 }

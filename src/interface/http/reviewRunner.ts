@@ -5,8 +5,10 @@ import { buildReviewJob } from "../../application/review/runReview";
 import type { Container } from "../../container";
 import { changesetIdFor } from "../../domain/changeset/ChangesetId";
 import { createRunManager } from "../../infrastructure/engine/runManager";
+import type { ReviewPassDto } from "./dto/ReviewDto";
 import type { RunDto } from "./dto/RunDto";
 import type { ReviewState } from "./reviewState";
+import { toReviewPassDto } from "./toReviewPassDto";
 import { toRunDto } from "./toRunDto";
 
 /**
@@ -22,11 +24,12 @@ export interface ReviewRunner {
 	cancelCurrent(): boolean;
 	current(): RunDto | null;
 	/**
-	 * Residue SEC-003's honesty measure found (TASK-030): files the last
-	 * successful run left behind on the tree. Null when there is no
-	 * succeeded run to report on.
+	 * The last completed pass for the reviewed changeset, read straight from
+	 * the store — deliberately independent of `current()`'s run bookkeeping,
+	 * so a pass persisted before a server restart still renders (TASK-041).
+	 * Null when no pass has ever been saved for this changeset.
 	 */
-	currentResidue(): Promise<string[] | null>;
+	currentPass(): Promise<ReviewPassDto | null>;
 }
 
 export type StartReviewResult =
@@ -76,14 +79,11 @@ export function createReviewRunner(
 			return run === null ? null : toRunDto(run);
 		},
 
-		async currentResidue() {
-			const run = runManager.current();
-			if (run === null || run.status !== "succeeded") {
-				return null;
-			}
-			const changesetId = changesetIdFor(state.current().ref.source);
+		async currentPass() {
+			const changeset = state.current();
+			const changesetId = changesetIdFor(changeset.ref.source);
 			const stored = await container.sessionStore.loadReview(changesetId);
-			return stored?.residue ?? null;
+			return stored === null ? null : toReviewPassDto(stored, changeset.files);
 		},
 	};
 }

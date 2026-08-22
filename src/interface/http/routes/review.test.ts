@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { buildTestContainer } from "../../../../test/helpers/buildTestContainer";
 import { FakeEngine } from "../../../../test/helpers/FakeEngine";
+import type { FileDiff } from "../../../domain/changeset/FileDiff";
 import { createApp } from "../app";
 import { createAppEventPublisher } from "../events/appEventPublisher";
 import { createSseHub } from "../events/sseHub";
 import { createReviewRunner } from "../reviewRunner";
+import type { CurrentChangeset } from "../reviewState";
 import { createReviewState } from "../reviewState";
 
 function testApp(
 	engine: FakeEngine | null,
-	options: { statusPorcelainAfter?: string } = {},
+	options: {
+		statusPorcelainAfter?: string;
+		files?: CurrentChangeset["files"];
+	} = {},
 ) {
 	const { container } = buildTestContainer({
 		agent:
@@ -30,7 +35,7 @@ function testApp(
 			resolvedAt: "2026-08-21T00:00:00.000Z",
 		},
 		announce: { resolved: "working tree changes", overrideHint: "x" },
-		files: [],
+		files: options.files ?? [],
 	});
 	const hub = createSseHub();
 	const runner = createReviewRunner(
@@ -108,7 +113,7 @@ describe("GET /api/review", () => {
 	it("answers null when nothing has run yet", async () => {
 		const { app } = testApp(new FakeEngine());
 		const response = await app.request("/api/review");
-		expect(await response.json()).toEqual({ run: null });
+		expect(await response.json()).toEqual({ run: null, pass: null });
 	});
 
 	it("surfaces residue left behind by a successful run (SEC-003/TASK-030)", async () => {
@@ -138,8 +143,93 @@ describe("GET /api/review", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
 		const response = await app.request("/api/review");
-		const body = (await response.json()) as { residue?: string[] };
-		expect(body.residue).toEqual(["scratch-test.ts"]);
+		const body = (await response.json()) as { pass?: { residue: string[] } };
+		expect(body.pass?.residue).toEqual(["scratch-test.ts"]);
+	});
+
+	it("places each finding against the diff on screen (TASK-041)", async () => {
+		const file: FileDiff = {
+			id: "file-1",
+			path: "src/greeting.ts",
+			status: "modified",
+			additions: 1,
+			deletions: 0,
+			isBinary: false,
+			isGenerated: false,
+			oldBlob: null,
+			newBlob: null,
+			hunks: [
+				{
+					id: "hunk-1",
+					header: "",
+					oldStart: 1,
+					oldLines: 0,
+					newStart: 1,
+					newLines: 1,
+					lines: [{ type: "add", content: "greeting", newLine: 1 }],
+				},
+			],
+		};
+		const engine = new FakeEngine();
+		engine.events = [
+			{
+				type: "result",
+				ok: true,
+				structuredOutput: {
+					overview: "x",
+					verdict: "x",
+					ticket: null,
+					qualityPoints: [],
+					findings: [
+						{
+							path: "src/greeting.ts",
+							startLine: 1,
+							endLine: 1,
+							tier: "nitpick",
+							title: "x",
+							body: "x",
+							proof: "Inferred: x",
+							verified: false,
+							lane: "review",
+						},
+						{
+							path: "src/missing.ts",
+							startLine: 1,
+							endLine: 1,
+							tier: "nitpick",
+							title: "x",
+							body: "x",
+							proof: "Inferred: x",
+							verified: false,
+							lane: "review",
+						},
+					],
+				},
+				text: null,
+				sessionId: "s1",
+				model: "m",
+				numTurns: 1,
+				costUsd: 0,
+			},
+		];
+		const { app } = testApp(engine, { files: [file] });
+		await app.request("/api/review", { method: "POST" });
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		const response = await app.request("/api/review");
+		const body = (await response.json()) as {
+			pass: { comments: { path: string; placement: { kind: string } }[] };
+		};
+		expect(body.pass.comments).toEqual([
+			expect.objectContaining({
+				path: "src/greeting.ts",
+				placement: { kind: "exact", fileId: "file-1", side: "new", line: 1 },
+			}),
+			expect.objectContaining({
+				path: "src/missing.ts",
+				placement: { kind: "unplaceable" },
+			}),
+		]);
 	});
 });
 

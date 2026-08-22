@@ -1,3 +1,4 @@
+import type { ReviewPassDto } from "@dto/ReviewDto";
 import type { RunDto } from "@dto/RunDto";
 import { serverEventSchema } from "@dto/ServerEvent";
 import { useCallback, useEffect, useState } from "react";
@@ -17,8 +18,8 @@ export interface ReviewRunState {
 	starting: boolean;
 	/** a start attempt's own failure — a 409 conflict, or the request itself failing */
 	startError: string | null;
-	/** SEC-003/TASK-030: files the last successful run left behind, if any */
-	residue: string[] | null;
+	/** the last completed pass for this changeset, if any has ever been saved */
+	pass: ReviewPassDto | null;
 	start(): void;
 	cancel(): void;
 }
@@ -31,14 +32,14 @@ export interface ReviewRunState {
  */
 export function useReviewRun(api: ApiClient): ReviewRunState {
 	const [run, setRun] = useState<RunDto | null>(null);
-	const [residue, setResidue] = useState<string[] | null>(null);
+	const [pass, setPass] = useState<ReviewPassDto | null>(null);
 	const [starting, setStarting] = useState(false);
 	const [startError, setStartError] = useState<string | null>(null);
 
 	const refetch = useCallback(() => {
 		getReviewRun(api).then((status) => {
 			setRun(status.run);
-			setResidue(status.residue ?? null);
+			setPass(status.pass);
 		}, noop);
 	}, [api]);
 
@@ -75,7 +76,6 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 	const start = useCallback(() => {
 		setStarting(true);
 		setStartError(null);
-		setResidue(null);
 		postReviewRun(api).then(
 			(result) => {
 				setStarting(false);
@@ -94,7 +94,7 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		void cancelReviewRun(api);
 	}, [api]);
 
-	return { run, residue, starting, startError, start, cancel };
+	return { run, pass, starting, startError, start, cancel };
 }
 
 function noop(): void {}

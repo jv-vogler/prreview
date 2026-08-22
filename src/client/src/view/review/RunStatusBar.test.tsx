@@ -1,16 +1,28 @@
+import type { ReviewPassDto } from "@dto/ReviewDto";
 import type { RunDto } from "@dto/RunDto";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RunStatusBar } from "./RunStatusBar";
 import type { ReviewRunState } from "./useReviewRun";
 
+function passWithResidue(residue: string[]): ReviewPassDto {
+	return {
+		overview: "x",
+		verdict: "x",
+		ticket: null,
+		qualityPoints: [],
+		comments: [],
+		residue,
+	};
+}
+
 function stateWith(
 	run: RunDto | null,
-	residue: string[] | null = null,
+	pass: ReviewPassDto | null = null,
 ): ReviewRunState {
 	return {
 		run,
-		residue,
+		pass,
 		starting: false,
 		startError: null,
 		start: vi.fn(),
@@ -76,7 +88,11 @@ describe("RunStatusBar", () => {
 			queuedAt: "t1",
 			idleTimeoutMs: 300_000,
 		};
-		render(<RunStatusBar review={stateWith(run, ["scratch-test.ts"])} />);
+		render(
+			<RunStatusBar
+				review={stateWith(run, passWithResidue(["scratch-test.ts"]))}
+			/>,
+		);
 		expect(screen.getByRole("alert")).toBeTruthy();
 		expect(screen.getByText("scratch-test.ts")).toBeTruthy();
 	});
@@ -88,7 +104,7 @@ describe("RunStatusBar", () => {
 			queuedAt: "t1",
 			idleTimeoutMs: 300_000,
 		};
-		render(<RunStatusBar review={stateWith(run, [])} />);
+		render(<RunStatusBar review={stateWith(run, passWithResidue([]))} />);
 		expect(screen.queryByRole("alert")).toBeNull();
 	});
 });
