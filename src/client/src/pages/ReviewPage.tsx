@@ -3,6 +3,7 @@ import type { ReviewCommentDto, ReworkInstructionDto } from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getChangeset } from "../infrastructure/endpoints/getChangeset";
 import { getSession } from "../infrastructure/endpoints/getSession";
+import { publishReview } from "../infrastructure/endpoints/publishReview";
 import {
 	deleteComment,
 	editComment,
@@ -22,6 +23,7 @@ import type {
 } from "../view/review/CommentActions";
 import { CommentWorklist } from "../view/review/CommentWorklist";
 import { OverviewPanel } from "../view/review/OverviewPanel";
+import { PublishControl } from "../view/review/PublishControl";
 import { RunStatusBar } from "../view/review/RunStatusBar";
 import { REVIEW_FAILURE_COPY } from "../view/review/reviewFailureCopy";
 import { useReviewRun } from "../view/review/useReviewRun";
@@ -38,6 +40,7 @@ export function ReviewPage() {
 	// null = not yet known; the AI surface stays absent, not disabled, until
 	// the session answers (REQ-009) — never assume availability while waiting
 	const [aiAvailable, setAiAvailable] = useState(false);
+	const [githubAvailable, setGithubAvailable] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 
 	useEffect(() => {
@@ -58,6 +61,7 @@ export function ReviewPage() {
 			(session) => {
 				if (!cancelled) {
 					setAiAvailable(session.featureFlags.aiAvailable);
+					setGithubAvailable(session.featureFlags.githubAvailable);
 				}
 			},
 			() => {
@@ -75,15 +79,23 @@ export function ReviewPage() {
 	if (changeset === null) {
 		return <div className={styles.centered}>Loading review…</div>;
 	}
-	return <ResolvedReview changeset={changeset} aiAvailable={aiAvailable} />;
+	return (
+		<ResolvedReview
+			changeset={changeset}
+			aiAvailable={aiAvailable}
+			githubAvailable={githubAvailable}
+		/>
+	);
 }
 
 function ResolvedReview({
 	changeset,
 	aiAvailable,
+	githubAvailable,
 }: {
 	changeset: ChangesetDto;
 	aiAvailable: boolean;
+	githubAvailable: boolean;
 }) {
 	const { width, setWidth } = useSidebarWidth();
 	const [cursorFileIndex, setCursorFileIndex] = useState(0);
@@ -96,6 +108,8 @@ function ResolvedReview({
 		ReadonlySet<string>
 	>(() => new Set());
 	const [curationError, setCurationError] = useState<string | null>(null);
+	const [publishing, setPublishing] = useState(false);
+	const [publishError, setPublishError] = useState<string | null>(null);
 	// once accepted or discarded, a rework's proposal never reappears for its
 	// run, however long that run stays the "current" one on screen
 	const [dismissedRunId, setDismissedRunId] = useState<string | null>(null);
@@ -138,6 +152,25 @@ function ResolvedReview({
 		},
 		[review.applyPass],
 	);
+
+	const onPublish = useCallback(() => {
+		setPublishing(true);
+		setPublishError(null);
+		publishReview(api).then(
+			(pass) => {
+				setPublishing(false);
+				review.applyPass(pass);
+			},
+			(cause) => {
+				setPublishing(false);
+				setPublishError(describeError(cause));
+			},
+		);
+	}, [review.applyPass]);
+
+	// absent, not disabled (REQ-009's treatment, mirrored here): no publish
+	// control at all without a GitHub backend or without a PR to publish to
+	const canPublish = githubAvailable && changeset.ref.source.kind === "pr";
 
 	const onRework = useCallback(
 		(commentId: string, instruction: ReworkInstructionDto) => {
@@ -303,6 +336,15 @@ function ResolvedReview({
 						</p>
 					)}
 					{review.pass !== null && <OverviewPanel pass={review.pass} />}
+					{canPublish && review.pass !== null && (
+						<PublishControl
+							comments={comments}
+							published={review.pass.published}
+							publishing={publishing}
+							error={publishError}
+							onPublish={onPublish}
+						/>
+					)}
 				</div>
 				{renderedFiles.length === 0 ? (
 					<div className={styles.centered}>Nothing to review.</div>
