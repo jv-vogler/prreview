@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { applyCommentOps } from "../../../application/applyCommentOps";
+import type { GithubService } from "../../../application/ports/GithubService";
 import type { SessionStore } from "../../../application/ports/SessionStore";
+import { publishReview } from "../../../application/publishReview";
 import { changesetIdFor } from "../../../domain/changeset/ChangesetId";
 import { EngineError } from "../../../domain/errors/EngineError";
 import {
@@ -21,6 +23,8 @@ export interface ReviewRouteDeps {
 	runner: ReviewRunner;
 	state: ReviewState;
 	sessionStore: SessionStore;
+	/** null = no GitHub backend at all (REQ-009's treatment, mirrored for publish) */
+	githubService: GithubService | null;
 }
 
 /**
@@ -35,7 +39,9 @@ export interface ReviewRouteDeps {
  * artifact in the same round trip rather than a second `GET`.
  * `.../rework` (TASK-048) instead starts a run, the same way `POST /` does
  * — its answer arrives through the same run status the client already
- * polls and subscribes to.
+ * polls and subscribes to. `POST /publish` (TASK-050, TASK-053) answers the
+ * same recomputed `ReviewPassDto` too — publishing only ever adds a
+ * `published` record, it never clears the artifact.
  */
 export function reviewRoute(deps: ReviewRouteDeps): Hono {
 	const route = new Hono();
@@ -121,6 +127,17 @@ export function reviewRoute(deps: ReviewRouteDeps): Hono {
 		}
 		const body: RunAcceptedDto = { runId: result.runId };
 		return context.json(body, 202);
+	});
+
+	route.post("/publish", async (context) => {
+		const changeset = deps.state.current();
+		const stored = await publishReview(
+			{ githubService: deps.githubService, sessionStore: deps.sessionStore },
+			currentChangesetId(deps.state),
+			changeset.ref.source,
+			changeset.files,
+		);
+		return context.json(toReviewPassDto(stored, changeset.files));
 	});
 
 	return route;

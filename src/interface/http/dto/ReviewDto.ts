@@ -69,6 +69,16 @@ export const reviewCommentDtoSchema = z.object({
 
 export type ReviewCommentDto = z.infer<typeof reviewCommentDtoSchema>;
 
+/** What `publishReview` (TASK-050, TASK-053) left behind, once published. */
+export const publishedRecordDtoSchema = z.object({
+	reviewId: z.number(),
+	htmlUrl: z.string(),
+	publishedAt: z.string(),
+	commentIds: z.array(z.string()),
+});
+
+export type PublishedRecordDto = z.infer<typeof publishedRecordDtoSchema>;
+
 /** `GET /api/review`'s `pass` field once a review has completed at least once. */
 export const reviewPassDtoSchema = z.object({
 	overview: z.string(),
@@ -78,6 +88,8 @@ export const reviewPassDtoSchema = z.object({
 	comments: z.array(reviewCommentDtoSchema),
 	/** SEC-003/TASK-030's honesty measure: files this pass left on the tree */
 	residue: z.array(z.string()),
+	/** null until this pass has been published as a pending review at least once */
+	published: publishedRecordDtoSchema.nullable(),
 });
 
 export type ReviewPassDto = z.infer<typeof reviewPassDtoSchema>;

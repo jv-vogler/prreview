@@ -30,6 +30,7 @@ function storedReview(): StoredReview {
 		},
 		residue: [],
 		commentEdits: {},
+		published: null,
 	};
 }
 

@@ -33,6 +33,7 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 		},
 		residue: [],
 		commentEdits: {},
+		published: null,
 		...overrides,
 	};
 }

@@ -28,6 +28,9 @@ const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	"agent-missing": 503,
 	"no-review": 404,
 	"comment-not-found": 404,
+	"not-a-pull-request": 400,
+	"no-github": 503,
+	"nothing-publishable": 400,
 };
 
 export interface AppDeps {
@@ -88,6 +91,7 @@ export function createApp(deps: AppDeps): Hono {
 			runner: deps.runner,
 			state: deps.state,
 			sessionStore: deps.container.sessionStore,
+			githubService: deps.container.githubService,
 		}),
 	);
 	app.route("/api/events", eventsRoute({ hub: deps.hub }));

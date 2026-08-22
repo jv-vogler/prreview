@@ -20,6 +20,18 @@ export interface CommentEdit {
 	deleted?: boolean;
 }
 
+/**
+ * What `publishReview` (TASK-050, TASK-053) left behind after sending a
+ * pending review: enough to link back to it and to know which comments
+ * made the cut, so a second pass can tell what is already out there.
+ */
+export interface PublishedRecord {
+	reviewId: number;
+	htmlUrl: string;
+	publishedAt: string;
+	commentIds: string[];
+}
+
 export interface StoredReview {
 	changesetId: ChangesetId;
 	createdAt: string;
@@ -28,6 +40,8 @@ export interface StoredReview {
 	residue: string[];
 	/** per-finding curation state; a fresh pass always starts with none */
 	commentEdits: Record<string, CommentEdit>;
+	/** null until this pass has been published at least once */
+	published: PublishedRecord | null;
 }
 
 export interface SessionStore {

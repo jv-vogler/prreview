@@ -13,6 +13,7 @@ function passWithResidue(residue: string[]): ReviewPassDto {
 		qualityPoints: [],
 		comments: [],
 		residue,
+		published: null,
 	};
 }
 

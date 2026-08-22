@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { TestContainerSetup } from "../../../../test/helpers/buildTestContainer";
 import { buildTestContainer } from "../../../../test/helpers/buildTestContainer";
 import { FakeEngine } from "../../../../test/helpers/FakeEngine";
 import type { FileDiff } from "../../../domain/changeset/FileDiff";
@@ -14,9 +15,11 @@ function testApp(
 	options: {
 		statusPorcelainAfter?: string;
 		files?: CurrentChangeset["files"];
+		source?: CurrentChangeset["ref"]["source"];
+		github?: TestContainerSetup["github"];
 	} = {},
 ) {
-	const { container } = buildTestContainer({
+	const { container, githubService } = buildTestContainer({
 		agent:
 			engine === null
 				? { kind: "none" }
@@ -26,10 +29,11 @@ function testApp(
 			options.statusPorcelainAfter === undefined
 				? undefined
 				: { statusPorcelainSequence: ["", options.statusPorcelainAfter] },
+		github: options.github,
 	});
 	const state = createReviewState({
 		ref: {
-			source: { kind: "worktree" },
+			source: options.source ?? { kind: "worktree" },
 			baseSha: "a".repeat(40),
 			headSha: null,
 			resolvedAt: "2026-08-21T00:00:00.000Z",
@@ -51,7 +55,7 @@ function testApp(
 		repoRoot: "/repo",
 		clientDir: null,
 	});
-	return { app };
+	return { app, container, githubService };
 }
 
 describe("POST /api/review", () => {
@@ -242,7 +246,14 @@ describe("DELETE /api/review/run", () => {
 });
 
 /** Seeds one finding by running a review pass to completion (a fresh FakeEngine). */
-async function appWithOneFinding() {
+async function appWithOneFinding(
+	options: {
+		source?: CurrentChangeset["ref"]["source"];
+		github?: TestContainerSetup["github"];
+		files?: CurrentChangeset["files"];
+		findings?: Record<string, unknown>[];
+	} = {},
+) {
 	const engine = new FakeEngine();
 	engine.events = [
 		{
@@ -253,7 +264,7 @@ async function appWithOneFinding() {
 				verdict: "x",
 				ticket: null,
 				qualityPoints: [],
-				findings: [
+				findings: options.findings ?? [
 					{
 						path: "src/greeting.ts",
 						startLine: 1,
@@ -274,10 +285,14 @@ async function appWithOneFinding() {
 			costUsd: 0,
 		},
 	];
-	const { app } = testApp(engine);
+	const { app, container, githubService } = testApp(engine, {
+		source: options.source,
+		github: options.github,
+		files: options.files,
+	});
 	await app.request("/api/review", { method: "POST" });
 	await new Promise((resolve) => setTimeout(resolve, 10));
-	return { app };
+	return { app, container, githubService };
 }
 
 describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
@@ -371,5 +386,112 @@ describe("POST /api/review/comments/:id/rework (TASK-048)", () => {
 			},
 		);
 		expect(response.status).toBe(503);
+	});
+});
+
+const PR_SOURCE: CurrentChangeset["ref"]["source"] = {
+	kind: "pr",
+	repo: "acme/api",
+	number: 42,
+};
+
+const GREETING_FILE: FileDiff = {
+	id: "file-1",
+	path: "src/greeting.ts",
+	status: "modified",
+	additions: 1,
+	deletions: 0,
+	isBinary: false,
+	isGenerated: false,
+	oldBlob: null,
+	newBlob: null,
+	hunks: [
+		{
+			id: "hunk-1",
+			header: "",
+			oldStart: 1,
+			oldLines: 0,
+			newStart: 1,
+			newLines: 1,
+			lines: [{ type: "add", content: "greeting", newLine: 1 }],
+		},
+	],
+};
+
+describe("POST /api/review/publish (TASK-050, TASK-053)", () => {
+	it("publishes the review-lane comments and answers the recomputed pass", async () => {
+		const { app, githubService } = await appWithOneFinding({
+			source: PR_SOURCE,
+			files: [GREETING_FILE],
+		});
+		const response = await app.request("/api/review/publish", {
+			method: "POST",
+		});
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as {
+			published: { reviewId: number; commentIds: string[] } | null;
+		};
+		expect(body.published).toEqual(
+			expect.objectContaining({ reviewId: 1, commentIds: ["finding-0"] }),
+		);
+		expect(githubService?.createdReviews).toHaveLength(1);
+	});
+
+	it("answers 400 not-a-pull-request for a non-PR changeset", async () => {
+		const { app } = await appWithOneFinding();
+		const response = await app.request("/api/review/publish", {
+			method: "POST",
+		});
+		expect(response.status).toBe(400);
+		const body = (await response.json()) as { reason: string };
+		expect(body.reason).toBe("not-a-pull-request");
+	});
+
+	it("answers 503 no-github with no GitHub backend on PATH", async () => {
+		const { app } = await appWithOneFinding({
+			source: PR_SOURCE,
+			github: null,
+		});
+		const response = await app.request("/api/review/publish", {
+			method: "POST",
+		});
+		expect(response.status).toBe(503);
+		const body = (await response.json()) as { reason: string };
+		expect(body.reason).toBe("no-github");
+	});
+
+	it("answers 400 nothing-publishable when every finding is pre-existing", async () => {
+		const { app } = await appWithOneFinding({
+			source: PR_SOURCE,
+			findings: [
+				{
+					path: "src/greeting.ts",
+					startLine: 1,
+					endLine: 1,
+					tier: "nitpick",
+					title: "t",
+					body: "x",
+					proof: "Inferred: x",
+					verified: false,
+					lane: "pre-existing",
+				},
+			],
+		});
+		const response = await app.request("/api/review/publish", {
+			method: "POST",
+		});
+		expect(response.status).toBe(400);
+		const body = (await response.json()) as { reason: string };
+		expect(body.reason).toBe("nothing-publishable");
+	});
+
+	it("answers 404 no-review when no pass has run yet", async () => {
+		const { app } = testApp(new FakeEngine(), { source: PR_SOURCE });
+		const response = await app.request("/api/review/publish", {
+			method: "POST",
+		});
+		expect(response.status).toBe(404);
+		const body = (await response.json()) as { reason: string };
+		expect(body.reason).toBe("no-review");
 	});
 });

@@ -32,6 +32,7 @@ describe("SessionStore", () => {
 			pass: PASS,
 			residue: [],
 			commentEdits: {},
+			published: null,
 		};
 		await store.saveReview(review);
 		await store.flush();
@@ -53,6 +54,7 @@ describe("SessionStore", () => {
 			pass: PASS,
 			residue: [],
 			commentEdits: {},
+			published: null,
 		};
 		const second: StoredReview = { ...first, createdAt: "t2" };
 		await store.saveReview(first);
@@ -60,6 +62,24 @@ describe("SessionStore", () => {
 		await store.flush();
 
 		expect((await store.loadReview("worktree"))?.createdAt).toBe("t2");
+	});
+
+	it("defaults commentEdits and published for a review.json written before TASK-046/050", async () => {
+		const sessionDir = join(dataDir, "sessions", "worktree");
+		await mkdir(sessionDir, { recursive: true });
+		await writeFile(
+			join(sessionDir, "review.json"),
+			JSON.stringify({
+				changesetId: "worktree",
+				createdAt: "2026-08-21T10:00:00.000Z",
+				pass: PASS,
+				residue: [],
+			}),
+		);
+		const store = new SessionStore({ dataDir });
+		const loaded = await store.loadReview("worktree");
+		expect(loaded?.commentEdits).toEqual({});
+		expect(loaded?.published).toBeNull();
 	});
 
 	it("throws StoreError('corrupt') for a file that is not valid JSON", async () => {

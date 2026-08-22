@@ -103,8 +103,9 @@ export function buildReviewJob(
 				pass: reviewPassSchema.parse(terminal.structuredOutput),
 				residue: diffStatusResidue(before, after),
 				// a fresh pass replaces the whole artifact (ASSUMPTION-003) — any
-				// curation on the previous one no longer applies to it
+				// curation or publish record on the previous one no longer applies
 				commentEdits: {},
+				published: null,
 			});
 			return { ok: true };
 		} finally {
