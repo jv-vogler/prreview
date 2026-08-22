@@ -63,12 +63,21 @@ export function DiffCommentAnnotation({
 				</button>
 			)}
 			{expanded.map((comment) => (
-				<CommentBalloon
-					key={comment.id}
-					comment={comment}
-					onCollapse={() => onToggle(comment.id)}
-					actions={actions}
-				/>
+				/*
+				 * A grid whose single row grows 0fr → 1fr: the only way to animate
+				 * to a height nobody has measured, since the balloon's is whatever
+				 * its markdown comes to. The inner element is what clips, so the
+				 * card is revealed rather than squashed.
+				 */
+				<div key={comment.id} className={styles.expander}>
+					<div className={styles.expanderClip}>
+						<CommentBalloon
+							comment={comment}
+							onCollapse={() => onToggle(comment.id)}
+							actions={actions}
+						/>
+					</div>
+				</div>
 			))}
 		</div>
 	);

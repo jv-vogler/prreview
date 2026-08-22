@@ -1,14 +1,14 @@
 /*
- * A collapsed comment costs a row in the diff, so it is drawn as a marker in
- * the margin rather than a band across it: the wrapper collapses to nothing
- * and the pill is lifted out of flow, overlapping the line it annotates. Only
- * an open comment takes real height.
+ * The collapsed marker keeps its own row. It is a target the reader has to
+ * find in a wall of code, and the band of quiet around it is most of what
+ * makes it findable — crushing the row to save space cost more than it saved.
  */
 .annotation {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
 	gap: var(--base-size-4);
+	padding: var(--base-size-6) 0;
 }
 
 /*
@@ -90,51 +90,48 @@
 	--marker-halo: var(--bgColor-success-muted);
 }
 
-/* lifted out of flow only while it is the row's sole occupant */
-.annotation:has(.marker:only-child) {
-	height: 0;
-	margin-top: calc(-1 * var(--base-size-20));
-}
-
-.annotation:has(.marker:only-child) .marker {
-	position: relative;
-	z-index: 1;
-}
-
 .count {
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-semibold);
 }
 
 /*
- * The balloon grows out of where the marker was, rather than appearing at
- * full size: the reader's click and the card that answers it read as one
- * movement. Origin is the top-left because that is where the marker sits.
+ * The row opens to make room for the card, instead of the card landing on top
+ * of a row that was already its size. `grid-template-rows` interpolates
+ * between fr values, which is what makes a height nobody measured animatable
+ * — the balloon's is whatever its markdown comes to.
  */
-@keyframes balloon-open {
+@keyframes row-open {
 	from {
-		opacity: 0;
-		transform: translateY(calc(-1 * var(--base-size-4))) scale(0.97);
-	}
-	to {
-		opacity: 1;
-		transform: none;
-	}
-}
-
-@keyframes balloon-open-reduced {
-	from {
+		grid-template-rows: 0fr;
 		opacity: 0;
 	}
 	to {
+		grid-template-rows: 1fr;
 		opacity: 1;
 	}
 }
 
-.annotation > :not(.marker) {
-	transform-origin: top left;
-	animation: balloon-open var(--motion-duration-medium)
-		var(--motion-easing-enter) both;
+@keyframes row-open-reduced {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.expander {
+	display: grid;
+	grid-template-rows: 1fr;
+	width: 100%;
+	animation: row-open var(--motion-duration-medium) var(--motion-easing-enter)
+		both;
+}
+
+.expanderClip {
+	min-height: 0;
+	overflow: hidden;
 }
 
 /*
@@ -151,7 +148,7 @@
 		transform: none;
 	}
 
-	.annotation > :not(.marker) {
-		animation-name: balloon-open-reduced;
+	.expander {
+		animation-name: row-open-reduced;
 	}
 }
