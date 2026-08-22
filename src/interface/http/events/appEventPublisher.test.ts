@@ -20,6 +20,7 @@ describe("createAppEventPublisher", () => {
 			type: "run.started",
 			run: {
 				id: "run-1",
+				kind: "review",
 				status: "running",
 				queuedAt: "t1",
 				idleTimeoutMs: 1000,
@@ -31,6 +32,7 @@ describe("createAppEventPublisher", () => {
 				type: "run.started",
 				run: {
 					id: "run-1",
+					kind: "review",
 					status: "running",
 					queuedAt: "t1",
 					idleTimeoutMs: 1000,

@@ -26,6 +26,8 @@ const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	"gh-unauthenticated": 403,
 	"unsupported-backend": 503,
 	"agent-missing": 503,
+	"no-review": 404,
+	"comment-not-found": 404,
 };
 
 export interface AppDeps {
@@ -80,7 +82,14 @@ export function createApp(deps: AppDeps): Hono {
 			repoRoot: deps.repoRoot,
 		}),
 	);
-	app.route("/api/review", reviewRoute({ runner: deps.runner }));
+	app.route(
+		"/api/review",
+		reviewRoute({
+			runner: deps.runner,
+			state: deps.state,
+			sessionStore: deps.container.sessionStore,
+		}),
+	);
 	app.route("/api/events", eventsRoute({ hub: deps.hub }));
 
 	if (deps.clientDir !== null) {

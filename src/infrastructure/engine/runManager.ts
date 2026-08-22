@@ -3,6 +3,7 @@ import type { PublishEvent } from "../../application/ports/EventPublisher";
 import type {
 	RunJob,
 	RunManager,
+	RunMeta,
 	RunOutcome,
 	StartResult,
 } from "../../application/ports/RunManager";
@@ -105,6 +106,9 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 			return;
 		}
 		if (outcome.ok) {
+			if (outcome.result !== undefined) {
+				entry.run.result = outcome.result;
+			}
 			transition(entry, "succeeded", "run.succeeded");
 			return;
 		}
@@ -133,7 +137,11 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 		settle(entry, outcome);
 	}
 
-	function start(job: RunJob, idleTimeoutMs: number): StartResult {
+	function start(
+		job: RunJob,
+		idleTimeoutMs: number,
+		meta: RunMeta = { kind: "review" },
+	): StartResult {
 		if (mostRecent !== null && !isSettled(mostRecent.run.status)) {
 			return { kind: "conflict", existingRunId: mostRecent.run.id };
 		}
@@ -143,6 +151,7 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 				status: "queued",
 				queuedAt: nowIso(),
 				idleTimeoutMs,
+				...meta,
 			},
 			controller: new AbortController(),
 			cancelRequested: false,

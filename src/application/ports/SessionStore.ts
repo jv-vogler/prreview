@@ -7,12 +7,27 @@ import type { ReviewPass } from "../review/reviewSchema";
  * (ASSUMPTION-003 — one review pass, no rounds, no history) rather than the
  * rounds/coverage/chat layout of the old implementation.
  */
+/**
+ * One finding's curation state (TASK-046), keyed by its `reviewCommentId`.
+ * Both fields are optional and additive: an absent entry means "as the
+ * engine wrote it" — there is no separate "clean" representation to keep in
+ * sync.
+ */
+export interface CommentEdit {
+	/** overridden body text, replacing the engine's own wording */
+	body?: string;
+	/** true once the reader has removed this comment; kept so it can be restored */
+	deleted?: boolean;
+}
+
 export interface StoredReview {
 	changesetId: ChangesetId;
 	createdAt: string;
 	pass: ReviewPass;
 	/** files SEC-003's residue check found left behind by the run, if any */
 	residue: string[];
+	/** per-finding curation state; a fresh pass always starts with none */
+	commentEdits: Record<string, CommentEdit>;
 }
 
 export interface SessionStore {

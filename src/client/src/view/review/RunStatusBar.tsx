@@ -18,7 +18,9 @@ const STALL_MS = 90_000;
 
 export function RunStatusBar({ review }: { review: ReviewRunState }) {
 	const { run, pass } = review;
-	if (run === null) {
+	// a rework's status renders next to the comment it targets instead
+	// (TASK-049) — this bar is the full-pass story only
+	if (run === null || run.kind !== "review") {
 		return null;
 	}
 	if (run.status === "failed" || run.status === "timed-out") {

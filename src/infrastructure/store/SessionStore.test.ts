@@ -31,6 +31,7 @@ describe("SessionStore", () => {
 			createdAt: "2026-08-21T10:00:00.000Z",
 			pass: PASS,
 			residue: [],
+			commentEdits: {},
 		};
 		await store.saveReview(review);
 		await store.flush();
@@ -51,6 +52,7 @@ describe("SessionStore", () => {
 			createdAt: "t1",
 			pass: PASS,
 			residue: [],
+			commentEdits: {},
 		};
 		const second: StoredReview = { ...first, createdAt: "t2" };
 		await store.saveReview(first);

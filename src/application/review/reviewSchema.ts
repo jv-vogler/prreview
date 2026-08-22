@@ -19,9 +19,13 @@ const TIER = ["blocker", "should-fix", "suggestion", "nitpick"] as const;
 const LANE = ["review", "pre-existing"] as const;
 
 const TITLE_MAX = 80;
-/** generous headroom over the pasteable ≤500-character budget, which is
- * measured on rendered prose in the prompt itself, not enforced structurally */
-const BODY_MAX = 900;
+/**
+ * Generous headroom over the pasteable ≤500-character budget, which is
+ * measured on rendered prose in the prompt itself, not enforced structurally.
+ * Exported so a reworded body (TASK-048) is held to the same ceiling as the
+ * one the engine wrote.
+ */
+export const BODY_MAX = 900;
 const EVIDENCE_MAX = 600;
 const PROOF_MAX = 240;
 const OVERVIEW_MAX = 1500;

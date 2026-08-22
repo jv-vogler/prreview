@@ -14,8 +14,16 @@ export type RunStatus =
 	| "cancelled"
 	| "timed-out";
 
+/**
+ * `review` is a full pass over the changeset; `rework` (TASK-048, TASK-049)
+ * is a short, single-comment call sharing the same one-run-at-a-time lane —
+ * there is no separate run-tracking system for it.
+ */
+export type RunKind = "review" | "rework";
+
 export interface Run {
 	id: string;
+	kind: RunKind;
 	status: RunStatus;
 	queuedAt: string;
 	startedAt?: string;
@@ -28,6 +36,15 @@ export interface Run {
 	 * clock: a run that keeps reporting keeps running, however long it takes.
 	 */
 	idleTimeoutMs: number;
+	/** only set on a `kind: "rework"` run — which comment it targets */
+	commentId?: string;
+	/**
+	 * Only set on a `kind: "rework"` run once it succeeds: the proposed
+	 * reworded body. Never written to the store on its own — the reader
+	 * accepts or rejects it, and accepting goes through the same edit path
+	 * any other edit does (TASK-046).
+	 */
+	result?: string;
 }
 
 export interface RunFailure {

@@ -23,6 +23,7 @@ function stateWith(
 	return {
 		run,
 		pass,
+		applyPass: vi.fn(),
 		starting: false,
 		startError: null,
 		start: vi.fn(),
@@ -40,6 +41,7 @@ describe("RunStatusBar", () => {
 	it("shows the running state with a Stop control", () => {
 		const run: RunDto = {
 			id: "run-1",
+			kind: "review",
 			status: "running",
 			queuedAt: "2026-08-21T10:00:00.000Z",
 			startedAt: "2026-08-21T10:00:00.000Z",
@@ -59,6 +61,7 @@ describe("RunStatusBar", () => {
 	it("shows a queued run waiting message", () => {
 		const run: RunDto = {
 			id: "run-1",
+			kind: "review",
 			status: "queued",
 			queuedAt: "2026-08-21T10:00:00.000Z",
 			idleTimeoutMs: 300_000,
@@ -70,6 +73,7 @@ describe("RunStatusBar", () => {
 	it("shows a failed run with its copy and a retry control", () => {
 		const run: RunDto = {
 			id: "run-1",
+			kind: "review",
 			status: "failed",
 			queuedAt: "t1",
 			idleTimeoutMs: 300_000,
@@ -84,6 +88,7 @@ describe("RunStatusBar", () => {
 	it("shows residue left behind by a successful run (SEC-003/TASK-030)", () => {
 		const run: RunDto = {
 			id: "run-1",
+			kind: "review",
 			status: "succeeded",
 			queuedAt: "t1",
 			idleTimeoutMs: 300_000,
@@ -100,6 +105,7 @@ describe("RunStatusBar", () => {
 	it("renders nothing for a clean successful run", () => {
 		const run: RunDto = {
 			id: "run-1",
+			kind: "review",
 			status: "succeeded",
 			queuedAt: "t1",
 			idleTimeoutMs: 300_000,

@@ -5,6 +5,7 @@ import type { RunDto } from "./dto/RunDto";
 export function toRunDto(run: Run): RunDto {
 	return {
 		id: run.id,
+		kind: run.kind,
 		status: run.status,
 		queuedAt: run.queuedAt,
 		idleTimeoutMs: run.idleTimeoutMs,
@@ -12,5 +13,7 @@ export function toRunDto(run: Run): RunDto {
 		...(run.startedAt === undefined ? {} : { startedAt: run.startedAt }),
 		...(run.endedAt === undefined ? {} : { endedAt: run.endedAt }),
 		...(run.error === undefined ? {} : { error: run.error }),
+		...(run.commentId === undefined ? {} : { commentId: run.commentId }),
+		...(run.result === undefined ? {} : { result: run.result }),
 	};
 }

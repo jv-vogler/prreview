@@ -102,6 +102,9 @@ export function buildReviewJob(
 				createdAt: new Date().toISOString(),
 				pass: reviewPassSchema.parse(terminal.structuredOutput),
 				residue: diffStatusResidue(before, after),
+				// a fresh pass replaces the whole artifact (ASSUMPTION-003) — any
+				// curation on the previous one no longer applies to it
+				commentEdits: {},
 			});
 			return { ok: true };
 		} finally {

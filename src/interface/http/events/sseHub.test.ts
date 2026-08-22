@@ -7,6 +7,7 @@ import { createSseHub } from "./sseHub";
 
 const RUN_DTO = {
 	id: "run-1",
+	kind: "review" as const,
 	status: "running" as const,
 	queuedAt: "2026-08-21T10:00:00.000Z",
 	idleTimeoutMs: 300_000,

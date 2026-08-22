@@ -16,3 +16,14 @@ export const REVIEW_MAX_TURNS = 60;
  * suite, or reading a large PR carefully before its first report.
  */
 export const REVIEW_IDLE_TIMEOUT_MS = 300_000;
+
+/**
+ * TASK-048's rework call is deliberately small: one comment, one instruction,
+ * no verification pass. A budget an order of magnitude below the review's
+ * own turns keeps it "short, cheap" as the plan requires — the model is
+ * rewording, not re-investigating from scratch.
+ */
+export const REWORK_MAX_TURNS = 10;
+
+/** A rework rarely has reason to run anything long; a much shorter fuse than the review's. */
+export const REWORK_IDLE_TIMEOUT_MS = 60_000;

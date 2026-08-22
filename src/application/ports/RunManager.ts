@@ -4,11 +4,12 @@ import type { RunProgressUpdate } from "../../domain/review/RunProgress";
 /**
  * At most one review run at a time (TASK-033): one runId, one cancel, one
  * abort signal. There is one lane now — a second start request while one is
- * active is a conflict, never a queue.
+ * active is a conflict, never a queue. A rework (TASK-048) shares this same
+ * lane rather than getting one of its own — `meta` is how it tags itself.
  */
 export interface RunManager {
 	/** returns immediately; the work runs in the background */
-	start(job: RunJob, idleTimeoutMs: number): StartResult;
+	start(job: RunJob, idleTimeoutMs: number, meta?: RunMeta): StartResult;
 	/**
 	 * The job saying what it is doing, so the UI can say it too. Silent on a
 	 * run that has already settled or never existed: progress arriving after
@@ -32,7 +33,18 @@ export interface RunContext {
 	signal: AbortSignal;
 }
 
-export type RunOutcome = { ok: true } | ({ ok: false } & RunFailure);
+/**
+ * `result` only ever carries something on a `kind: "rework"` run — the
+ * proposed body — but it is typed here rather than on a rework-specific
+ * outcome shape, because `RunManager` itself stays generic over job kind.
+ */
+export type RunOutcome =
+	| { ok: true; result?: string }
+	| ({ ok: false } & RunFailure);
+
+export type RunMeta =
+	| { kind: "review" }
+	| { kind: "rework"; commentId: string };
 
 export type StartResult =
 	| { kind: "started"; runId: string }

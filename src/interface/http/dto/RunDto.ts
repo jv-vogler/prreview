@@ -45,12 +45,24 @@ export const runStatusDtoSchema = z.enum([
 ]);
 
 /**
+ * `review` is a full pass; `rework` (TASK-048/049) is a single-comment call
+ * sharing the same run slot. `RunStatusBar` shows only `review` runs — a
+ * rework's status renders next to the comment it targets instead.
+ */
+export const runKindDtoSchema = z.enum(["review", "rework"]);
+
+export type RunKindDto = z.infer<typeof runKindDtoSchema>;
+
+/**
  * One review run. `queuedAt` is always known; `startedAt` appears once the
  * manager picked it up, which is what makes elapsed time honest for a run
- * still waiting.
+ * still waiting. `commentId`/`result` only appear on a `kind: "rework"` run
+ * — `result` is the proposed body once it has succeeded, never persisted on
+ * its own (TASK-046 owns the only write path).
  */
 export const runDtoSchema = z.object({
 	id: z.string(),
+	kind: runKindDtoSchema,
 	status: runStatusDtoSchema,
 	queuedAt: z.string(),
 	startedAt: z.string().optional(),
@@ -61,6 +73,8 @@ export const runDtoSchema = z.object({
 	progress: runProgressDtoSchema.optional(),
 	/** how long this run may go silent before it is stopped; not a wall clock */
 	idleTimeoutMs: z.int().min(0),
+	commentId: z.string().optional(),
+	result: z.string().optional(),
 });
 
 export type RunDto = z.infer<typeof runDtoSchema>;

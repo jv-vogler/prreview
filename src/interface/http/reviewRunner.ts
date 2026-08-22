@@ -1,6 +1,11 @@
 import type { PublishEvent } from "../../application/ports/EventPublisher";
 import type { RunManager } from "../../application/ports/RunManager";
-import { REVIEW_IDLE_TIMEOUT_MS } from "../../application/review/limits";
+import {
+	REVIEW_IDLE_TIMEOUT_MS,
+	REWORK_IDLE_TIMEOUT_MS,
+} from "../../application/review/limits";
+import type { ReworkInstruction } from "../../application/review/reworkComment";
+import { buildReworkJob } from "../../application/review/reworkComment";
 import { buildReviewJob } from "../../application/review/runReview";
 import type { Container } from "../../container";
 import { changesetIdFor } from "../../domain/changeset/ChangesetId";
@@ -14,12 +19,21 @@ import { toRunDto } from "./toRunDto";
 /**
  * The HTTP edge's view of one review run: a thin adapter over the run
  * manager and the container's ports, shaped exactly to what
- * `routes/review.ts` needs (TASK-035). `start()` answers `"agent-missing"`
- * rather than throwing — no `claude` on this machine is an ordinary,
- * expected outcome (REQ-009), not a server bug.
+ * `routes/review.ts` needs (TASK-035). `start()`/`startRework()` answer
+ * `"agent-missing"` rather than throwing — no `claude` on this machine is an
+ * ordinary, expected outcome (REQ-009), not a server bug.
  */
 export interface ReviewRunner {
 	start(): StartReviewResult;
+	/**
+	 * A rework shares the same one-run-at-a-time lane as a full pass
+	 * (TASK-048) — starting one while either is active answers `"conflict"`
+	 * exactly like `start()` does.
+	 */
+	startRework(
+		commentId: string,
+		instruction: ReworkInstruction,
+	): StartReviewResult;
 	/** cancels the current run, if there is one; false when there is nothing to cancel */
 	cancelCurrent(): boolean;
 	current(): RunDto | null;
@@ -63,7 +77,37 @@ export function createReviewRunner(
 					files: changeset.files,
 				},
 			);
-			const result = runManager.start(job, REVIEW_IDLE_TIMEOUT_MS);
+			const result = runManager.start(job, REVIEW_IDLE_TIMEOUT_MS, {
+				kind: "review",
+			});
+			return result.kind === "started"
+				? { kind: "started", runId: result.runId }
+				: { kind: "conflict", existingRunId: result.existingRunId };
+		},
+
+		startRework(commentId, instruction) {
+			if (container.engine === null) {
+				return { kind: "agent-missing" };
+			}
+			const changeset = state.current();
+			const job = buildReworkJob(
+				{
+					engine: container.engine,
+					git: container.git,
+					sessionStore: container.sessionStore,
+					report: runManager.report,
+				},
+				{
+					changesetId: changesetIdFor(changeset.ref.source),
+					commentId,
+					instruction,
+					files: changeset.files,
+				},
+			);
+			const result = runManager.start(job, REWORK_IDLE_TIMEOUT_MS, {
+				kind: "rework",
+				commentId,
+			});
 			return result.kind === "started"
 				? { kind: "started", runId: result.runId }
 				: { kind: "conflict", existingRunId: result.existingRunId };

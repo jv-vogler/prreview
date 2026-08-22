@@ -63,6 +63,8 @@ export const reviewCommentDtoSchema = z.object({
 	verified: z.boolean(),
 	lane: reviewLaneDtoSchema,
 	placement: commentPlacementDtoSchema,
+	/** true once the reader has overwritten `body` (TASK-046) */
+	edited: z.boolean(),
 });
 
 export type ReviewCommentDto = z.infer<typeof reviewCommentDtoSchema>;
@@ -79,3 +81,26 @@ export const reviewPassDtoSchema = z.object({
 });
 
 export type ReviewPassDto = z.infer<typeof reviewPassDtoSchema>;
+
+/** `PATCH /api/review/comments/:id`'s request body (TASK-046, TASK-047). */
+export const editCommentRequestDtoSchema = z.object({
+	body: z.string().min(1),
+});
+
+export type EditCommentRequestDto = z.infer<typeof editCommentRequestDtoSchema>;
+
+/** What the reader can ask a rework for (TASK-048) — see `reworkComment.ts`. */
+export const reworkInstructionDtoSchema = z.enum([
+	"concise",
+	"expand",
+	"explain",
+]);
+
+export type ReworkInstructionDto = z.infer<typeof reworkInstructionDtoSchema>;
+
+/** `POST /api/review/comments/:id/rework`'s request body. */
+export const reworkRequestDtoSchema = z.object({
+	instruction: reworkInstructionDtoSchema,
+});
+
+export type ReworkRequestDto = z.infer<typeof reworkRequestDtoSchema>;

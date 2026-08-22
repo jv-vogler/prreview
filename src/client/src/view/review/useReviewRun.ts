@@ -20,6 +20,13 @@ export interface ReviewRunState {
 	startError: string | null;
 	/** the last completed pass for this changeset, if any has ever been saved */
 	pass: ReviewPassDto | null;
+	/**
+	 * Adopts a pass answered directly by a curation call (TASK-046, TASK-047)
+	 * — edit/delete/restore all answer the recomputed pass in the same
+	 * response, so the reader's optimistic change reconciles against the
+	 * server-authoritative artifact without a second `GET`.
+	 */
+	applyPass(pass: ReviewPassDto): void;
 	start(): void;
 	cancel(): void;
 }
@@ -94,7 +101,7 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		void cancelReviewRun(api);
 	}, [api]);
 
-	return { run, pass, starting, startError, start, cancel };
+	return { run, pass, applyPass: setPass, starting, startError, start, cancel };
 }
 
 function noop(): void {}
