@@ -38,13 +38,22 @@
 	}
 }
 
+/*
+ * A ring that leaves the pill and fades: visible because the spread grows
+ * while the colour is still opaque. Both ends are invisible for the opposite
+ * reasons — no spread at the start, no colour at the end — and pairing them
+ * the other way round animates between two invisible states, which is exactly
+ * what a first attempt here did.
+ */
 @keyframes marker-pulse {
-	0%,
-	100% {
-		box-shadow: 0 0 0 0 var(--marker-halo, transparent);
+	0% {
+		box-shadow: 0 0 0 0 var(--marker-halo);
 	}
-	50% {
-		box-shadow: 0 0 0 var(--base-size-6) transparent;
+	70% {
+		box-shadow: 0 0 0 var(--base-size-8) transparent;
+	}
+	100% {
+		box-shadow: 0 0 0 0 transparent;
 	}
 }
 
@@ -59,7 +68,7 @@
 	background: var(--bgColor-neutral-muted);
 	color: var(--fgColor-muted);
 	cursor: pointer;
-	--marker-halo: var(--bgColor-neutral-muted);
+	--marker-halo: var(--fgColor-muted);
 	transition:
 		transform var(--motion-transition-hover),
 		background-color var(--motion-transition-hover),
@@ -81,21 +90,21 @@
 	border-color: var(--borderColor-danger-muted);
 	background: var(--bgColor-danger-muted);
 	color: var(--fgColor-danger);
-	--marker-halo: var(--bgColor-danger-muted);
+	--marker-halo: var(--fgColor-danger);
 }
 
 .marker[data-tier="should-fix"] {
 	border-color: var(--borderColor-attention-muted);
 	background: var(--bgColor-attention-muted);
 	color: var(--fgColor-attention);
-	--marker-halo: var(--bgColor-attention-muted);
+	--marker-halo: var(--fgColor-attention);
 }
 
 .marker[data-tier="suggestion"] {
 	border-color: var(--borderColor-success-muted);
 	background: var(--bgColor-success-muted);
 	color: var(--fgColor-success);
-	--marker-halo: var(--bgColor-success-muted);
+	--marker-halo: var(--fgColor-success);
 }
 
 .count {
@@ -129,11 +138,37 @@
 	}
 }
 
+/* the way back out, quicker than the way in */
+@keyframes row-close {
+	from {
+		grid-template-rows: 1fr;
+		opacity: 1;
+	}
+	to {
+		grid-template-rows: 0fr;
+		opacity: 0;
+	}
+}
+
+@keyframes row-close-reduced {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
 .expander {
 	display: grid;
 	grid-template-rows: 1fr;
 	width: 100%;
 	animation: row-open var(--motion-duration-medium) var(--motion-easing-enter)
+		both;
+}
+
+.expander[data-closing] {
+	animation: row-close var(--motion-duration-short) var(--motion-easing-exit)
 		both;
 }
 
@@ -158,5 +193,9 @@
 
 	.expander {
 		animation-name: row-open-reduced;
+	}
+
+	.expander[data-closing] {
+		animation-name: row-close-reduced;
 	}
 }
