@@ -5,8 +5,10 @@ import { FakeGithubService } from "../test/helpers/FakeGithubService";
 import type { Clock } from "./application/ports/Clock";
 import { buildContainer } from "./container";
 import { SystemClock } from "./infrastructure/clock/SystemClock";
+import { ClaudeEngine } from "./infrastructure/engine/ClaudeEngine";
 import { GitClient } from "./infrastructure/git/GitClient";
 import { GhCliGithubService } from "./infrastructure/github/GhCliGithubService";
+import { SessionStore } from "./infrastructure/store/SessionStore";
 
 describe("the container shape", () => {
 	it("builds the real adapters when nothing is overridden", () => {
@@ -61,5 +63,48 @@ describe("GithubService selection by toolchain", () => {
 			{ githubService: null },
 		);
 		expect(container.githubService).toBeNull();
+	});
+});
+
+describe("Engine selection by toolchain (REQ-009)", () => {
+	it('agent "claude" builds a real ClaudeEngine', () => {
+		const container = buildContainer(
+			{ repoRoot: "/repo" },
+			{
+				agent: { kind: "claude", version: "2.1.239" },
+				github: { kind: "none" },
+			},
+		);
+		expect(container.engine).toBeInstanceOf(ClaudeEngine);
+	});
+
+	it('agent "none" leaves engine null — absent, not disabled', () => {
+		const container = buildContainer(
+			{ repoRoot: "/repo" },
+			{ agent: { kind: "none" }, github: { kind: "none" } },
+		);
+		expect(container.engine).toBeNull();
+	});
+
+	it("an explicit null override beats the toolchain's selection", () => {
+		const container = buildContainer(
+			{ repoRoot: "/repo" },
+			{
+				agent: { kind: "claude", version: "2.1.239" },
+				github: { kind: "none" },
+			},
+			{ engine: null },
+		);
+		expect(container.engine).toBeNull();
+	});
+});
+
+describe("SessionStore", () => {
+	it("defaults to a real SessionStore rooted under the repo's .prreview/", () => {
+		const container = buildContainer(
+			{ repoRoot: "/repo" },
+			{ agent: { kind: "none" }, github: { kind: "none" } },
+		);
+		expect(container.sessionStore).toBeInstanceOf(SessionStore);
 	});
 });

@@ -22,6 +22,8 @@ export interface Git {
 	 * review.
 	 */
 	isDirty(): Promise<boolean>;
+	/** raw `git status --porcelain`, untracked files included (TASK-030) */
+	statusPorcelain(): Promise<string>;
 	remoteUrl(remoteName: string): Promise<string>;
 	mergeBase(a: string, b: string): Promise<string>;
 	/** canonical diff text between two commits */

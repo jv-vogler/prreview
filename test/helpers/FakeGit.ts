@@ -16,6 +16,14 @@ export interface FakeGitState {
 	/** null = defaultBranch() throws (no origin/HEAD, no main/master) */
 	defaultBranch?: string | null;
 	dirty?: boolean;
+	/** raw `git status --porcelain` text (statusPorcelain's answer) */
+	statusPorcelain?: string;
+	/**
+	 * Successive answers to `statusPorcelain()` calls, one per call in order
+	 * (the last entry repeats once exhausted) — for tests that need a
+	 * before/after difference. Takes precedence over `statusPorcelain`.
+	 */
+	statusPorcelainSequence?: string[];
 	fingerprint?: string;
 	/** `${aSha}..${bSha}` → merge-base sha; absent pairs fall back to aSha (linear history) */
 	mergeBases?: Record<string, string>;
@@ -47,6 +55,7 @@ export class FakeGit implements Git {
 	state: FakeGitState;
 	/** every worktree call in order */
 	readonly worktrees: FakeWorktreeCall[] = [];
+	private statusPorcelainCallCount = 0;
 
 	constructor(state: FakeGitState = {}) {
 		this.state = { ...state };
@@ -91,6 +100,16 @@ export class FakeGit implements Git {
 
 	async isDirty(): Promise<boolean> {
 		return this.state.dirty ?? false;
+	}
+
+	async statusPorcelain(): Promise<string> {
+		const sequence = this.state.statusPorcelainSequence;
+		if (sequence === undefined || sequence.length === 0) {
+			return this.state.statusPorcelain ?? "";
+		}
+		const index = Math.min(this.statusPorcelainCallCount, sequence.length - 1);
+		this.statusPorcelainCallCount++;
+		return sequence[index] ?? "";
 	}
 
 	async remoteUrl(remoteName: string): Promise<string> {

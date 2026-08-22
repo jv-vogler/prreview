@@ -156,6 +156,16 @@ export class GitClient {
 		);
 	}
 
+	/**
+	 * The raw `git status --porcelain` text, untracked files included
+	 * (SEC-003/TASK-030): unlike `isDirty`, this exists to name every file a
+	 * review run leaves behind, and a temp test the agent forgot to delete is
+	 * untracked by definition.
+	 */
+	async statusPorcelain(): Promise<string> {
+		return this.git(["status", "--porcelain"]);
+	}
+
 	/** The remote's URL; throws raw when the remote does not exist. */
 	async remoteUrl(remoteName: string): Promise<string> {
 		return (await this.git(["remote", "get-url", remoteName])).trim();

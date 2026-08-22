@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","session_id":"sess-bad","cwd":"/repo","model":"claude-sonnet-5"}
+{"type":"result","is_error":false,"subtype":"success","session_id":"sess-bad","num_turns":2,"total_cost_usd":0.01,"result":"done","structured_output":{"ok":"not-a-boolean"}}

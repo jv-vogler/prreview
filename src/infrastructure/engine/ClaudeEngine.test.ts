@@ -1,0 +1,171 @@
+import { fileURLToPath } from "node:url";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createPathShim, type PathShim } from "../../../test/helpers/shimPath";
+import type { EngineEvent } from "../../application/ports/Engine";
+import { ClaudeEngine } from "./ClaudeEngine";
+
+const FIXTURES_DIR = fileURLToPath(
+	new URL("../../../test/fixtures/claude/", import.meta.url),
+);
+
+const OUTPUT_SCHEMA = {
+	parse: (value: unknown) => {
+		if (
+			typeof value !== "object" ||
+			value === null ||
+			typeof (value as { ok?: unknown }).ok !== "boolean"
+		) {
+			throw new Error("not a valid pass output");
+		}
+		return value;
+	},
+};
+
+const TASK = {
+	jsonSchema: '{"type":"object"}',
+	maxTurns: 5,
+	idleTimeoutMs: 5000,
+	systemContract: "contract",
+	outputSchema: OUTPUT_SCHEMA,
+};
+
+async function collect(
+	iterable: AsyncIterable<EngineEvent>,
+): Promise<EngineEvent[]> {
+	const events: EngineEvent[] = [];
+	for await (const event of iterable) {
+		events.push(event);
+	}
+	return events;
+}
+
+function withFixture(shim: PathShim, fixture: string) {
+	process.env.PATH = shim.withFakes;
+	process.env.FAKE_CLAUDE_FIXTURE = `${FIXTURES_DIR}${fixture}`;
+}
+
+describe("ClaudeEngine", () => {
+	let shim: PathShim;
+	let originalPath: string | undefined;
+
+	beforeEach(async () => {
+		shim = await createPathShim();
+		originalPath = process.env.PATH;
+	});
+
+	afterEach(async () => {
+		process.env.PATH = originalPath;
+		delete process.env.FAKE_CLAUDE_FIXTURE;
+		delete process.env.FAKE_CLAUDE_EXIT;
+		await shim.dispose();
+	});
+
+	it("probes the fake binary's version", async () => {
+		process.env.PATH = shim.withFakes;
+		const engine = new ClaudeEngine();
+		const info = await engine.probe();
+		expect(info).toEqual({ kind: "claude", version: "2.1.239" });
+	});
+
+	it("reports agent-missing when the binary is absent", async () => {
+		process.env.PATH = shim.gitOnly;
+		const engine = new ClaudeEngine();
+		const events = await collect(
+			engine.runTask(TASK, { prompt: "review this", workspaceDir: "/tmp" }),
+		);
+		const [result] = events;
+		expect(result).toMatchObject({
+			type: "result",
+			ok: false,
+			reason: "agent-missing",
+		});
+	});
+
+	it("streams tool events and yields exactly one successful result", async () => {
+		withFixture(shim, "success.jsonl");
+		const engine = new ClaudeEngine();
+		const events = await collect(
+			engine.runTask(TASK, { prompt: "review this", workspaceDir: "/tmp" }),
+		);
+		expect(events[0]).toMatchObject({
+			type: "session",
+			sessionId: "sess-success",
+		});
+		expect(events[1]).toMatchObject({
+			type: "tool",
+			name: "Read",
+			target: "src/index.ts",
+		});
+		const result = events.at(-1);
+		expect(result).toMatchObject({
+			type: "result",
+			ok: true,
+			structuredOutput: { ok: true },
+		});
+	});
+
+	it("reports crashed when the stream ends with no result event", async () => {
+		withFixture(shim, "crash.jsonl");
+		const engine = new ClaudeEngine();
+		const events = await collect(
+			engine.runTask(TASK, { prompt: "review this", workspaceDir: "/tmp" }),
+		);
+		expect(events.at(-1)).toMatchObject({
+			type: "result",
+			ok: false,
+			reason: "crashed",
+		});
+	});
+
+	it("reports api-error, not schema-violation, when the API call itself failed", async () => {
+		withFixture(shim, "api-error.jsonl");
+		const engine = new ClaudeEngine();
+		const events = await collect(
+			engine.runTask(TASK, { prompt: "review this", workspaceDir: "/tmp" }),
+		);
+		expect(events.at(-1)).toMatchObject({
+			type: "result",
+			ok: false,
+			reason: "api-error",
+			stderrTail: expect.stringContaining("HTTP 429"),
+		});
+	});
+
+	it("reports schema-violation when structured output fails re-validation", async () => {
+		withFixture(shim, "bad-schema-output.jsonl");
+		const engine = new ClaudeEngine();
+		const events = await collect(
+			engine.runTask(TASK, { prompt: "review this", workspaceDir: "/tmp" }),
+		);
+		expect(events.at(-1)).toMatchObject({
+			type: "result",
+			ok: false,
+			reason: "schema-violation",
+		});
+	});
+
+	it("delivers the prompt on stdin, never as an argv member (SEC-002)", async () => {
+		withFixture(shim, "success.jsonl");
+		const logPath = `${FIXTURES_DIR}../claude-invocation.log`;
+		process.env.FAKE_CLAUDE_LOG = logPath;
+		try {
+			const engine = new ClaudeEngine();
+			const secret = "a secret prompt nobody should see in a process list";
+			await collect(
+				engine.runTask(TASK, { prompt: secret, workspaceDir: "/tmp" }),
+			);
+
+			const { readFile, rm } = await import("node:fs/promises");
+			const log = await readFile(logPath, "utf8");
+			const [record] = log
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
+			expect(record.argv.join(" ")).not.toContain(secret);
+			expect(record.stdinBytes).toBe(Buffer.byteLength(secret));
+			await rm(logPath, { force: true });
+		} finally {
+			delete process.env.FAKE_CLAUDE_LOG;
+		}
+	});
+});

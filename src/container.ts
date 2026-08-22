@@ -1,14 +1,19 @@
+import { join } from "node:path";
 import type { Clock } from "./application/ports/Clock";
+import type { Engine } from "./application/ports/Engine";
 import type { Git } from "./application/ports/Git";
 import type { GithubService } from "./application/ports/GithubService";
+import type { SessionStore } from "./application/ports/SessionStore";
 import {
 	makeResolveChangeset,
 	type ResolveChangeset,
 } from "./application/resolveChangeset";
 import type { Toolchain } from "./domain/session/Toolchain";
 import { SystemClock } from "./infrastructure/clock/SystemClock";
+import { ClaudeEngine } from "./infrastructure/engine/ClaudeEngine";
 import { GitClient } from "./infrastructure/git/GitClient";
 import { GhCliGithubService } from "./infrastructure/github/GhCliGithubService";
+import { SessionStore as FileSessionStore } from "./infrastructure/store/SessionStore";
 
 export interface BootConfig {
 	/** absolute repo toplevel (`git rev-parse --show-toplevel`) */
@@ -24,6 +29,9 @@ export interface ContainerOverrides {
 	git?: Git;
 	/** null = no GitHub backend at all, matching toolchain.github.kind "none" */
 	githubService?: GithubService | null;
+	/** null = no agent at all, matching toolchain.agent.kind "none" (REQ-009) */
+	engine?: Engine | null;
+	sessionStore?: SessionStore;
 }
 
 /**
@@ -31,8 +39,8 @@ export interface ContainerOverrides {
  * handed down; nothing below this file imports an implementation directly.
  *
  * `toolchain` is a required parameter, not something this function invents —
- * the real probe is a Phase 4 concern (the agent side of it does not exist
- * yet); the CLI edge supplies whatever it can determine today.
+ * the CLI edge probes it (infrastructure/toolchain/probeToolchain.ts) and
+ * hands the result down.
  */
 export function buildContainer(
 	config: BootConfig,
@@ -45,6 +53,15 @@ export function buildContainer(
 		overrides.githubService !== undefined
 			? overrides.githubService
 			: selectGithubService(toolchain, git, config);
+	const engine: Engine | null =
+		overrides.engine !== undefined
+			? overrides.engine
+			: toolchain.agent.kind === "claude"
+				? new ClaudeEngine()
+				: null;
+	const sessionStore: SessionStore =
+		overrides.sessionStore ??
+		new FileSessionStore({ dataDir: join(config.repoRoot, ".prreview") });
 
 	const resolveChangeset = makeResolveChangeset({
 		git,
@@ -52,13 +69,23 @@ export function buildContainer(
 		toolchain,
 	});
 
-	return { clock, git, githubService, toolchain, resolveChangeset };
+	return {
+		clock,
+		git,
+		githubService,
+		engine,
+		sessionStore,
+		toolchain,
+		resolveChangeset,
+	};
 }
 
 export interface Container {
 	clock: Clock;
 	git: Git;
 	githubService: GithubService | null;
+	engine: Engine | null;
+	sessionStore: SessionStore;
 	toolchain: Toolchain;
 	resolveChangeset: ResolveChangeset;
 }

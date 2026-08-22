@@ -49,3 +49,13 @@ trusting them again.
   hands it to Windows and the connection stays pending — no ECONNREFUSED, ever — so anything that
   waits on that socket hangs forever with no error to show. A dev proxy or health check needs its
   own connect-timeout probe; it cannot rely on the OS to fail fast.
+
+- **`--permission-mode` decision (SEC-003, Phase 4):** the review task uses `bypassPermissions`,
+  not the `dontAsk` legacy used alongside `--allowedTools`/`--disallowedTools`. `dontAsk` alone
+  (with no tool allow/deny lists) was observed to still route a `Bash` call through "the Claude
+  Code auto mode classifier" and deny it outright in this sandboxed environment — not a hang, an
+  explicit denial, which would silently defeat SEC-003's whole premise that the agent can run
+  code to verify a finding. `bypassPermissions` is the CLI's documented full-autonomy mode and is
+  what SEC-003 actually asks for. Not independently re-verified end to end against a real,
+  unsandboxed `claude` process (the sandbox blocked the direct comparison); revisit if a real run
+  ever shows an unexpected permission prompt or denial.

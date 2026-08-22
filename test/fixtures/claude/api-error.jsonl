@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","session_id":"sess-api-error","cwd":"/repo","model":"claude-sonnet-5"}
+{"type":"result","is_error":true,"subtype":"error_during_execution","terminal_reason":"api_error","api_error_status":429,"session_id":"sess-api-error","num_turns":1,"total_cost_usd":0.0,"result":"rate limited"}
