@@ -67,4 +67,13 @@
 
 	/* Pierre never defines this one itself, so it cascades into the shadow roots */
 	--diffs-font-family: var(--fontStack-monospace);
+
+	/*
+	 * Code metrics from Primer's own code-block scale rather than Pierre's
+	 * hardcoded 13px/20px fallbacks. The size already agreed; the leading did
+	 * not, and a diff is dense enough that half a pixel per row accumulates
+	 * into a visibly different rhythm over a screenful.
+	 */
+	--diffs-font-size: var(--text-codeBlock-size);
+	--diffs-line-height: var(--text-codeBlock-lineHeight);
 }

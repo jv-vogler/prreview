@@ -1,21 +1,27 @@
 /*
- * The collapsed marker keeps its own row. It is a target the reader has to
- * find in a wall of code, and the band of quiet around it is most of what
- * makes it findable — crushing the row to save space cost more than it saved.
+ * The collapsed marker keeps its own row, and the row says so: recessed to
+ * the inset tone so it reads as a seam in the diff rather than a line of code
+ * that lost its text. Darker is what separates it; the space around the
+ * marker is what makes the marker findable.
  */
 .annotation {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
 	gap: var(--base-size-4);
-	padding: var(--base-size-6) 0;
+	width: 100%;
+	padding: var(--base-size-4) var(--base-size-8);
+	background: var(--bgColor-inset);
+	box-shadow:
+		inset 0 var(--borderWidth-thin) 0 var(--borderColor-muted),
+		inset 0 calc(-1 * var(--borderWidth-thin)) 0 var(--borderColor-muted);
 }
 
 /*
- * The one moment a marker asks to be noticed: a few beats as the pass lands,
- * then it settles and stays quiet. A permanent loop is not an option here —
- * the diff is virtualized and a long pass paints hundreds of rows, so a
- * marker that never stops animating is both noise and per-row cost.
+ * The marker keeps breathing so it stays findable while the reader scrolls
+ * past it. The loop is affordable because the diff is virtualized: only rows
+ * near the viewport exist, so this animates a handful of markers at a time
+ * rather than one per comment in the pass.
  */
 @keyframes marker-arrive {
 	0% {
@@ -32,13 +38,13 @@
 	}
 }
 
-@keyframes marker-attention {
+@keyframes marker-pulse {
 	0%,
 	100% {
-		box-shadow: 0 0 0 0 transparent;
+		box-shadow: 0 0 0 0 var(--marker-halo, transparent);
 	}
 	50% {
-		box-shadow: 0 0 0 var(--base-size-4) var(--marker-halo, transparent);
+		box-shadow: 0 0 0 var(--base-size-6) transparent;
 	}
 }
 
@@ -60,10 +66,12 @@
 		border-color var(--motion-transition-hover);
 	animation:
 		marker-arrive var(--motion-duration-medium) var(--motion-easing-enter) both,
-		marker-attention var(--motion-duration-long) var(--motion-easing-move) 3;
+		marker-pulse 2s var(--motion-easing-move) infinite;
 }
 
 .marker:hover {
+	/* a marker under the pointer is already found; the pulse only fights the hover */
+	animation-play-state: running, paused;
 	transform: scale(1.08);
 	border-color: var(--borderColor-emphasis);
 	color: var(--fgColor-default);
