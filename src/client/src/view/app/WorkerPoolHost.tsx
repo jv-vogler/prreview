@@ -19,6 +19,18 @@ export const HIGHLIGHTER = {
 	// 'shiki-wasm' would need 'wasm-unsafe-eval' in script-src, which the CSP
 	// does not grant
 	preferredHighlighter: "shiki-js",
+	/*
+	 * Line-level blocks only, the way GitHub renders a hunk it could not pair
+	 * line-for-line. Pierre's default word-alt pass also highlights the words
+	 * it matched *inside* each changed line, which on a rewritten block finds
+	 * incidental shared words ("the", "is") and speckles the diff with
+	 * emphasis that means nothing.
+	 *
+	 * This has to live here rather than in CodeView's `options`: the word pass
+	 * runs in the highlight worker, and the worker's copy of the setting comes
+	 * from these pool options, not from the per-view render options.
+	 */
+	lineDiffType: "none",
 } as const;
 
 /**
