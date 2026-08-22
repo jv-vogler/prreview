@@ -29,10 +29,60 @@ export function RunStatusBar({ review }: { review: ReviewRunState }) {
 	if (run.status === "queued" || run.status === "running") {
 		return <ActiveRun run={run} onCancel={review.cancel} />;
 	}
-	if (run.status === "succeeded" && pass !== null && pass.residue.length > 0) {
-		return <ResidueWarning files={pass.residue} />;
+	if (run.status === "succeeded") {
+		return (
+			<>
+				{pass !== null && pass.residue.length > 0 && (
+					<ResidueWarning files={pass.residue} />
+				)}
+				<CompletedRun run={run} />
+			</>
+		);
 	}
 	return null;
+}
+
+/**
+ * What the finished run cost, kept on screen after it ends: a review is slow
+ * enough that "how long did that take" is a question worth answering without
+ * making the reader have watched the clock.
+ */
+function CompletedRun({ run }: { run: RunDto }) {
+	const durationMs = runDurationMs(run);
+	if (durationMs === null) {
+		return null;
+	}
+	const steps = run.progress?.toolCalls;
+	return (
+		<div className={styles.bar} data-run-status="succeeded" role="status">
+			<div className={styles.text}>
+				<p className={styles.headline}>
+					<span className={styles.stage}>Reviewed</span>
+					<span className={styles.clock} data-run-elapsed>
+						{formatElapsed(durationMs)}
+					</span>
+				</p>
+				{steps !== undefined && (
+					<p className={styles.detail}>
+						{steps} step{steps === 1 ? "" : "s"}
+					</p>
+				)}
+			</div>
+		</div>
+	);
+}
+
+/** Both instants come from the server, so this never straddles two clocks. */
+function runDurationMs(run: RunDto): number | null {
+	if (run.startedAt === undefined || run.endedAt === undefined) {
+		return null;
+	}
+	const started = Date.parse(run.startedAt);
+	const ended = Date.parse(run.endedAt);
+	if (Number.isNaN(started) || Number.isNaN(ended)) {
+		return null;
+	}
+	return Math.max(0, ended - started);
 }
 
 /**

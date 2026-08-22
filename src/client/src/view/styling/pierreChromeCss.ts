@@ -51,9 +51,14 @@ const SCROLLBAR_CSS = `
  *
  * Pierre's own default paints it in `--diffs-bg`, same as the code below it,
  * so left alone it has no background of its own. GitHub's real header sits
- * one step up, in canvas-subtle — overridden here at rest, with hover a
- * further opaque step past that (a sticky header can't use a translucent
- * hover: the code scrolling under it would show through).
+ * one step up, in canvas-subtle — overridden here at rest.
+ *
+ * Hover is `--control-bgColor-hover` rather than a step further along the
+ * background ramp: `--bgColor-emphasis` is a near-black inverted-text token in
+ * light mode, so pairing it with the header's own dark filename dropped the
+ * bar to 1.08:1 and the filename vanished under the cursor. It also has to
+ * stay opaque, since a sticky header lets the scrolling code show through
+ * anything translucent.
  */
 const CLICKABLE_HEADER_CSS = `
 	[data-diffs-header="default"] {
@@ -62,9 +67,43 @@ const CLICKABLE_HEADER_CSS = `
 		transition: background-color var(--motion-transition-hover);
 	}
 	[data-diffs-header="default"]:hover {
-		background-color: var(--bgColor-emphasis);
+		background-color: var(--control-bgColor-hover);
+	}
+`;
+
+/**
+ * GitHub's own diff line colors, applied as final backgrounds.
+ *
+ * `pierre-theme.css` maps Primer's diffBlob tokens onto Pierre's
+ * `--diffs-bg-addition-override` family, but Pierre does not use those as the
+ * background it paints: they are the *mix target* it blends 20% into the page
+ * background. Feeding it Primer's `--diffBlob-additionLine-bgColor`, which is
+ * already a 15%-alpha wash, diluted GitHub's green to roughly 3% and the diff
+ * read as washed out. These rules set the composited result instead, so a
+ * changed line is exactly the color github.com paints.
+ */
+const DIFF_LINE_COLORS_CSS = `
+	[data-line-type="change-addition"]:is([data-line], [data-no-newline]) {
+		background-color: var(--diffBlob-additionLine-bgColor);
+	}
+	[data-line-type="change-deletion"]:is([data-line], [data-no-newline]) {
+		background-color: var(--diffBlob-deletionLine-bgColor);
+	}
+	[data-column-number][data-line-type="change-addition"],
+	[data-gutter-buffer][data-line-type="change-addition"] {
+		background-color: var(--diffBlob-additionNum-bgColor);
+	}
+	[data-column-number][data-line-type="change-deletion"],
+	[data-gutter-buffer][data-line-type="change-deletion"] {
+		background-color: var(--diffBlob-deletionNum-bgColor);
+	}
+	[data-line-type="change-addition"] [data-diff-span] {
+		background-color: var(--diffBlob-additionWord-bgColor);
+	}
+	[data-line-type="change-deletion"] [data-diff-span] {
+		background-color: var(--diffBlob-deletionWord-bgColor);
 	}
 `;
 
 /** for the Diff view's CodeView, where files fold */
-export const PIERRE_DIFF_CHROME_CSS = `${SCROLLBAR_CSS}${CLICKABLE_HEADER_CSS}`;
+export const PIERRE_DIFF_CHROME_CSS = `${SCROLLBAR_CSS}${CLICKABLE_HEADER_CSS}${DIFF_LINE_COLORS_CSS}`;
