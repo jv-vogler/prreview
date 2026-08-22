@@ -9,7 +9,10 @@ test-results/
 
 # local planning artifacts — never in history (owner decision, 2026-08-16)
 plan/
-.impeccable
+
+# .impeccable/config.json is shared review policy (suppression decisions) and
+# stays tracked; only the tool's own scan cache is a local, regenerable artifact
+.impeccable/hook.cache.json
 
 # on-disk-only reference to the pre-rewrite implementation (also at git tag
 # pre-rewrite) — never tracked, so it can't rot in the build or leak into lint
