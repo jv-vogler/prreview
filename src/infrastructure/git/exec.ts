@@ -92,6 +92,11 @@ function run(
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 
+		// A child that exits before reading stdin (a fast-failing `gh`/`git`
+		// invocation) turns this write into an EPIPE. The exit code is already
+		// what gets reported below; an unhandled 'error' here would otherwise
+		// crash the process instead.
+		child.stdin.on("error", () => {});
 		if (options.stdin === undefined) {
 			child.stdin.end();
 		} else {
