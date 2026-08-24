@@ -60,7 +60,8 @@
 }
 
 .prose {
-	font-size: var(--text-body-size-small);
+	font-size: var(--text-body-size-medium);
+	line-height: var(--base-text-lineHeight-relaxed);
 	color: var(--fgColor-default);
 	overflow-wrap: anywhere;
 }

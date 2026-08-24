@@ -154,27 +154,6 @@
 		transform: none;
 	}
 }
-
-@media (prefers-reduced-motion: reduce) {
-	.section[data-lane="dismissed"] .row,
-	.rowExpanded {
-		animation-name: fade-only;
-	}
-
-	.row:hover {
-		transform: none;
-	}
-
-	@keyframes fade-only {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
-}
-
 .rowTier {
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-semibold);
@@ -183,5 +162,6 @@
 
 .rowTitle {
 	color: var(--fgColor-default);
-	font-size: var(--text-body-size-small);
+	font-size: var(--text-body-size-medium);
+	line-height: var(--base-text-lineHeight-normal);
 }
