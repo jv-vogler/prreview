@@ -129,15 +129,6 @@
 	}
 }
 
-@keyframes row-open-reduced {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-
 /* the way back out, quicker than the way in */
 @keyframes row-close {
 	from {
@@ -146,15 +137,6 @@
 	}
 	to {
 		grid-template-rows: 0fr;
-		opacity: 0;
-	}
-}
-
-@keyframes row-close-reduced {
-	from {
-		opacity: 1;
-	}
-	to {
 		opacity: 0;
 	}
 }
@@ -175,27 +157,4 @@
 .expanderClip {
 	min-height: 0;
 	overflow: hidden;
-}
-
-/*
- * Reduced motion keeps every state change legible and drops the travel: the
- * balloon still fades in, nothing scales or slides, and the attention beat
- * goes away entirely rather than pulsing in place.
- */
-@media (prefers-reduced-motion: reduce) {
-	.marker {
-		animation: none;
-	}
-
-	.marker:hover {
-		transform: none;
-	}
-
-	.expander {
-		animation-name: row-open-reduced;
-	}
-
-	.expander[data-closing] {
-		animation-name: row-close-reduced;
-	}
 }

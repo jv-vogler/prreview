@@ -138,16 +138,6 @@ const FOLD_CSS = `
 		animation: prreview-unfold var(--motion-duration-short)
 			var(--motion-easing-enter) both;
 	}
-	@media (prefers-reduced-motion: reduce) {
-		[data-diffs-header="default"] ~ [data-diff],
-		[data-diffs-header="default"] ~ [data-file] {
-			animation-name: prreview-unfold-reduced;
-		}
-		@keyframes prreview-unfold-reduced {
-			from { opacity: 0; }
-			to { opacity: 1; }
-		}
-	}
 `;
 
 /** for the Diff view's CodeView, where files fold */
