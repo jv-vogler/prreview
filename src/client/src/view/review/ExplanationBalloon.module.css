@@ -1,0 +1,59 @@
+/*
+ * Everything here exists to not read as a comment: comments are floating
+ * cards with radius, shadow and buttons; this is a flat strip of prose set
+ * into the diff, hairline-bordered top and bottom, square-cornered, inert.
+ */
+.balloon {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--base-size-8);
+	box-sizing: border-box;
+	width: 100%;
+	max-inline-size: 68ch;
+	padding: var(--base-size-8) var(--base-size-12);
+	border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
+	border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+	background: var(--bgColor-muted);
+	color: var(--fgColor-default);
+}
+
+.icon {
+	flex: none;
+	display: flex;
+	margin-top: var(--base-size-2);
+	color: var(--fgColor-muted);
+}
+
+.says {
+	flex: 1;
+	min-width: 0;
+}
+
+.sentence {
+	margin: 0;
+	font-size: var(--text-body-size-small);
+	line-height: var(--text-body-lineHeight-small);
+}
+
+.sentence + .sentence {
+	margin-top: var(--base-size-4);
+}
+
+.code {
+	padding: 0 var(--base-size-2);
+	border-radius: var(--borderRadius-small);
+	background: var(--bgColor-neutral-muted);
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-codeInline-size);
+}
+
+.topic {
+	flex: none;
+	align-self: flex-start;
+	padding: 0 var(--base-size-6);
+	border: var(--borderWidth-thin) solid var(--borderColor-muted);
+	border-radius: var(--borderRadius-full);
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	white-space: nowrap;
+}

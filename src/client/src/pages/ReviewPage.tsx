@@ -1,5 +1,9 @@
 import type { ChangesetDto } from "@dto/ChangesetDto";
-import type { ReviewCommentDto, ReworkInstructionDto } from "@dto/ReviewDto";
+import type {
+	ExplanationDto,
+	ReviewCommentDto,
+	ReworkInstructionDto,
+} from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getChangeset } from "../infrastructure/endpoints/getChangeset";
 import { getSession } from "../infrastructure/endpoints/getSession";
@@ -119,6 +123,12 @@ function ResolvedReview({
 		() => review.pass?.comments ?? [],
 		[review.pass],
 	);
+	const explanations = useMemo<readonly ExplanationDto[]>(
+		() => review.pass?.explanations ?? [],
+		[review.pass],
+	);
+	// expanded by default; one toggle for all of them, no per-balloon state
+	const [showExplanations, setShowExplanations] = useState(true);
 	const activeComments = useMemo(
 		() => comments.filter((comment) => !comment.deleted),
 		[comments],
@@ -353,6 +363,16 @@ function ResolvedReview({
 						</p>
 					)}
 					{review.pass !== null && <OverviewPanel pass={review.pass} />}
+					{explanations.length > 0 && (
+						<button
+							type="button"
+							className={styles.explanationsToggle}
+							aria-pressed={showExplanations}
+							onClick={() => setShowExplanations((current) => !current)}
+						>
+							{showExplanations ? "Hide explanations" : "Show explanations"}
+						</button>
+					)}
 					{canPublish && review.pass !== null && (
 						<PublishControl
 							comments={activeComments}
@@ -378,6 +398,8 @@ function ResolvedReview({
 							expandedCommentIds={expandedCommentIds}
 							onToggleComment={onToggleComment}
 							actions={actions}
+							explanations={explanations}
+							showExplanations={showExplanations}
 						/>
 					</div>
 				)}

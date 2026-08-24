@@ -80,7 +80,24 @@ test.describe("review pass", () => {
 		await expect(page.getByText("Mock unplaceable finding")).toBeVisible();
 
 		// REQ-005: per-tier counts in the sidebar
-		await expect(page.getByText("1 Blocker")).toBeVisible();
+		// exact: the run status detail line ("… 2 findings, 1 blocker") would
+		// otherwise also match and trip strict mode
+		await expect(page.getByText("1 Blocker", { exact: true })).toBeVisible();
+
+		// change explanations render expanded by default, anchored on the diff,
+		// visually distinct from comments (no actions, no tier)
+		const balloon = page.locator("[data-explanation-id]").first();
+		await expect(balloon).toBeVisible();
+		await expect(balloon.getByRole("button")).toHaveCount(0);
+
+		// the one header toggle hides them all, and brings them all back
+		await page.getByRole("button", { name: "Hide explanations" }).click();
+		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
+		await page.getByRole("button", { name: "Show explanations" }).click();
+		await expect(balloon).toBeVisible();
+
+		// hiding explanations never touched the comments
+		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
 	});
 });
 

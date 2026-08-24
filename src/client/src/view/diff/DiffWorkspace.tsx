@@ -1,6 +1,10 @@
 import type { BlobRequest } from "@dto/BlobRequest";
 import type { ChangesetDto, FileDiffDto } from "@dto/ChangesetDto";
-import type { CommentAnchorSideDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type {
+	CommentAnchorSideDto,
+	ExplanationDto,
+	ReviewCommentDto,
+} from "@dto/ReviewDto";
 import type {
 	CodeViewDiffItem,
 	DiffLineAnnotation,
@@ -17,11 +21,16 @@ import {
 	groupPlacedComments,
 	placedComments,
 } from "../../domain/review/placedComments";
+import {
+	groupPlacedExplanations,
+	placedExplanations,
+} from "../../domain/review/placedExplanations";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
 import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
 import type { CommentActions } from "../review/CommentActions";
 import { DiffCommentAnnotation } from "../review/DiffCommentAnnotation";
+import { ExplanationBalloon } from "../review/ExplanationBalloon";
 import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";
@@ -30,6 +39,7 @@ import { useHeaderFoldClicks } from "./useHeaderFoldClicks";
 /** the annotation metadata carried per rendered diff line (TASK-043) */
 interface DiffAnnotationMeta {
 	commentIds: string[];
+	explanationIds: string[];
 }
 
 export interface DiffWorkspaceHandle {
@@ -50,6 +60,10 @@ export interface DiffWorkspaceProps {
 	expandedCommentIds: ReadonlySet<string>;
 	onToggleComment(commentId: string): void;
 	actions: CommentActions;
+	/** the pass's change explanations; unplaceable ones carry no annotation */
+	explanations: readonly ExplanationDto[];
+	/** the one header toggle: explanations render expanded or not at all */
+	showExplanations: boolean;
 }
 
 const ANNOTATION_SIDE: Record<CommentAnchorSideDto, "deletions" | "additions"> =
@@ -70,6 +84,8 @@ export function DiffWorkspace({
 	expandedCommentIds,
 	onToggleComment,
 	actions,
+	explanations,
+	showExplanations,
 }: DiffWorkspaceProps) {
 	const codeViewRef = useRef<CodeViewHandle<DiffAnnotationMeta>>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -81,28 +97,74 @@ export function DiffWorkspace({
 		[comments],
 	);
 
+	const explanationsById = useMemo(
+		() =>
+			new Map(explanations.map((explanation) => [explanation.id, explanation])),
+		[explanations],
+	);
+
+	// one annotation per line carries both kinds: the hidden state drops the
+	// explanation groups entirely, so a line with only explanations loses its
+	// annotation rather than rendering an empty slot
 	const annotationsByFileId = useMemo(() => {
-		const groups = groupPlacedComments(placedComments(comments));
+		const merged = new Map<
+			string,
+			{
+				fileId: string;
+				side: CommentAnchorSideDto;
+				line: number;
+				meta: DiffAnnotationMeta;
+			}
+		>();
+		const at = (fileId: string, side: CommentAnchorSideDto, line: number) => {
+			const key = `${fileId}:${side}:${line}`;
+			let entry = merged.get(key);
+			if (entry === undefined) {
+				entry = {
+					fileId,
+					side,
+					line,
+					meta: { commentIds: [], explanationIds: [] },
+				};
+				merged.set(key, entry);
+			}
+			return entry;
+		};
+		if (showExplanations) {
+			for (const group of groupPlacedExplanations(
+				placedExplanations(explanations),
+			)) {
+				at(group.fileId, group.side, group.line).meta.explanationIds.push(
+					...group.explanationIds,
+				);
+			}
+		}
+		for (const group of groupPlacedComments(placedComments(comments))) {
+			at(group.fileId, group.side, group.line).meta.commentIds.push(
+				...group.commentIds,
+			);
+		}
 		const byFile = new Map<string, DiffLineAnnotation<DiffAnnotationMeta>[]>();
-		for (const group of groups) {
-			const forFile = byFile.get(group.fileId) ?? [];
+		for (const entry of merged.values()) {
+			const forFile = byFile.get(entry.fileId) ?? [];
 			forFile.push({
-				side: ANNOTATION_SIDE[group.side],
-				lineNumber: group.line,
-				metadata: { commentIds: group.commentIds },
+				side: ANNOTATION_SIDE[entry.side],
+				lineNumber: entry.line,
+				metadata: entry.meta,
 			});
-			byFile.set(group.fileId, forFile);
+			byFile.set(entry.fileId, forFile);
 		}
 		return byFile;
-	}, [comments]);
+	}, [comments, explanations, showExplanations]);
 
 	// Pierre reuses a file's whole rendered record — annotations included —
 	// until `version` moves (see the comment at its use below), so a new
-	// pass's comments need their own bump distinct from the fold bit.
+	// pass's comments, its explanations, and the show/hide toggle all need
+	// their own bump distinct from the fold bit.
 	const commentsRevisionRef = useRef(0);
-	const previousCommentsRef = useRef(comments);
-	if (previousCommentsRef.current !== comments) {
-		previousCommentsRef.current = comments;
+	const previousAnnotationsRef = useRef(annotationsByFileId);
+	if (previousAnnotationsRef.current !== annotationsByFileId) {
+		previousAnnotationsRef.current = annotationsByFileId;
 		commentsRevisionRef.current += 1;
 	}
 	const commentsRevision = commentsRevisionRef.current;
@@ -227,13 +289,27 @@ export function DiffWorkspace({
 				);
 			}}
 			renderAnnotation={(annotation) => (
-				<DiffCommentAnnotation
-					commentIds={annotation.metadata.commentIds}
-					commentsById={commentsById}
-					expandedCommentIds={expandedCommentIds}
-					onToggle={onToggleComment}
-					actions={actions}
-				/>
+				<>
+					{annotation.metadata.explanationIds
+						.map((id) => explanationsById.get(id))
+						.filter(
+							(explanation): explanation is ExplanationDto =>
+								explanation !== undefined,
+						)
+						.map((explanation) => (
+							<ExplanationBalloon
+								key={explanation.id}
+								explanation={explanation}
+							/>
+						))}
+					<DiffCommentAnnotation
+						commentIds={annotation.metadata.commentIds}
+						commentsById={commentsById}
+						expandedCommentIds={expandedCommentIds}
+						onToggle={onToggleComment}
+						actions={actions}
+					/>
+				</>
 			)}
 			options={{
 				theme: PIERRE_THEME_NAME,
