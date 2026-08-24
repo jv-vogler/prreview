@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","session_id":"sess-task-bad","cwd":"/repo","model":"claude-sonnet-5"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"TaskCreate","input":{"description":"no subject and no activeForm"}}]}}
+{"type":"result","is_error":false,"subtype":"success","session_id":"sess-task-bad","num_turns":2,"total_cost_usd":0.01,"result":"done","structured_output":{"ok":true}}

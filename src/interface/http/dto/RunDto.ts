@@ -9,6 +9,8 @@ import { reviewPassDtoSchema } from "./ReviewDto";
 export const runFailureReasonDtoSchema = z.enum([
 	"agent-missing",
 	"timed-out",
+	/** the run spent its turn budget before it finished */
+	"out-of-turns",
 	"crashed",
 	"schema-violation",
 	// the API call failed; the agent never got to answer
@@ -18,6 +20,14 @@ export const runFailureReasonDtoSchema = z.enum([
 ]);
 
 export type RunFailureReasonDto = z.infer<typeof runFailureReasonDtoSchema>;
+
+export const itineraryStepDtoSchema = z.object({
+	/** the agent's own wording for this step */
+	label: z.string(),
+	state: z.enum(["pending", "active", "done"]),
+});
+
+export type ItineraryStepDto = z.infer<typeof itineraryStepDtoSchema>;
 
 /**
  * What the run is doing, so the UI never has to show a bare spinner.
@@ -30,6 +40,8 @@ export const runProgressDtoSchema = z.object({
 	/** the current move in plain words; null before the agent's first */
 	activity: z.string().nullable(),
 	toolCalls: z.int().min(0),
+	/** the agent's own plan, echoed back; null until it writes one */
+	itinerary: z.array(itineraryStepDtoSchema).nullable(),
 	lastActivityAt: z.string(),
 });
 

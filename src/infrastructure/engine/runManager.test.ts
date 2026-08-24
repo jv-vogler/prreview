@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RunJob } from "../../application/ports/RunManager";
+import type { RunJob, RunManager } from "../../application/ports/RunManager";
 import type { RunEvent } from "../../domain/review/Run";
 import { createRunManager } from "./runManager";
 
@@ -105,7 +105,7 @@ describe("createRunManager", () => {
 		const manager = createRunManager({
 			publish: (event) => events.push(event),
 		});
-		let report!: (update: { kind: "activity"; activity: string }) => void;
+		let report!: (update: Parameters<RunManager["report"]>[1]) => void;
 
 		const job: RunJob = ({ runId }) => {
 			report = (update) => manager.report(runId, update);

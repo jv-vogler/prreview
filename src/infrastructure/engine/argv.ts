@@ -8,8 +8,17 @@
  *   implementation restricted the agent to `Read,Glob,Grep` and its findings
  *   were correspondingly unverifiable. This rebuild lets the agent run code —
  *   write a temp test, reproduce a crash, delete it — and a permission
- *   prompt the process cannot answer would just hang the run. There is
- *   deliberately no `--allowedTools`/`--disallowedTools` pair.
+ *   prompt the process cannot answer would just hang the run.
+ * - `--allowedTools` exists only to reach the task-list tools:
+ *   `TaskCreate`/`TaskUpdate`/`TaskList`/`TaskGet` are absent from `-p` mode
+ *   unless the flag is passed, and `TodoWrite` does not exist there at all,
+ *   so this is the only way the agent can publish the plan the status bar
+ *   shows. Measured against the CLI's own `system:init` event the flag is
+ *   additive here — 97 granted tools become 101 and nothing is removed,
+ *   because `bypassPermissions` already permits everything. It still names
+ *   Bash/Read/Write/Edit explicitly so that SEC-003 holds either way: a
+ *   superset while the flag stays additive, and exactly the tools a review
+ *   needs to verify its own findings if a future CLI makes it restrictive.
  * - there is deliberately **no `--model`**: the user's configured default is
  *   their own cost decision, and the resolved model is read back off the
  *   result event.
@@ -25,6 +34,18 @@ export interface TaskArgvOptions {
 }
 
 const PERMISSION_MODE = "bypassPermissions";
+const ALLOWED_TOOLS = [
+	"Bash",
+	"Read",
+	"Write",
+	"Edit",
+	"WebFetch",
+	"WebSearch",
+	"TaskCreate",
+	"TaskUpdate",
+	"TaskList",
+	"TaskGet",
+].join(",");
 
 /** `-p --output-format stream-json` requires `--verbose` (CON-001). */
 const STREAM_BASELINE = [
@@ -34,6 +55,8 @@ const STREAM_BASELINE = [
 	"--verbose",
 	"--permission-mode",
 	PERMISSION_MODE,
+	"--allowedTools",
+	ALLOWED_TOOLS,
 ];
 
 export function buildTaskArgv(options: TaskArgvOptions): string[] {

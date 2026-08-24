@@ -1,0 +1,170 @@
+/*
+ * The rail appears mid-run, once the agent writes its first plan — it has no
+ * height to start from, so the row opens the same way a comment balloon does
+ * (DiffCommentAnnotation.module.css's row-open trick): a single grid row
+ * interpolating between 0fr and 1fr, which is the only way to animate a
+ * height nobody measured.
+ */
+@keyframes itinerary-open {
+	from {
+		grid-template-rows: 0fr;
+		opacity: 0;
+	}
+	to {
+		grid-template-rows: 1fr;
+		opacity: 1;
+	}
+}
+
+.wrapper {
+	display: grid;
+	grid-template-rows: 1fr;
+	width: 100%;
+	animation: itinerary-open var(--motion-duration-medium)
+		var(--motion-easing-enter) both;
+}
+
+.wrapperClip {
+	min-height: 0;
+	overflow: hidden;
+}
+
+.rail {
+	display: flex;
+	align-items: flex-start;
+	gap: 0;
+	padding: var(--base-size-4) 0;
+	overflow-x: auto;
+}
+
+.step {
+	display: flex;
+	flex: none;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--base-size-4);
+	min-width: var(--base-size-32);
+}
+
+.label {
+	max-width: var(--base-size-96);
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	text-align: center;
+	white-space: nowrap;
+}
+
+.step[data-step-state="active"] .label {
+	color: var(--fgColor-default);
+	font-weight: var(--base-text-weight-semibold);
+}
+
+.step[data-step-state="pending"] .label {
+	opacity: 0.6;
+}
+
+.glyphSlot {
+	display: flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: var(--base-size-16);
+	height: var(--base-size-16);
+}
+
+.ring {
+	width: var(--base-size-12);
+	height: var(--base-size-12);
+	border: var(--borderWidth-thick) solid var(--borderColor-default);
+	border-radius: var(--borderRadius-full);
+}
+
+.check {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--fgColor-success);
+	animation: marker-arrive var(--motion-duration-medium)
+		var(--motion-easing-enter) both;
+}
+
+@keyframes marker-arrive {
+	0% {
+		transform: scale(0.6);
+		opacity: 0;
+	}
+	60% {
+		transform: scale(1.12);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+/*
+ * The active step's dot carries the "alive" signal for the whole bar — the
+ * old bare pulse dot steps aside once a plan exists (RunStatusBar.tsx). Same
+ * halo idiom as DiffCommentAnnotation.module.css's marker-pulse: the spread
+ * grows while the colour is still opaque, driven by a local custom property
+ * so colour and motion stay separated.
+ */
+@keyframes itinerary-pulse {
+	0% {
+		box-shadow: 0 0 0 0 var(--itinerary-halo);
+	}
+	70% {
+		box-shadow: 0 0 0 var(--base-size-8) transparent;
+	}
+	100% {
+		box-shadow: 0 0 0 0 transparent;
+	}
+}
+
+.dot {
+	width: var(--base-size-12);
+	height: var(--base-size-12);
+	border-radius: var(--borderRadius-full);
+	background: var(--fgColor-accent);
+	--itinerary-halo: var(--fgColor-accent);
+	animation: itinerary-pulse 1.2s var(--motion-easing-move) infinite;
+}
+
+/* stalled: the pulse stops and turns amber, matching RunStatusBar's .pulse[data-stalled] */
+.dot[data-stalled] {
+	background: var(--fgColor-attention);
+	animation: none;
+}
+
+/*
+ * The connector is two layered lines: a dotted base always visible ahead,
+ * and a solid overlay that draws in left-to-right as the step behind it
+ * completes. Never partially filled under the active step — there is no
+ * sub-step progress to be honest about, so `data-filled` is only ever set
+ * from a completed step's own connector.
+ */
+.connector {
+	position: relative;
+	flex: 1 1 var(--base-size-32);
+	align-self: center;
+	margin-top: var(--base-size-8);
+}
+
+.connectorBase {
+	display: block;
+	border-top: var(--borderWidth-thick) dotted var(--borderColor-muted);
+}
+
+.connectorFill {
+	position: absolute;
+	inset: 0;
+	border-top: var(--borderWidth-thick) solid var(--borderColor-emphasis);
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform var(--motion-duration-medium) var(--motion-easing-move);
+}
+
+.connector[data-filled] .connectorFill {
+	transform: scaleX(1);
+}

@@ -1,8 +1,12 @@
+import type { ReviewCommentDto } from "@dto/ReviewDto";
 import type { RunDto } from "@dto/RunDto";
 import { AlertIcon, StopIcon } from "@primer/octicons-react";
+import { countByTier } from "../../domain/review/countByTier";
 import { formatElapsed } from "./formatElapsed";
+import { Itinerary } from "./Itinerary";
 import styles from "./RunStatusBar.module.css";
 import { REVIEW_FAILURE_COPY } from "./reviewFailureCopy";
+import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "./reviewTier";
 import { useElapsedSince } from "./useElapsedSince";
 import type { ReviewRunState } from "./useReviewRun";
 
@@ -29,13 +33,16 @@ export function RunStatusBar({ review }: { review: ReviewRunState }) {
 	if (run.status === "queued" || run.status === "running") {
 		return <ActiveRun run={run} onCancel={review.cancel} />;
 	}
+	if (run.status === "cancelled") {
+		return <CancelledRun run={run} onRetry={review.start} />;
+	}
 	if (run.status === "succeeded") {
 		return (
 			<>
 				{pass !== null && pass.residue.length > 0 && (
 					<ResidueWarning files={pass.residue} />
 				)}
-				<CompletedRun run={run} />
+				<CompletedRun run={run} comments={pass?.comments ?? []} />
 			</>
 		);
 	}
@@ -47,12 +54,17 @@ export function RunStatusBar({ review }: { review: ReviewRunState }) {
  * enough that "how long did that take" is a question worth answering without
  * making the reader have watched the clock.
  */
-function CompletedRun({ run }: { run: RunDto }) {
+function CompletedRun({
+	run,
+	comments,
+}: {
+	run: RunDto;
+	comments: readonly ReviewCommentDto[];
+}) {
 	const durationMs = runDurationMs(run);
 	if (durationMs === null) {
 		return null;
 	}
-	const steps = run.progress?.toolCalls;
 	return (
 		<div className={styles.bar} data-run-status="succeeded" role="status">
 			<div className={styles.text}>
@@ -62,14 +74,37 @@ function CompletedRun({ run }: { run: RunDto }) {
 						{formatElapsed(durationMs)}
 					</span>
 				</p>
-				{steps !== undefined && (
-					<p className={styles.detail}>
-						{steps} step{steps === 1 ? "" : "s"}
-					</p>
-				)}
+				<p className={styles.detail}>{completedTake(run, comments)}</p>
 			</div>
 		</div>
 	);
+}
+
+function completedTake(
+	run: RunDto,
+	comments: readonly ReviewCommentDto[],
+): string {
+	const parts: string[] = [];
+	const steps = run.progress?.toolCalls;
+	if (steps !== undefined) {
+		parts.push(`${steps} step${steps === 1 ? "" : "s"}`);
+	}
+	parts.push(findingsTake(comments));
+	return parts.join(" · ");
+}
+
+/** "4 findings, 1 blocker" — worst tier called out, worst-first per reviewTier.ts */
+function findingsTake(comments: readonly ReviewCommentDto[]): string {
+	if (comments.length === 0) {
+		return "no findings";
+	}
+	const counts = countByTier(comments);
+	const worst = REVIEW_TIER_ORDER.find((tier) => counts[tier] > 0);
+	const total = `${comments.length} finding${comments.length === 1 ? "" : "s"}`;
+	if (worst === undefined) {
+		return total;
+	}
+	return `${total}, ${counts[worst]} ${REVIEW_TIER_LABEL[worst].toLowerCase()}${counts[worst] === 1 ? "" : "s"}`;
 }
 
 /** Both instants come from the server, so this never straddles two clocks. */
@@ -114,10 +149,15 @@ function ActiveRun({ run, onCancel }: { run: RunDto; onCancel(): void }) {
 	const elapsedMs = useElapsedSince(run.startedAt ?? run.queuedAt);
 	const sinceActivityMs = useElapsedSince(run.progress?.lastActivityAt ?? null);
 	const stalled = sinceActivityMs !== null && sinceActivityMs > STALL_MS;
+	const itinerary = run.progress?.itinerary ?? null;
 
 	return (
 		<div className={styles.bar} data-run-status="running" role="status">
-			<span className={styles.pulse} data-stalled={stalled || undefined} />
+			{/* once a plan exists its active step carries the "alive" signal —
+			 * two pulses in one bar would fight each other */}
+			{itinerary === null && (
+				<span className={styles.pulse} data-stalled={stalled || undefined} />
+			)}
 			<div className={styles.text}>
 				<p className={styles.headline}>
 					<span className={styles.stage}>
@@ -129,6 +169,9 @@ function ActiveRun({ run, onCancel }: { run: RunDto; onCancel(): void }) {
 						</span>
 					)}
 				</p>
+				{itinerary !== null && (
+					<Itinerary steps={itinerary} stalled={stalled} />
+				)}
 				<p className={styles.detail} data-run-activity>
 					{describe(run, stalled, sinceActivityMs)}
 				</p>
@@ -197,4 +240,43 @@ function FailedRun({ run, onRetry }: { run: RunDto; onRetry(): void }) {
 			</button>
 		</div>
 	);
+}
+
+/**
+ * A run stopped by the reader's own Stop control (TASK-037): without this
+ * the bar simply vanishes, which reads as a bug rather than as the outcome
+ * of a deliberate click.
+ */
+function CancelledRun({ run, onRetry }: { run: RunDto; onRetry(): void }) {
+	const durationMs = elapsedAtEnd(run);
+	return (
+		<div className={styles.bar} data-run-status="cancelled" role="status">
+			<div className={styles.text}>
+				<p className={styles.headline}>
+					<span className={styles.stage}>Review stopped</span>
+					{durationMs !== null && (
+						<span className={styles.clock} data-run-elapsed>
+							{formatElapsed(durationMs)}
+						</span>
+					)}
+				</p>
+			</div>
+			<button type="button" className={styles.retry} onClick={onRetry}>
+				Try again
+			</button>
+		</div>
+	);
+}
+
+function elapsedAtEnd(run: RunDto): number | null {
+	const start = run.startedAt ?? run.queuedAt;
+	if (run.endedAt === undefined) {
+		return null;
+	}
+	const started = Date.parse(start);
+	const ended = Date.parse(run.endedAt);
+	if (Number.isNaN(started) || Number.isNaN(ended)) {
+		return null;
+	}
+	return Math.max(0, ended - started);
 }

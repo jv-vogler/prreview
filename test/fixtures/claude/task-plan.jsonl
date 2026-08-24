@@ -1,0 +1,6 @@
+{"type":"system","subtype":"init","session_id":"sess-task","cwd":"/repo","model":"claude-sonnet-5"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"TaskCreate","input":{"subject":"Find the ticket","activeForm":"Finding the ticket","description":"x"}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t2","name":"TaskCreate","input":{"subject":"Read the big picture","activeForm":"Reading the big picture","description":"x"}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t3","name":"TaskUpdate","input":{"taskId":"1","status":"completed"}}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t4","name":"TaskUpdate","input":{"taskId":"2","status":"in_progress"}}]}}
+{"type":"result","is_error":false,"subtype":"success","session_id":"sess-task","num_turns":2,"total_cost_usd":0.01,"result":"done","structured_output":{"ok":true}}

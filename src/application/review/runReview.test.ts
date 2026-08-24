@@ -60,6 +60,50 @@ describe("buildReviewJob", () => {
 		expect(sessionStore.saved[0]?.pass).toEqual(PASS);
 	});
 
+	it("forwards a plan event as an itinerary update", async () => {
+		const engine = new FakeEngine();
+		engine.events = [
+			{ type: "tool", name: "Read", target: "src/a.ts" },
+			{ type: "tool", name: "Read", target: "src/a.ts" },
+			{ type: "tool", name: "Read", target: "src/b.ts" },
+			{
+				type: "plan",
+				steps: [{ label: "Find the ticket", state: "done" }],
+			},
+			{
+				type: "result",
+				ok: true,
+				structuredOutput: PASS,
+				text: "done",
+				sessionId: "s1",
+				model: "m",
+				numTurns: 1,
+				costUsd: 0,
+			},
+		];
+		const reported: unknown[] = [];
+		const job = buildReviewJob(
+			{
+				engine,
+				git: new FakeGit({ statusPorcelain: "" }),
+				sessionStore: new FakeSessionStore(),
+				report: (_id, update) => reported.push(update),
+			},
+			{ changesetId: "worktree", announce: "reviewing", files: FILES },
+		);
+		await job(context());
+
+		expect(reported).toEqual([
+			{ kind: "activity", activity: "Reading src/a.ts" },
+			{ kind: "activity", activity: "Reading src/a.ts" },
+			{ kind: "activity", activity: "Reading src/b.ts" },
+			{
+				kind: "itinerary",
+				steps: [{ label: "Find the ticket", state: "done" }],
+			},
+		]);
+	});
+
 	it("reports the run's own residue (TASK-030)", async () => {
 		const engine = new FakeEngine();
 		engine.events = [

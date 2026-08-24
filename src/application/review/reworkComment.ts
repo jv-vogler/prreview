@@ -1,7 +1,10 @@
 import { z } from "zod";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import { describeToolActivity } from "../../domain/review/RunProgress";
+import {
+	describeToolActivity,
+	type RunProgressUpdate,
+} from "../../domain/review/RunProgress";
 import { findingIndexForCommentId } from "../../domain/review/reviewCommentId";
 import type { Engine, EngineResultEvent } from "../ports/Engine";
 import type { Git } from "../ports/Git";
@@ -47,10 +50,7 @@ export interface ReworkCommentDeps {
 	git: Git;
 	sessionStore: SessionStore;
 	/** the manager's own report(), captured so the job can call back into it */
-	report: (
-		runId: string,
-		update: { kind: "activity"; activity: string },
-	) => void;
+	report: (runId: string, update: RunProgressUpdate) => void;
 }
 
 /**

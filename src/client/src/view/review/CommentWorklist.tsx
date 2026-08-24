@@ -1,4 +1,5 @@
-import type { ReviewCommentDto, ReviewTierDto } from "@dto/ReviewDto";
+import type { ReviewCommentDto } from "@dto/ReviewDto";
+import { countByTier } from "../../domain/review/countByTier";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./CommentWorklist.module.css";
@@ -150,19 +151,4 @@ function CommentSection({
 			</ul>
 		</section>
 	);
-}
-
-function countByTier(
-	comments: readonly ReviewCommentDto[],
-): Record<ReviewTierDto, number> {
-	const counts: Record<ReviewTierDto, number> = {
-		blocker: 0,
-		"should-fix": 0,
-		suggestion: 0,
-		nitpick: 0,
-	};
-	for (const comment of comments) {
-		counts[comment.tier]++;
-	}
-	return counts;
 }

@@ -50,10 +50,38 @@ async function main() {
 	await emitLine({ type: "system", subtype: "init", session_id: SESSION_ID, cwd: process.cwd(), model: "mock-agent" });
 	await sleep(delayMs);
 
-	for (const file of files) {
+	// advances the same five-step plan reviewPrompt.ts asks the real agent
+	// for, interleaved with the Read bursts — without this the itinerary
+	// rail is invisible to `npm run dev:mock`
+	await emitPlanCreated();
+	await sleep(delayMs);
+	await emitTaskUpdate(0, "in_progress");
+	await sleep(delayMs);
+	await emitTaskUpdate(0, "completed");
+	await emitTaskUpdate(1, "in_progress");
+	await sleep(delayMs);
+
+	const midpoint = Math.ceil(files.length / 2);
+	for (const file of files.slice(0, midpoint)) {
 		await emitToolUse("Read", { file_path: file.path });
 		await sleep(delayMs);
 	}
+
+	await emitTaskUpdate(1, "completed");
+	await emitTaskUpdate(2, "in_progress");
+	await sleep(delayMs);
+
+	for (const file of files.slice(midpoint)) {
+		await emitToolUse("Read", { file_path: file.path });
+		await sleep(delayMs);
+	}
+
+	await emitTaskUpdate(2, "completed");
+	await emitTaskUpdate(3, "in_progress");
+	await sleep(delayMs);
+	await emitTaskUpdate(3, "completed");
+	await emitTaskUpdate(4, "in_progress");
+	await sleep(delayMs);
 
 	if (process.env.MOCK_AGENT_FAIL !== undefined) {
 		await emitLine({
@@ -74,6 +102,7 @@ async function main() {
 		? buildPass(files)
 		: { overview: "A clean pass: nothing worth flagging.", verdict: "matches the ticket", ticket: null, findings: [] };
 
+	await emitTaskUpdate(4, "completed");
 	await emitLine({
 		type: "result",
 		is_error: false,
@@ -173,6 +202,28 @@ function alertFor(tier) {
 		default:
 			return "NOTE";
 	}
+}
+
+// mirrors reviewPrompt.ts's "## Working plan" five steps, in order
+const PLAN_STEPS = [
+	{ subject: "Find the ticket", activeForm: "Finding the ticket" },
+	{ subject: "Read the big picture", activeForm: "Reading the big picture" },
+	{ subject: "Find problems", activeForm: "Finding problems" },
+	{ subject: "Verify findings", activeForm: "Verifying findings" },
+	{ subject: "Write it up", activeForm: "Writing it up" },
+];
+
+// TaskCreate appends one task per call and TaskUpdate moves one by id, ids
+// running from 1 in creation order — the real print-mode shape, since
+// TodoWrite does not exist under `claude -p`.
+async function emitPlanCreated() {
+	for (const step of PLAN_STEPS) {
+		await emitToolUse("TaskCreate", { ...step, description: step.subject });
+	}
+}
+
+async function emitTaskUpdate(index, status) {
+	await emitToolUse("TaskUpdate", { taskId: String(index + 1), status });
 }
 
 async function emitToolUse(name, input) {

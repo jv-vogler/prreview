@@ -8,6 +8,10 @@ import type {
 	TaskSpec,
 } from "../../application/ports/Engine";
 import type { EngineErrorReason } from "../../domain/errors/EngineError";
+import {
+	applyTaskCall,
+	type ItineraryStep,
+} from "../../domain/review/RunProgress";
 import { exec } from "../git/exec";
 import { parseAgentVersion } from "../toolchain/agentVersion";
 import { buildTaskArgv, buildVersionArgv } from "./argv";
@@ -21,6 +25,9 @@ const PROBE_TIMEOUT_MS = 2000;
 const DEFAULT_KILL_GRACE_MS = 5000;
 /** enough stderr to explain a crash, little enough to keep in a RunDto */
 const STDERR_TAIL_BYTES = 4096;
+
+/** the CLI's terminal_reason when the run spent its --max-turns budget */
+const MAX_TURNS_TERMINAL_REASON = "max_turns";
 
 /** terminal_reason values that mean the CLI itself gave up on the clock */
 const TIMEOUT_TERMINAL_REASONS = new Set([
@@ -124,6 +131,7 @@ export class ClaudeEngine implements Engine {
 
 		let resultRecord: StreamResultRecord | null = null;
 		let resolvedModel = "";
+		let itinerary: readonly ItineraryStep[] = [];
 
 		try {
 			for await (const record of parseStreamJson(child.stdout)) {
@@ -140,9 +148,15 @@ export class ClaudeEngine implements Engine {
 							model: record.model,
 						};
 						break;
-					case "tool-use":
+					case "tool-use": {
 						yield toolEvent(record.name, record.input);
+						const steps = applyTaskCall(itinerary, record.name, record.input);
+						if (steps !== null) {
+							itinerary = steps;
+							yield { type: "plan", steps };
+						}
 						break;
+					}
 					case "assistant-text":
 						yield { type: "text", text: record.text };
 						break;
@@ -305,7 +319,17 @@ function toolEvent(
 	name: string,
 	input: Record<string, unknown>,
 ): EngineEvent & { type: "tool" } {
-	const target = firstString(input.file_path, input.pattern, input.path);
+	// every tool names its subject under a different key, and a tool whose key
+	// is missing here renders as a bare verb forever — `Running a command`,
+	// sixteen times, is what that looks like to a reader watching a run
+	const target = firstString(
+		input.file_path,
+		input.pattern,
+		input.path,
+		input.command,
+		input.url,
+		input.query,
+	);
 	return {
 		type: "tool",
 		name,
@@ -396,6 +420,11 @@ function failureReason(result: StreamResultRecord): EngineErrorReason {
 	// model for a call that never happened.
 	if (result.terminalReason === "api_error") {
 		return "api-error";
+	}
+	// before the structured-output check: an exhausted run has none either,
+	// and blaming the model for an answer it never got to write is a lie
+	if (result.terminalReason === MAX_TURNS_TERMINAL_REASON) {
+		return "out-of-turns";
 	}
 	if (
 		result.structuredOutput === null ||

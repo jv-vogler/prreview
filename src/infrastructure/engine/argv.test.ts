@@ -21,6 +21,8 @@ describe("buildTaskArgv", () => {
 			"--verbose",
 			"--permission-mode",
 			"bypassPermissions",
+			"--allowedTools",
+			"Bash,Read,Write,Edit,WebFetch,WebSearch,TaskCreate,TaskUpdate,TaskList,TaskGet",
 			"--max-turns",
 			"30",
 			"--append-system-prompt",
@@ -38,10 +40,22 @@ describe("buildTaskArgv", () => {
 		expect(buildTaskArgv(TASK_OPTIONS)).not.toContain("--model");
 	});
 
-	it("does not restrict tools: Bash, Write and Edit stay allowed (SEC-003)", () => {
+	it("keeps Bash, Write and Edit available so findings stay verifiable (SEC-003)", () => {
 		const argv = buildTaskArgv(TASK_OPTIONS);
-		expect(argv).not.toContain("--allowedTools");
+		const allowed = (valueAfter(argv, "--allowedTools") ?? "").split(",");
+		for (const tool of ["Bash", "Read", "Write", "Edit"]) {
+			expect(allowed).toContain(tool);
+		}
 		expect(argv).not.toContain("--disallowedTools");
+	});
+
+	it("reaches the task-list tools, absent from -p mode without the flag", () => {
+		const allowed = (
+			valueAfter(buildTaskArgv(TASK_OPTIONS), "--allowedTools") ?? ""
+		).split(",");
+		for (const tool of ["TaskCreate", "TaskUpdate", "TaskList", "TaskGet"]) {
+			expect(allowed).toContain(tool);
+		}
 	});
 
 	it("passes the schema inline, never as a file or @file (CON-003)", () => {
