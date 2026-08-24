@@ -62,9 +62,44 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("reviewing PR #42");
 	});
 
+	it("asks for the five task calls in one message, not one per turn", () => {
+		expect(prompt).toContain("**in a single message**");
+	});
+
+	it("asks for a five-item task plan the reviewer watches live", () => {
+		expect(prompt).toContain("## Working plan");
+		expect(prompt).toContain("TaskCreate");
+		expect(prompt).toContain("TaskUpdate");
+		for (const step of [
+			"find the ticket",
+			"read the big picture",
+			"find problems",
+			"verify findings",
+			"write it up",
+		]) {
+			expect(prompt).toContain(step);
+		}
+	});
+
 	it("preserves the pasteable budget and mandatory cut pass", () => {
 		expect(prompt).toContain("500 characters");
 		expect(prompt).toContain("cut half of it");
+	});
+
+	it("asks for the overview in short paragraphs, budgeted, as markdown", () => {
+		expect(prompt).toContain("two or three short paragraphs");
+		expect(prompt).toContain("700 characters");
+		expect(prompt).toContain("renders as markdown");
+	});
+
+	it("scopes the no-hard-wrap rule to `body`, so the overview may paragraph", () => {
+		expect(prompt).toContain("Never hard-wrap a `body` paragraph");
+		expect(prompt).not.toContain("**Never hard-wrap prose.**");
+	});
+
+	it("bans the em-dash, and its own example obeys the ban", () => {
+		expect(prompt).toContain("Never use an em-dash");
+		expect(prompt).toContain("the error is swallowed. The order is lost");
 	});
 
 	it("preserves the four severity tiers mapped to GitHub alert blocks", () => {

@@ -7,8 +7,14 @@
  * check, find problems, verify by running code, write) is a full pass in one
  * shot — there is no separate comprehension stage to fork from — sized
  * generously plus the CLI's own schema-validation retries.
+ *
+ * Raised from 60 after a real 44-file review spent all 60 and was cut off
+ * before it wrote anything up. `-p` mode grants no `Glob` or `Grep`, so the
+ * agent explores through `Bash` one command at a time and pays a turn for
+ * each; the old ceiling was set against a tool set the run does not get.
+ * This is a cap, not a spend — a review that finishes early costs early.
  */
-export const REVIEW_MAX_TURNS = 60;
+export const REVIEW_MAX_TURNS = 150;
 
 /**
  * How long a run may go **silent** before it is stopped — not a wall clock.
