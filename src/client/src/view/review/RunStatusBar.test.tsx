@@ -11,6 +11,7 @@ function passWithResidue(residue: string[]): ReviewPassDto {
 		verdict: "x",
 		ticket: null,
 		comments: [],
+		explanations: [],
 		residue,
 		published: null,
 	};
@@ -183,6 +184,7 @@ describe("RunStatusBar", () => {
 			verdict: "x",
 			ticket: null,
 			residue: [],
+			explanations: [],
 			published: null,
 			comments: [
 				{

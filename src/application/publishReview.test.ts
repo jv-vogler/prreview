@@ -34,6 +34,7 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 			overview: "x",
 			verdict: "x",
 			ticket: null,
+			explanations: [],
 			findings: [finding()],
 		},
 		residue: [],
@@ -217,6 +218,7 @@ describe("publishReview", () => {
 					overview: "x",
 					verdict: "x",
 					ticket: null,
+					explanations: [],
 					findings: [finding({ lane: "pre-existing" })],
 				},
 			}),
@@ -254,6 +256,7 @@ describe("publishReview", () => {
 					overview: "x",
 					verdict: "x",
 					ticket: null,
+					explanations: [],
 					findings: [
 						finding({ path: "src/a.ts", startLine: 1, endLine: 1 }),
 						finding({ path: "src/missing.ts", lane: "review" }),
@@ -288,6 +291,42 @@ describe("publishReview", () => {
 		});
 		// the artifact itself is untouched — a second pass stays possible
 		expect(result.pass.findings).toHaveLength(3);
+	});
+
+	it("publishes none of a pass's explanations, however placeable they are", async () => {
+		const sessionStore = new FakeSessionStore();
+		await sessionStore.saveReview(
+			storedReview({
+				pass: {
+					overview: "x",
+					verdict: "x",
+					ticket: null,
+					explanations: [
+						{
+							path: "src/a.ts",
+							startLine: 1,
+							endLine: 1,
+							says: ["An account of the change, not a comment."],
+							topic: "a topic",
+						},
+					],
+					findings: [finding()],
+				},
+			}),
+		);
+		const githubService = new FakeGithubService();
+
+		const result = await publishReview(
+			{ githubService, sessionStore },
+			CHANGESET_ID,
+			PR_SOURCE,
+			[FILE],
+		);
+
+		expect(githubService.createdReviews[0].input.comments).toEqual([
+			{ path: "src/a.ts", line: 1, side: "RIGHT", body: "a finding" },
+		]);
+		expect(result.published?.commentIds).toEqual(["finding-0"]);
 	});
 
 	it("discards a previously published pending review before creating the new one", async () => {

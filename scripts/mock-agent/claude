@@ -188,7 +188,30 @@ function buildPass(files) {
 		verdict: "matches the ticket (mock)",
 		ticket: null,
 		findings,
+		explanations: buildExplanations(files),
 	};
+}
+
+// 2–3 explanations anchored to real parsed lines, at least two sharing a
+// `topic`, so `npm run dev:mock` shows the balloons and the grouping
+// without a paid run
+function buildExplanations(files) {
+	const explanations = files.slice(0, 3).map((file, index) => {
+		const anchor =
+			file.lines.filter((line) => line.marker === "+").at(-1) ?? file.lines.at(-1);
+		const line = anchor?.lineNumber ?? 1;
+		return {
+			path: file.path,
+			startLine: line,
+			endLine: line,
+			says: [
+				`Mock account of what ${file.path} now does.`,
+				"It exists so the balloon has more than one sentence to lay out.",
+			],
+			...(index < 2 ? { topic: "Mock shared intent" } : {}),
+		};
+	});
+	return explanations;
 }
 
 function alertFor(tier) {

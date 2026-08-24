@@ -71,6 +71,24 @@ export const reviewCommentDtoSchema = z.object({
 
 export type ReviewCommentDto = z.infer<typeof reviewCommentDtoSchema>;
 
+/**
+ * One authored account of a change, anchored like a comment but never one:
+ * the author's voice on what a change does and why, never review feedback,
+ * never publishable. Explanations sharing a `topic` label form one topic.
+ */
+export const explanationDtoSchema = z.object({
+	id: z.string(),
+	path: z.string(),
+	startLine: z.int().min(1),
+	endLine: z.int().min(1),
+	/** one sentence per entry */
+	says: z.array(z.string()),
+	topic: z.string().optional(),
+	placement: commentPlacementDtoSchema,
+});
+
+export type ExplanationDto = z.infer<typeof explanationDtoSchema>;
+
 /** What `publishReview` (TASK-050, TASK-053) left behind, once published. */
 export const publishedRecordDtoSchema = z.object({
 	reviewId: z.number(),
@@ -87,6 +105,8 @@ export const reviewPassDtoSchema = z.object({
 	verdict: z.string(),
 	ticket: z.string().nullable(),
 	comments: z.array(reviewCommentDtoSchema),
+	/** the pass's change explanations, placed or not (unplaceable ones carry it in `placement`) */
+	explanations: z.array(explanationDtoSchema),
 	/** SEC-003/TASK-030's honesty measure: files this pass left on the tree */
 	residue: z.array(z.string()),
 	/** null until this pass has been published as a pending review at least once */

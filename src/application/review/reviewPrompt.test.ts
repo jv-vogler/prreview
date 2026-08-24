@@ -92,6 +92,30 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("renders as markdown");
 	});
 
+	it("asks for change explanations that say what the diff cannot", () => {
+		expect(prompt).toContain("## Explain the change");
+		expect(prompt).toContain("says something the diff does not");
+		expect(prompt).toContain("Never restate the code in words");
+		expect(prompt).toContain("Skip mechanical changes");
+		expect(prompt).toContain("never review feedback and never report problems");
+	});
+
+	it("worked explanation example contrasts restating the diff with the why", () => {
+		expect(prompt).toContain("conditionally concatenate the evidence field");
+		expect(prompt).toContain("Evidence used to be reviewer-only scratch.");
+	});
+
+	it("grounds explanations in the code, not the PR description", () => {
+		expect(prompt).toContain(
+			"the description is the author's claim about their own work",
+		);
+	});
+
+	it("anchors explanations exactly like findings, with shared topic labels", () => {
+		expect(prompt).toContain("Anchor each explanation exactly like a finding");
+		expect(prompt).toContain("same short `topic` label");
+	});
+
 	it("scopes the no-hard-wrap rule to `body`, so the overview may paragraph", () => {
 		expect(prompt).toContain("Never hard-wrap a `body` paragraph");
 		expect(prompt).not.toContain("**Never hard-wrap prose.**");
