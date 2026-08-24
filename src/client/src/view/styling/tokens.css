@@ -1,9 +1,8 @@
 /*
  * GitHub's published design tokens: base size, typography and motion,
  * functional size/border/typography/motion, and the six functional themes.
- * The theme files scope every color token under Primer's scheme attributes
- * (data-color-mode / data-light-theme / data-dark-theme), which the
- * ThemeProvider maintains on the root element.
+ * Dark only: index.html stamps the scheme attributes Primer's dark.css is
+ * scoped under, so there is no mode to resolve and no light theme to load.
  *
  * The base layer is not optional decoration under the functional one: every
  * functional token is literally `var(--base-…)`, so a missing base import
@@ -20,9 +19,4 @@
 @import "@primer/primitives/dist/css/functional/size/radius.css";
 @import "@primer/primitives/dist/css/functional/typography/typography.css";
 @import "@primer/primitives/dist/css/functional/motion/motion.css";
-@import "@primer/primitives/dist/css/functional/themes/light.css";
 @import "@primer/primitives/dist/css/functional/themes/dark.css";
-@import "@primer/primitives/dist/css/functional/themes/light-high-contrast.css";
-@import "@primer/primitives/dist/css/functional/themes/dark-high-contrast.css";
-@import "@primer/primitives/dist/css/functional/themes/light-colorblind.css";
-@import "@primer/primitives/dist/css/functional/themes/dark-colorblind.css";

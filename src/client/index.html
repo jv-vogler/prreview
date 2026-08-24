@@ -1,13 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-color-mode="dark" data-dark-theme="dark" data-resolved-theme="dark">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>prreview</title>
-		<!-- Pre-paint theme attributes so there is no flash. This must be an
-		     external classic script: the production CSP has no 'unsafe-inline'
-		     in script-src, so an inline variant would be blocked. -->
-		<script src="/theme-init.js"></script>
+		<!-- Every visible glyph in the app is set in this face; loading it
+		     late enough for CSS discovery costs a visible reflow when the
+		     fallback font's metrics differ, which Mona Sans's do. -->
+		<link
+			rel="preload"
+			href="/fonts/MonaSansVF.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
 	</head>
 	<body>
 		<div id="root"></div>

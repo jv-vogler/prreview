@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { reviewPassSchema } from "../../application/review/reviewSchema";
+import { storedReviewPassSchema } from "../../application/review/reviewSchema";
 
 const commentEditSchema = z.object({
 	body: z.string().optional(),
@@ -17,7 +17,10 @@ const publishedRecordSchema = z.object({
 export const storedReviewSchema = z.object({
 	changesetId: z.string(),
 	createdAt: z.string(),
-	pass: reviewPassSchema,
+	// the pass's own length budgets are not applied here: they gate what the
+	// engine may write, and re-applying them on read makes tightening one
+	// retroactively corrupt every session already on disk
+	pass: storedReviewPassSchema,
 	residue: z.array(z.string()),
 	// defaulted so a review.json written before TASK-046 still loads
 	commentEdits: z.record(z.string(), commentEditSchema).default({}),

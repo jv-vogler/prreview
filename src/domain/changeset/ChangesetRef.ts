@@ -9,4 +9,6 @@ export interface ChangesetRef {
 	headSha: string | null;
 	worktreeFingerprint?: string;
 	resolvedAt: string;
+	/** the PR's own page, when the backend had metadata to give one; never synthesized */
+	prUrl?: string;
 }

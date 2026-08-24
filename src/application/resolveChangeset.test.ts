@@ -318,6 +318,25 @@ describe("PR resolution across backends", () => {
 		const { ref } = await setup.container.resolveChangeset({ target: "482" });
 		expect(ref.source).toEqual({ kind: "pr", repo: "acme/api", number: 482 });
 	});
+
+	it("carries the PR's own URL forward when the backend has metadata", async () => {
+		const { container } = ghWorld();
+		const { ref } = await container.resolveChangeset({ target: "482" });
+		expect(ref.prUrl).toBe("https://github.com/acme/api/pull/482");
+	});
+
+	it("has no prUrl on the metadata-less git-remote path", async () => {
+		const setup = buildTestContainer({
+			git: {
+				refs: { "refs/remotes/origin/main": sha("c") },
+				remotes: { origin: "git@github.com:acme/api.git" },
+				mergeBases: { [`${sha("c")}..${sha("e")}`]: sha("d") },
+			},
+			github: { kind: "git-remote", prHeads: { 482: sha("e") } },
+		});
+		const { ref } = await setup.container.resolveChangeset({ target: "482" });
+		expect(ref.prUrl).toBeUndefined();
+	});
 });
 
 describe("the announcement", () => {

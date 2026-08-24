@@ -16,6 +16,7 @@ function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
 		lane: "review",
 		placement: { kind: "unplaceable" },
 		edited: false,
+		deleted: false,
 		...overrides,
 	};
 }

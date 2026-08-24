@@ -3,8 +3,7 @@
  *
  * Everything the renderer paints resolves through the variables below:
  * -  the `--diffs-token-*` slots are what `registerCustomCSSVariableTheme`
- *    turns into inline `var()` references on every highlighted token, so a
- *    `data-resolved-theme` flip recolors code live with no re-render;
+ *    turns into inline `var()` references on every highlighted token;
  * -  the `--diffs-*-override` slots are Pierre's own escape hatches for its
  *    chrome (line backgrounds, gutters, separators), mapped here onto
  *    Primer's diffBlob family so the diff colors are GitHub's, not
@@ -18,15 +17,10 @@
  * with `light-dark()`, which keys off it.
  */
 
-[data-resolved-theme="light"] {
-	color-scheme: light;
-}
-
 [data-resolved-theme="dark"] {
 	color-scheme: dark;
 }
 
-[data-resolved-theme="light"],
 [data-resolved-theme="dark"] {
 	/* shiki css-variable theme slots (token colors + pre background) */
 	--diffs-foreground: var(--fgColor-default);
@@ -67,4 +61,13 @@
 
 	/* Pierre never defines this one itself, so it cascades into the shadow roots */
 	--diffs-font-family: var(--fontStack-monospace);
+
+	/*
+	 * Code metrics from Primer's own code-block scale rather than Pierre's
+	 * hardcoded 13px/20px fallbacks. The size already agreed; the leading did
+	 * not, and a diff is dense enough that half a pixel per row accumulates
+	 * into a visibly different rhythm over a screenful.
+	 */
+	--diffs-font-size: var(--text-codeBlock-size);
+	--diffs-line-height: var(--text-codeBlock-lineHeight);
 }

@@ -60,7 +60,8 @@
 }
 
 .prose {
-	font-size: var(--text-body-size-small);
+	font-size: var(--text-body-size-medium);
+	line-height: var(--base-text-lineHeight-relaxed);
 	color: var(--fgColor-default);
 	overflow-wrap: anywhere;
 }
@@ -97,6 +98,29 @@
 .prose :global(pre code) {
 	padding: 0;
 	background: none;
+}
+
+.prose :global(pre):has(.diffLine) {
+	padding-inline: 0;
+	background: var(--bgColor-inset);
+}
+
+.diffLine {
+	display: block;
+	padding-inline: var(--base-size-8);
+}
+
+.diffLine[data-diff="addition"] {
+	background: var(--diffBlob-additionLine-bgColor);
+}
+
+.diffLine[data-diff="deletion"] {
+	background: var(--diffBlob-deletionLine-bgColor);
+}
+
+.diffLine[data-diff="hunk"] {
+	background: var(--diffBlob-hunkLine-bgColor);
+	color: var(--fgColor-muted);
 }
 
 .prose :global(table) {

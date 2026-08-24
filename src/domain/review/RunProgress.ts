@@ -14,15 +14,27 @@ export interface RunProgress {
 	activity: string | null;
 	/** tool calls so far — the number that proves the run is alive */
 	toolCalls: number;
+	/** the agent's own plan, echoed back; null until it writes one */
+	itinerary: readonly ItineraryStep[] | null;
 	/** when the last move was observed: empty on the client's stall clock */
 	lastActivityAt: string;
 }
 
-export type RunProgressUpdate = { kind: "activity"; activity: string };
+/** One step of the agent's own plan, in its own wording. */
+export interface ItineraryStep {
+	/** the agent's own wording for this step */
+	label: string;
+	state: "pending" | "active" | "done";
+}
+
+export type RunProgressUpdate =
+	| { kind: "activity"; activity: string }
+	| { kind: "itinerary"; steps: readonly ItineraryStep[] };
 
 export const EMPTY_RUN_PROGRESS: RunProgress = {
 	activity: null,
 	toolCalls: 0,
+	itinerary: null,
 	lastActivityAt: "",
 };
 
@@ -50,11 +62,14 @@ export function describeToolActivity(name: string, target?: string): string {
 			return `Writing${subject === "" ? " a file" : subject}`;
 		case "Edit":
 			return `Editing${subject === "" ? " a file" : subject}`;
-		case "TodoWrite":
+		case TASK_CREATE_TOOL:
+		case TASK_UPDATE_TOOL:
+		case "TaskList":
+		case "TaskGet":
 			return "Planning its next steps";
 		case "WebFetch":
 		case "WebSearch":
-			return "Looking something up";
+			return subject === "" ? "Looking something up" : `Looking up${subject}`;
 		default:
 			return `Using ${name}${subject}`;
 	}
@@ -76,10 +91,68 @@ export function applyRunProgress(
 	update: RunProgressUpdate,
 	at: string,
 ): RunProgress {
+	if (update.kind === "itinerary") {
+		// a plan update is a view of the tool call the activity update already
+		// counted, not a second move — toolCalls stays put
+		return { ...current, itinerary: update.steps, lastActivityAt: at };
+	}
 	return {
 		...current,
 		activity: update.activity,
 		toolCalls: current.toolCalls + 1,
 		lastActivityAt: at,
 	};
+}
+
+const TASK_STATE: Record<string, ItineraryStep["state"]> = {
+	completed: "done",
+	in_progress: "active",
+	pending: "pending",
+};
+
+export const TASK_CREATE_TOOL = "TaskCreate";
+export const TASK_UPDATE_TOOL = "TaskUpdate";
+
+/**
+ * The agent's plan arrives one call at a time — `TaskCreate` appends a task,
+ * `TaskUpdate` moves one by id — so the list has to be accumulated rather
+ * than read whole out of any single call. Ids are assigned in creation order
+ * starting at 1, which is what makes the index derivable without reading the
+ * tool results back.
+ *
+ * Returns null for any call this does not recognize, leaving the caller's
+ * existing list untouched.
+ */
+export function applyTaskCall(
+	steps: readonly ItineraryStep[],
+	toolName: string,
+	input: Record<string, unknown>,
+): ItineraryStep[] | null {
+	if (toolName === TASK_CREATE_TOOL) {
+		const label = firstNonEmptyString(input.subject, input.activeForm);
+		return label === null ? null : [...steps, { label, state: "pending" }];
+	}
+	if (toolName !== TASK_UPDATE_TOOL) {
+		return null;
+	}
+	const index = taskIndex(input.taskId);
+	const state = TASK_STATE[String(input.status)];
+	if (index === null || state === undefined || index >= steps.length) {
+		return null;
+	}
+	return steps.map((step, at) => (at === index ? { ...step, state } : step));
+}
+
+function taskIndex(taskId: unknown): number | null {
+	const parsed = Number.parseInt(String(taskId), 10);
+	return Number.isInteger(parsed) && parsed > 0 ? parsed - 1 : null;
+}
+
+function firstNonEmptyString(...candidates: unknown[]): string | null {
+	for (const candidate of candidates) {
+		if (typeof candidate === "string" && candidate !== "") {
+			return candidate;
+		}
+	}
+	return null;
 }

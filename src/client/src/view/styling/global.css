@@ -109,23 +109,3 @@ a {
 		scrollbar-color: var(--borderColor-default) transparent;
 	}
 }
-
-/*
- * Motion is a preference, and someone who has turned it off has usually done
- * so because motion makes them ill. Nothing below is decorative enough to
- * argue with that, so all of it stops.
- */
-@media (prefers-reduced-motion: reduce) {
-	*,
-	*::before,
-	*::after {
-		/* biome-ignore-start lint/complexity/noImportantStyles: an accessibility
-		   override has to beat every component's own timing, and a component
-		   cannot be expected to opt in one declaration at a time */
-		animation-duration: 1ms !important;
-		animation-iteration-count: 1 !important;
-		transition-duration: 1ms !important;
-		scroll-behavior: auto !important;
-		/* biome-ignore-end lint/complexity/noImportantStyles: see above */
-	}
-}

@@ -57,7 +57,9 @@ export async function publishReview(
 		);
 	}
 
-	const { included } = buildPublishPayload(effectiveComments(stored, files));
+	const { included } = buildPublishPayload(
+		effectiveComments(stored, files).filter((comment) => !comment.deleted),
+	);
 	if (included.length === 0) {
 		throw new PublishError(
 			"nothing-publishable",
@@ -154,8 +156,19 @@ function classify(
 			path: comment.path,
 			line: comment.placement.line,
 			side,
-			body: comment.body,
+			body: pasteableBody(comment),
 			...(isRange ? { startLine: comment.startLine, startSide: side } : {}),
 		},
 	};
+}
+
+/**
+ * One comment as GitHub receives it: the alert block and paragraph, then the
+ * visual aid under them. `title` and `proof` are the reviewer's own scan and
+ * triage aids and are never published.
+ */
+function pasteableBody(comment: EffectiveComment): string {
+	return comment.evidence === undefined
+		? comment.body
+		: `${comment.body}\n\n${comment.evidence}`;
 }

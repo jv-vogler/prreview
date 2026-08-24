@@ -1,41 +1,168 @@
+/*
+ * A bounded composition, not a full-width strip. 1200 characters cannot fill a
+ * 2200px page and stay readable, so the block is capped and the leftover width
+ * becomes page margin outside it rather than a void inside it: the verdict and
+ * the rule under it span the whole composition, which is what makes the
+ * narrower prose column below read as deliberate instead of stranded at the
+ * left edge.
+ */
 .panel {
-	padding-top: var(--base-size-12);
-	margin-top: var(--base-size-12);
+	--composition-measure: 56rem;
+
+	max-width: var(--composition-measure);
+	padding-top: var(--base-size-16);
+	margin-top: var(--base-size-16);
 	border-top: var(--borderWidth-thin) solid var(--borderColor-default);
 }
 
-.overview {
-	margin: 0;
-	color: var(--fgColor-default);
-	font-size: var(--text-body-size-medium);
-}
-
-.verdict {
-	margin: var(--base-size-8) 0 0;
+.label {
+	margin: 0 0 var(--base-size-8);
 	color: var(--fgColor-muted);
-	font-style: italic;
-}
-
-.ticket {
-	margin: var(--base-size-4) 0 0;
-	color: var(--fgColor-muted);
-	font-size: var(--text-body-size-small);
-}
-
-.qualityPoints {
-	margin-top: var(--base-size-12);
-}
-
-.qualityHeading {
-	margin: 0 0 var(--base-size-4);
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-semibold);
-	color: var(--fgColor-default);
+	/* no token for tracking; small caps close up without it */
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
 }
 
-.qualityList {
+.lede {
+	padding-bottom: var(--base-size-16);
+	margin-bottom: var(--base-size-20);
+	border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+}
+
+/*
+ * A label above and a rule below, and deliberately no bar down its side: a
+ * left bar is the blockquote signal, and this is the review's conclusion
+ * rather than something being quoted. Size carries the emphasis on its own,
+ * so the weight stays normal.
+ */
+.verdict {
 	margin: 0;
-	padding-left: var(--base-size-20);
+	color: var(--fgColor-default);
+	/*
+	 * Primer jumps 20px straight to 32px. At 20px this is only 1.25x the prose
+	 * and reads as another paragraph; at 32px it wraps to four lines and
+	 * shouts. 24px is 1.5x, and holds the same three lines the 20px did.
+	 */
+	--verdict-size: 1.5rem;
+
+	font-family: var(--fontStack-prose);
+	font-size: var(--verdict-size);
+	font-style: italic;
+	line-height: var(--base-text-lineHeight-snug);
+	/* one short block: without this its last line strands a single word */
+	text-wrap: pretty;
+}
+
+/*
+ * `flex-wrap` and not a media query: the ticket note drops under the prose
+ * exactly when the two stop fitting, which depends on the comment sidebar and
+ * on wherever the reader has dragged the file-tree resizer, neither of which a
+ * breakpoint can see.
+ */
+.body {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: var(--base-size-32);
+}
+
+.prose {
+	/*
+	 * Measured, not guessed: 60ch renders 64 characters a line here, and 58ch
+	 * through 62ch all land there, so the value sits mid-plateau rather than
+	 * on an edge. The same 62ch on Mona Sans measured 81, which is what made
+	 * the old block unreadable. Declared on the element that uses it, so the
+	 * ch resolves against this font and not the panel's.
+	 */
+	--prose-measure: 60ch;
+	/* narrower than this stops being a column and starts being a gutter */
+	--prose-min: 40ch;
+	/* light-on-dark thins strokes; +50 puts them back without reading as bold */
+	--prose-weight: 450;
+	--prose-block-gap: var(--base-size-16);
+	--prose-list-indent: var(--base-size-20);
+
+	flex: 1 1 var(--prose-measure);
+	min-width: min(100%, var(--prose-min));
+	max-width: var(--prose-measure);
+	color: var(--fgColor-default);
+	font-family: var(--fontStack-prose);
+	font-size: var(--text-body-size-large);
+	font-weight: var(--prose-weight);
+	/*
+	 * `loose` and not `relaxed`, because fonts.css scales this face up by
+	 * 109.3% and line-height does not come with it: 1.75 of the 16px token is
+	 * 28px, which against glyphs setting at an apparent 17.5px is the 1.6 a
+	 * serif this size wants. `relaxed` would leave it at an apparent 1.49.
+	 */
+	line-height: var(--base-text-lineHeight-loose);
+}
+
+/*
+ * Markdown arrives as sibling blocks, so the rhythm lives between two of them
+ * and never on one: a margin on the blocks themselves puts stray space above
+ * the first and below the last, and nothing in global.css zeroes the UA's.
+ * The combinators sit outside `:global()` because Biome's CSS parser rejects
+ * them inside it.
+ */
+.prose > :global(*) {
+	margin: 0;
+}
+
+.prose > :global(*) + :global(*) {
+	margin-top: var(--prose-block-gap);
+}
+
+.prose :global(ul),
+.prose :global(ol) {
+	padding-left: var(--prose-list-indent);
+}
+
+/* a loose list wraps each item in its own <p>, which would space items as paragraphs */
+.prose :global(li p) {
+	margin: 0;
+}
+
+.prose :global(strong) {
+	font-weight: var(--base-text-weight-semibold);
+}
+
+.prose :global(code) {
+	background: var(--bgColor-neutral-muted);
+	border-radius: var(--borderRadius-small);
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-codeInline-size);
+}
+
+.prose :global(a) {
+	color: var(--fgColor-link);
+	text-decoration: none;
+}
+
+.prose :global(a:hover) {
+	text-decoration: underline;
+}
+
+/* an agent-written heading is a label inside one block, never a page title */
+.prose :global(h1),
+.prose :global(h2),
+.prose :global(h3) {
+	font-size: var(--text-body-size-large);
+	font-weight: var(--base-text-weight-semibold);
+}
+
+/* grows into whatever the prose column leaves, so the row fills the composition */
+.ticket {
+	--ticket-min: 15rem;
+
+	flex: 1 1 var(--ticket-min);
+}
+
+.ticketText {
+	margin: 0;
 	color: var(--fgColor-muted);
 	font-size: var(--text-body-size-small);
+	line-height: var(--base-text-lineHeight-relaxed);
 }

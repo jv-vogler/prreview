@@ -29,16 +29,18 @@ export interface EffectiveComment {
 	placement: CommentPlacement;
 	/** true once the reader has overwritten `body` (TASK-046) */
 	edited: boolean;
+	/** dismissed by the reader; still returned so it can be restored */
+	deleted: boolean;
 }
 
-/** A deleted finding is left out entirely, never tagged for the caller to filter. */
+/** Every finding, including dismissed ones — callers that must exclude those filter themselves. */
 export function effectiveComments(
 	stored: StoredReview,
 	files: readonly FileDiff[],
 ): EffectiveComment[] {
-	return stored.pass.findings
-		.map((finding, index) => toEffectiveComment(finding, index, stored, files))
-		.filter((comment): comment is EffectiveComment => comment !== null);
+	return stored.pass.findings.map((finding, index) =>
+		toEffectiveComment(finding, index, stored, files),
+	);
 }
 
 function toEffectiveComment(
@@ -46,12 +48,9 @@ function toEffectiveComment(
 	index: number,
 	stored: StoredReview,
 	files: readonly FileDiff[],
-): EffectiveComment | null {
+): EffectiveComment {
 	const id = reviewCommentId(index);
 	const edit = stored.commentEdits[id];
-	if (isDeleted(edit)) {
-		return null;
-	}
 	return {
 		id,
 		path: finding.path,
@@ -73,5 +72,6 @@ function toEffectiveComment(
 			files,
 		),
 		edited: edit?.body !== undefined,
+		deleted: isDeleted(edit),
 	};
 }

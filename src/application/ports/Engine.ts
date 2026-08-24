@@ -1,4 +1,5 @@
 import type { EngineErrorReason } from "../../domain/errors/EngineError";
+import type { ItineraryStep } from "../../domain/review/RunProgress";
 
 /**
  * The application's view of the user's agent CLI, implemented for claude by
@@ -58,6 +59,7 @@ export interface TaskInput {
 export type EngineEvent =
 	| EngineSessionEvent
 	| EngineToolEvent
+	| EnginePlanEvent
 	| EngineTextEvent
 	| EngineResultEvent;
 
@@ -73,6 +75,16 @@ export interface EngineToolEvent {
 	type: "tool";
 	name: string;
 	target?: string;
+}
+
+/**
+ * The agent's own plan, as it stands after one update — a claude concept
+ * (`TodoWrite`) surfaced here as something semantic ("the agent's own
+ * plan"), so a second CLI adapter maps its equivalent or never emits one.
+ */
+export interface EnginePlanEvent {
+	type: "plan";
+	steps: readonly ItineraryStep[];
 }
 
 export interface EngineTextEvent {

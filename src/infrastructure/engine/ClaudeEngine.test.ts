@@ -117,6 +117,33 @@ describe("ClaudeEngine", () => {
 		});
 	});
 
+	it("accumulates the plan across incremental TaskCreate/TaskUpdate calls", async () => {
+		withFixture(shim, "task-plan.jsonl");
+		const engine = new ClaudeEngine();
+		const events = await collect(
+			engine.runTask(TASK, { prompt: "review this", workspaceDir: "/tmp" }),
+		);
+		const plans = events.filter((event) => event.type === "plan");
+		expect(plans).toHaveLength(4);
+		expect(plans.at(-1)).toEqual({
+			type: "plan",
+			steps: [
+				{ label: "Find the ticket", state: "done" },
+				{ label: "Read the big picture", state: "active" },
+			],
+		});
+	});
+
+	it("yields only the tool event when a Task call's input is unrecognized", async () => {
+		withFixture(shim, "task-plan-malformed.jsonl");
+		const engine = new ClaudeEngine();
+		const events = await collect(
+			engine.runTask(TASK, { prompt: "review this", workspaceDir: "/tmp" }),
+		);
+		expect(events[1]).toMatchObject({ type: "tool", name: "TaskCreate" });
+		expect(events.some((event) => event.type === "plan")).toBe(false);
+	});
+
 	it("reports api-error, not schema-violation, when the API call itself failed", async () => {
 		withFixture(shim, "api-error.jsonl");
 		const engine = new ClaudeEngine();
@@ -128,6 +155,19 @@ describe("ClaudeEngine", () => {
 			ok: false,
 			reason: "api-error",
 			stderrTail: expect.stringContaining("HTTP 429"),
+		});
+	});
+
+	it("reports out-of-turns, not schema-violation, when the budget ran out", async () => {
+		withFixture(shim, "max-turns.jsonl");
+		const engine = new ClaudeEngine();
+		const events = await collect(
+			engine.runTask(TASK, { prompt: "review this", workspaceDir: "/tmp" }),
+		);
+		expect(events.at(-1)).toMatchObject({
+			type: "result",
+			ok: false,
+			reason: "out-of-turns",
 		});
 	});
 

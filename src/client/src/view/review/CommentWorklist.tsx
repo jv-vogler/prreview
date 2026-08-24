@@ -1,4 +1,5 @@
-import type { ReviewCommentDto, ReviewTierDto } from "@dto/ReviewDto";
+import type { ReviewCommentDto } from "@dto/ReviewDto";
+import { countByTier } from "../../domain/review/countByTier";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./CommentWorklist.module.css";
@@ -27,16 +28,16 @@ export function CommentWorklist({
 	onCollapse,
 	actions,
 }: CommentWorklistProps) {
-	const reviewComments = comments.filter(
-		(comment) => comment.lane === "review",
-	);
+	const active = comments.filter((comment) => !comment.deleted);
+	const dismissed = comments.filter((comment) => comment.deleted);
+	const reviewComments = active.filter((comment) => comment.lane === "review");
 	const onDiff = reviewComments.filter(
 		(comment) => comment.placement.kind === "exact",
 	);
 	const offDiff = reviewComments.filter(
 		(comment) => comment.placement.kind !== "exact",
 	);
-	const preExisting = comments.filter(
+	const preExisting = active.filter(
 		(comment) => comment.lane === "pre-existing",
 	);
 	const counts = countByTier(reviewComments);
@@ -83,12 +84,24 @@ export function CommentWorklist({
 					actions={actions}
 				/>
 			)}
+			{dismissed.length > 0 && (
+				<CommentSection
+					title="Dismissed"
+					lane="dismissed"
+					comments={dismissed}
+					expandedCommentIds={expandedCommentIds}
+					onJumpTo={onJumpTo}
+					onCollapse={onCollapse}
+					actions={actions}
+				/>
+			)}
 		</aside>
 	);
 }
 
 function CommentSection({
 	title,
+	lane,
 	comments,
 	expandedCommentIds,
 	onJumpTo,
@@ -96,6 +109,7 @@ function CommentSection({
 	actions,
 }: {
 	title: string | null;
+	lane?: string;
 	comments: readonly ReviewCommentDto[];
 	expandedCommentIds: ReadonlySet<string>;
 	onJumpTo(comment: ReviewCommentDto): void;
@@ -106,7 +120,7 @@ function CommentSection({
 		return null;
 	}
 	return (
-		<section className={styles.section}>
+		<section className={styles.section} data-lane={lane}>
 			{title !== null && <h3 className={styles.sectionTitle}>{title}</h3>}
 			<ul className={styles.list}>
 				{comments.map((comment) => (
@@ -137,19 +151,4 @@ function CommentSection({
 			</ul>
 		</section>
 	);
-}
-
-function countByTier(
-	comments: readonly ReviewCommentDto[],
-): Record<ReviewTierDto, number> {
-	const counts: Record<ReviewTierDto, number> = {
-		blocker: 0,
-		"should-fix": 0,
-		suggestion: 0,
-		nitpick: 0,
-	};
-	for (const comment of comments) {
-		counts[comment.tier]++;
-	}
-	return counts;
 }

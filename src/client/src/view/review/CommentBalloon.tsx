@@ -4,6 +4,7 @@ import {
 	PencilIcon,
 	QuestionIcon,
 	TrashIcon,
+	UndoIcon,
 	XIcon,
 } from "@primer/octicons-react";
 import { useState } from "react";
@@ -32,12 +33,14 @@ export function CommentBalloon({
 	actions,
 }: CommentBalloonProps) {
 	const [editing, setEditing] = useState(false);
+	const dismissed = comment.deleted;
 
 	return (
 		<div
 			className={styles.balloon}
 			data-comment-id={comment.id}
 			data-tier={comment.tier}
+			data-dismissed={dismissed}
 			role="note"
 		>
 			<div className={styles.header}>
@@ -46,28 +49,38 @@ export function CommentBalloon({
 					<span className={styles.lane}>Pre-existing</span>
 				)}
 				{comment.edited && <span className={styles.lane}>Edited</span>}
+				{dismissed && <span className={styles.lane}>Dismissed</span>}
 				<span className={styles.title}>{comment.title}</span>
-				<button
-					type="button"
-					className={styles.iconButton}
-					aria-label="Edit comment"
-					aria-pressed={editing}
-					onClick={() => setEditing((current) => !current)}
-				>
-					<PencilIcon size={14} />
-				</button>
-				<button
-					type="button"
-					className={styles.iconButton}
-					aria-label="Delete comment"
-					onClick={() => {
-						if (window.confirm("Delete this comment?")) {
-							actions.onDelete(comment.id);
-						}
-					}}
-				>
-					<TrashIcon size={14} />
-				</button>
+				{dismissed ? (
+					<button
+						type="button"
+						className={styles.iconButton}
+						aria-label="Restore comment"
+						onClick={() => actions.onRestore(comment.id)}
+					>
+						<UndoIcon size={14} />
+					</button>
+				) : (
+					<>
+						<button
+							type="button"
+							className={styles.iconButton}
+							aria-label="Edit comment"
+							aria-pressed={editing}
+							onClick={() => setEditing((current) => !current)}
+						>
+							<PencilIcon size={14} />
+						</button>
+						<button
+							type="button"
+							className={styles.iconButton}
+							aria-label="Delete comment"
+							onClick={() => actions.onDelete(comment.id)}
+						>
+							<TrashIcon size={14} />
+						</button>
+					</>
+				)}
 				<button
 					type="button"
 					className={styles.collapse}
@@ -77,7 +90,7 @@ export function CommentBalloon({
 					<XIcon size={14} />
 				</button>
 			</div>
-			{editing ? (
+			{editing && !dismissed ? (
 				<EditBody
 					initialBody={comment.body}
 					onDone={(body) => {
@@ -101,7 +114,7 @@ export function CommentBalloon({
 				)}
 				{comment.proof}
 			</p>
-			{actions.onRework !== undefined && (
+			{!dismissed && actions.onRework !== undefined && (
 				<ReworkControl comment={comment} actions={actions} />
 			)}
 		</div>

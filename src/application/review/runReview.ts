@@ -1,7 +1,10 @@
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import { diffStatusResidue } from "../../domain/review/diffStatusResidue";
-import { describeToolActivity } from "../../domain/review/RunProgress";
+import {
+	describeToolActivity,
+	type RunProgressUpdate,
+} from "../../domain/review/RunProgress";
 import type { Engine, EngineResultEvent } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { RunContext, RunOutcome } from "../ports/RunManager";
@@ -23,10 +26,7 @@ export interface RunReviewDeps {
 	git: Git;
 	sessionStore: SessionStore;
 	/** the manager's own report(), captured so the job can call back into it */
-	report: (
-		runId: string,
-		update: { kind: "activity"; activity: string },
-	) => void;
+	report: (runId: string, update: RunProgressUpdate) => void;
 }
 
 /**
@@ -76,6 +76,8 @@ export function buildReviewJob(
 						kind: "activity",
 						activity: describeToolActivity(event.name, event.target),
 					});
+				} else if (event.type === "plan") {
+					deps.report(context.runId, { kind: "itinerary", steps: event.steps });
 				} else if (event.type === "result") {
 					terminal = event;
 				}

@@ -48,13 +48,6 @@
 		opacity: 0.25;
 	}
 }
-
-@media (prefers-reduced-motion: reduce) {
-	.pulse {
-		animation: none;
-	}
-}
-
 .failIcon {
 	flex: none;
 	margin-top: var(--base-size-2);

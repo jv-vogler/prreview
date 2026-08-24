@@ -238,6 +238,7 @@ export function DiffWorkspace({
 			options={{
 				theme: PIERRE_THEME_NAME,
 				diffStyle: "unified",
+				diffIndicators: "classic",
 				loadDiffFiles,
 				hunkSeparators: "line-info",
 				stickyHeaders: true,

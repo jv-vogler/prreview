@@ -28,7 +28,59 @@ export function CommentMarkdown({ body }: { body: string }) {
 function Prose({ text }: { text: string }) {
 	return (
 		<div className={styles.prose}>
-			<Markdown remarkPlugins={[remarkGfm]}>{text}</Markdown>
+			<Markdown remarkPlugins={[remarkGfm]} components={{ code: Code }}>
+				{text}
+			</Markdown>
 		</div>
 	);
+}
+
+/**
+ * A fenced ```diff block, colored the way GitHub colors one. Without this the
+ * fix an evidence block is carrying renders as flat grey text, so the reader
+ * has to parse the leading +/- themselves.
+ */
+function Code({
+	className,
+	children,
+	...rest
+}: {
+	className?: string;
+	children?: unknown;
+}) {
+	if (className !== "language-diff") {
+		return (
+			<code className={className} {...rest}>
+				{children as never}
+			</code>
+		);
+	}
+	const lines = String(children).replace(/\n$/, "").split("\n");
+	return (
+		<code className={className} {...rest}>
+			{lines.map((line, index) => (
+				<span
+					// biome-ignore lint/suspicious/noArrayIndexKey: position is a diff line's only identity — two lines can be byte-identical
+					key={index}
+					className={styles.diffLine}
+					data-diff={diffLineKind(line)}
+				>
+					{line === "" ? " " : line}
+				</span>
+			))}
+		</code>
+	);
+}
+
+function diffLineKind(line: string): string {
+	if (line.startsWith("@@")) {
+		return "hunk";
+	}
+	if (line.startsWith("+")) {
+		return "addition";
+	}
+	if (line.startsWith("-")) {
+		return "deletion";
+	}
+	return "context";
 }

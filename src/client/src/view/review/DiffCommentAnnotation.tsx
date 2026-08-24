@@ -1,5 +1,6 @@
 import type { ReviewCommentDto } from "@dto/ReviewDto";
 import { AlertFillIcon, CommentIcon } from "@primer/octicons-react";
+import { useState } from "react";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./DiffCommentAnnotation.module.css";
@@ -63,13 +64,56 @@ export function DiffCommentAnnotation({
 				</button>
 			)}
 			{expanded.map((comment) => (
-				<CommentBalloon
+				<ExpandingBalloon
 					key={comment.id}
 					comment={comment}
 					onCollapse={() => onToggle(comment.id)}
 					actions={actions}
 				/>
 			))}
+		</div>
+	);
+}
+
+/**
+ * One open balloon, in a grid whose single row animates between 0fr and 1fr —
+ * the only way to animate to a height nobody has measured, since the card's is
+ * whatever its markdown comes to. The inner element does the clipping, so the
+ * card is revealed rather than squashed.
+ *
+ * Closing is owned here rather than by the caller: React would unmount the
+ * card the instant it left the expanded set, leaving nothing to animate, so
+ * the collapse is held until the exit animation reports it has finished.
+ */
+function ExpandingBalloon({
+	comment,
+	onCollapse,
+	actions,
+}: {
+	comment: ReviewCommentDto;
+	onCollapse(): void;
+	actions: CommentActions;
+}) {
+	const [closing, setClosing] = useState(false);
+
+	return (
+		<div
+			className={styles.expander}
+			data-closing={closing || undefined}
+			onAnimationEnd={(event) => {
+				// the card's own animations bubble through here too
+				if (closing && event.target === event.currentTarget) {
+					onCollapse();
+				}
+			}}
+		>
+			<div className={styles.expanderClip}>
+				<CommentBalloon
+					comment={comment}
+					onCollapse={() => setClosing(true)}
+					actions={actions}
+				/>
+			</div>
 		</div>
 	);
 }

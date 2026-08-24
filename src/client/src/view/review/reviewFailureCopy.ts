@@ -10,6 +10,8 @@ export const REVIEW_FAILURE_COPY: Record<RunFailureReasonDto, string> = {
 		"No agent CLI was found, so prreview cannot review this change. Install and sign in to claude, then start prreview again.",
 	"timed-out":
 		"The agent went silent for too long and was stopped. Nothing was saved — trying again usually gets through, and a smaller changeset always does.",
+	"out-of-turns":
+		"The review used up its turn budget before it finished writing up, so it was cut off rather than shown half-done. Nothing was saved. A smaller changeset gets through; REVIEW_MAX_TURNS in src/application/review/limits.ts raises the ceiling.",
 	crashed:
 		"The agent stopped before it finished. Nothing was saved, so it is safe to try again.",
 	"schema-violation":

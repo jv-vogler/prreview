@@ -65,6 +65,8 @@ export const reviewCommentDtoSchema = z.object({
 	placement: commentPlacementDtoSchema,
 	/** true once the reader has overwritten `body` (TASK-046) */
 	edited: z.boolean(),
+	/** dismissed, not published — but still shown, so a restore is possible */
+	deleted: z.boolean(),
 });
 
 export type ReviewCommentDto = z.infer<typeof reviewCommentDtoSchema>;
@@ -84,7 +86,6 @@ export const reviewPassDtoSchema = z.object({
 	overview: z.string(),
 	verdict: z.string(),
 	ticket: z.string().nullable(),
-	qualityPoints: z.array(z.string()),
 	comments: z.array(reviewCommentDtoSchema),
 	/** SEC-003/TASK-030's honesty measure: files this pass left on the tree */
 	residue: z.array(z.string()),
