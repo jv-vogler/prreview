@@ -24,6 +24,7 @@ export const changesetRefDtoSchema = z.object({
 	headSha: z.string().nullable(),
 	worktreeFingerprint: z.string().optional(),
 	resolvedAt: z.string(),
+	prUrl: z.string().optional(),
 });
 
 export type ChangesetRefDto = z.infer<typeof changesetRefDtoSchema>;

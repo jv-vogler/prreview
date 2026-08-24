@@ -11,6 +11,7 @@ import {
 	reworkComment,
 } from "../infrastructure/endpoints/reviewComments";
 import { createApiClient } from "../infrastructure/httpClients/apiClient";
+import { ChangesetHeading } from "../view/diff/ChangesetHeading";
 import {
 	DiffWorkspace,
 	type DiffWorkspaceHandle,
@@ -323,12 +324,12 @@ function ResolvedReview({
 			<div className={styles.main}>
 				{aiAvailable && <RunStatusBar review={review} />}
 				<div className={styles.overview}>
-					<p className={styles.resolved}>
-						{capitalize(changeset.announce.resolved)}
-					</p>
-					<p className={styles.overrideHint}>
-						{changeset.announce.overrideHint}
-					</p>
+					<ChangesetHeading
+						source={changeset.ref.source}
+						resolved={changeset.announce.resolved}
+						overrideHint={changeset.announce.overrideHint}
+						prUrl={changeset.ref.prUrl}
+					/>
 					{aiAvailable && (
 						<button
 							type="button"
@@ -392,10 +393,6 @@ function ResolvedReview({
 			)}
 		</div>
 	);
-}
-
-function capitalize(text: string): string {
-	return text.length === 0 ? text : text[0].toUpperCase() + text.slice(1);
 }
 
 function describeError(cause: unknown): string {

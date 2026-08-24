@@ -328,6 +328,7 @@ async function prRef(
 			baseSha: await git.mergeBase(baseTipSha, headSha),
 			headSha,
 			resolvedAt: new Date().toISOString(),
+			prUrl: info.url,
 		};
 	}
 
