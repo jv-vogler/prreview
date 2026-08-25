@@ -84,18 +84,18 @@ test.describe("review pass", () => {
 		// otherwise also match and trip strict mode
 		await expect(page.getByText("1 Blocker", { exact: true })).toBeVisible();
 
-		// change explanations fold behind a right-edge chip by default: no
-		// card until the chip is clicked, and the chip takes no diff rows
+		// change explanations start unfolded at the right edge, costing no
+		// diff rows; the chip folds each line's cards away and back
 		const chip = page.locator("[data-explanation-chip]").first();
 		await expect(chip).toBeVisible();
-		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
-
-		await chip.click();
 		const balloon = page.locator("[data-explanation-id]").first();
 		await expect(balloon).toBeVisible();
 		await expect(balloon.getByRole("button")).toHaveCount(0);
+
 		await chip.click();
 		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
+		await chip.click();
+		await expect(balloon).toBeVisible();
 
 		// the one header toggle drops the chips entirely, and brings them back
 		await page.getByRole("button", { name: "Hide explanations" }).click();

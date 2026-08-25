@@ -22,7 +22,7 @@ describe("DiffExplanationAnnotation", () => {
 		expect(container.firstChild).toBeNull();
 	});
 
-	it("chips mode folds the cards behind the chip until it is clicked", () => {
+	it("chips mode starts unfolded; the chip folds the cards and back", () => {
 		render(
 			<DiffExplanationAnnotation
 				explanations={[explanation("explanation-0")]}
@@ -30,15 +30,15 @@ describe("DiffExplanationAnnotation", () => {
 			/>,
 		);
 		const chip = screen.getByRole("button", {
-			name: "Unfold change explanation",
+			name: "Fold change explanation",
 		});
-		expect(document.querySelector("[data-explanation-id]")).toBeNull();
-
-		fireEvent.click(chip);
 		expect(document.querySelector("[data-explanation-id]")).not.toBeNull();
 
 		fireEvent.click(chip);
 		expect(document.querySelector("[data-explanation-id]")).toBeNull();
+
+		fireEvent.click(chip);
+		expect(document.querySelector("[data-explanation-id]")).not.toBeNull();
 	});
 
 	it("chips mode counts the explanations sharing the line on the chip", () => {

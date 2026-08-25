@@ -70,6 +70,17 @@
 	top: calc(-1 * var(--base-size-20));
 }
 
+/*
+ * Near the end of a file the cards hang upward instead: the file block is
+ * a scroller, so growing past its bottom edge is clipped mid-card — there
+ * is no z-index across a scroller's clip. Bottom is measured from the
+ * zero-height anchor, so the stack ends just above the anchored line.
+ */
+.stack[data-direction="up"] {
+	top: auto;
+	bottom: var(--base-size-20);
+}
+
 @keyframes stack-open {
 	from {
 		opacity: 0;
