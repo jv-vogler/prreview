@@ -9,6 +9,7 @@ import {
 	QuestionIcon,
 } from "@primer/octicons-react";
 import { useState } from "react";
+import { Collapsible } from "../layout/Collapsible";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./DiffCommentAnnotation.module.css";
@@ -92,14 +93,9 @@ function MarkerIcon({ comments }: { comments: readonly ReviewCommentDto[] }) {
 }
 
 /**
- * One open balloon, in a grid whose single row animates between 0fr and 1fr —
- * the only way to animate to a height nobody has measured, since the card's is
- * whatever its markdown comes to. The inner element does the clipping, so the
- * card is revealed rather than squashed.
- *
- * Closing is owned here rather than by the caller: React would unmount the
- * card the instant it left the expanded set, leaving nothing to animate, so
- * the collapse is held until the exit animation reports it has finished.
+ * One open balloon. The collapse control does not remove the card: it starts
+ * the way out, and the caller's own unmount waits for `Collapsible` to say
+ * the animation has finished.
  */
 function ExpandingBalloon({
 	comment,
@@ -113,24 +109,13 @@ function ExpandingBalloon({
 	const [closing, setClosing] = useState(false);
 
 	return (
-		<div
-			className={styles.expander}
-			data-closing={closing || undefined}
-			onAnimationEnd={(event) => {
-				// the card's own animations bubble through here too
-				if (closing && event.target === event.currentTarget) {
-					onCollapse();
-				}
-			}}
-		>
-			<div className={styles.expanderClip}>
-				<CommentBalloon
-					comment={comment}
-					onCollapse={() => setClosing(true)}
-					actions={actions}
-				/>
-			</div>
-		</div>
+		<Collapsible open={!closing} onClosed={onCollapse}>
+			<CommentBalloon
+				comment={comment}
+				onCollapse={() => setClosing(true)}
+				actions={actions}
+			/>
+		</Collapsible>
 	);
 }
 

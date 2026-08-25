@@ -124,24 +124,12 @@
 		both;
 }
 
-/* an open balloon is a different object than the rows; give it air on both sides */
+/* an open balloon is a different object than the rows; give it air on both
+ * sides. The opening itself belongs to Collapsible, which wraps it. */
 .rowExpanded {
 	margin: var(--base-size-8) 0 var(--base-size-12);
-	overflow: hidden;
-	animation: row-expand var(--motion-duration-medium) var(--motion-easing-enter)
-		both;
 }
 
-@keyframes row-expand {
-	from {
-		opacity: 0;
-		transform: translateY(calc(-1 * var(--base-size-4)));
-	}
-	to {
-		opacity: 1;
-		transform: none;
-	}
-}
 .rowTier {
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-semibold);

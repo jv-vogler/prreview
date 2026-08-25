@@ -238,3 +238,9 @@
 	font-size: var(--text-body-size-small);
 	line-height: var(--base-text-lineHeight-relaxed);
 }
+
+/* the folding region's own content box, so the animation has one child to
+ * clip and the block below it is not squeezed against the fold line */
+.foldable {
+	padding-bottom: var(--base-size-4);
+}

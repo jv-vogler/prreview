@@ -3,6 +3,7 @@ import { ChevronDownIcon, ChevronRightIcon } from "@primer/octicons-react";
 import { useMemo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Collapsible } from "../layout/Collapsible";
 import styles from "./OverviewPanel.module.css";
 import { linkTopicMentions, topicFromHref } from "./overviewTopicMentions";
 import { TopicChip } from "./TopicChip";
@@ -65,8 +66,8 @@ export function OverviewPanel({
 					</span>
 				)}
 			</button>
-			{!folded && (
-				<>
+			<Collapsible open={!folded}>
+				<div className={styles.foldable}>
 					<div className={styles.body}>
 						<div className={styles.prose}>
 							<Markdown
@@ -104,8 +105,8 @@ export function OverviewPanel({
 							{pass.verdict}
 						</p>
 					</div>
-				</>
-			)}
+				</div>
+			</Collapsible>
 		</section>
 	);
 }

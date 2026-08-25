@@ -1,5 +1,6 @@
 import type { ReviewCommentDto } from "@dto/ReviewDto";
 import { countByTier, countQuestions } from "../../domain/review/countByTier";
+import { Collapsible } from "../layout/Collapsible";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./CommentWorklist.module.css";
@@ -152,7 +153,7 @@ function CommentSection({
 								<span className={styles.rowPublished}>published</span>
 							)}
 						</button>
-						{expandedCommentIds.has(comment.id) && (
+						<Collapsible open={expandedCommentIds.has(comment.id)}>
 							<div className={styles.rowExpanded}>
 								<CommentBalloon
 									comment={comment}
@@ -160,7 +161,7 @@ function CommentSection({
 									actions={actions}
 								/>
 							</div>
-						)}
+						</Collapsible>
 					</li>
 				))}
 			</ul>
