@@ -39,7 +39,7 @@ async function diffTextFor(
 				`Reviewing pull request #${source.number} needs the gh CLI or a GitHub remote named origin.`,
 			);
 		}
-		return deps.githubService.getPrDiff(source.number);
+		return prDiffOrTooLarge(deps.githubService, source.number);
 	}
 	if (ref.headSha === null) {
 		throw new Error(
@@ -47,4 +47,41 @@ async function diffTextFor(
 		);
 	}
 	return deps.git.diff(ref.baseSha, ref.headSha);
+}
+
+/**
+ * GitHub refuses to serve a diff past its size caps (20k lines / 300 files),
+ * and our own exec guard cuts off a diff that overflows its output budget.
+ * Both mean the same thing to the reader: this PR cannot be reviewed whole.
+ * Say that, with the way out, instead of relaying a raw gh failure.
+ */
+async function prDiffOrTooLarge(
+	githubService: GithubService,
+	number: number,
+): Promise<string> {
+	try {
+		return await githubService.getPrDiff(number);
+	} catch (error) {
+		if (looksTooLarge(error)) {
+			throw new GithubError(
+				"diff-too-large",
+				`Pull request #${number}'s diff is too large to serve whole. Consider splitting it into smaller stacked PRs and reviewing them one at a time.`,
+				{ cause: error },
+			);
+		}
+		throw error;
+	}
+}
+
+const TOO_LARGE_PATTERN = /too[ _]large|exceeded|maximum number/i;
+
+function looksTooLarge(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+	const stderr =
+		"stderr" in error && typeof error.stderr === "string" ? error.stderr : "";
+	return (
+		TOO_LARGE_PATTERN.test(error.message) || TOO_LARGE_PATTERN.test(stderr)
+	);
 }
