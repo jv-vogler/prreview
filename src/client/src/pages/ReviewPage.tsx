@@ -23,8 +23,12 @@ import {
 	type DiffWorkspaceHandle,
 } from "../view/diff/DiffWorkspace";
 import { FileTreePanel } from "../view/diff/FileTreePanel";
-import { SidebarResizer } from "../view/diff/SidebarResizer";
-import { useSidebarWidth } from "../view/diff/useSidebarWidth";
+import { PanelResizer } from "../view/layout/PanelResizer";
+import {
+	FILE_PANEL,
+	REVIEW_PANEL,
+	usePanelWidth,
+} from "../view/layout/usePanelWidth";
 import type {
 	CommentActions,
 	ReworkProposal,
@@ -121,7 +125,8 @@ function ResolvedReview({
 	aiAvailable: boolean;
 	githubAvailable: boolean;
 }) {
-	const { width, setWidth } = useSidebarWidth();
+	const filePanel = usePanelWidth(FILE_PANEL);
+	const reviewPanel = usePanelWidth(REVIEW_PANEL);
 	const [cursorFileIndex, setCursorFileIndex] = useState(0);
 	const [foldedFileIds, setFoldedFileIds] = useState<ReadonlySet<string>>(
 		() => new Set(),
@@ -413,14 +418,18 @@ function ResolvedReview({
 				/>
 			)}
 			<div className={styles.layout}>
-				<div style={{ width }}>
+				<div style={{ width: filePanel.width }}>
 					<FileTreePanel
 						files={changeset.files}
 						currentFileIndex={cursorFileIndex}
 						onJumpToFile={onJumpToFile}
 					/>
 				</div>
-				<SidebarResizer width={width} onWidth={setWidth} />
+				<PanelResizer
+					spec={FILE_PANEL}
+					width={filePanel.width}
+					onWidth={filePanel.setWidth}
+				/>
 				<div className={styles.main}>
 					{aiAvailable && <RunStatusBar review={review} />}
 					<div className={styles.overview}>
@@ -508,27 +517,35 @@ function ResolvedReview({
 				</div>
 				{review.pass !== null &&
 					(comments.length > 0 || explanations.length > 0) && (
-						<ReviewSidebar
-							comments={comments}
-							explanations={explanations}
-							expandedCommentIds={expandedCommentIds}
-							onJumpToComment={onJumpToComment}
-							onCollapseComment={onToggleComment}
-							actions={actions}
-							onJumpToExplanation={onJumpToExplanation}
-							onToggleTopic={onToggleTopic}
-							publishControl={
-								canPublish && review.pass !== null ? (
-									<PublishControl
-										comments={activeComments}
-										published={review.pass.published}
-										publishing={publishing}
-										error={publishError}
-										onPublish={onPublish}
-									/>
-								) : undefined
-							}
-						/>
+						<>
+							<PanelResizer
+								spec={REVIEW_PANEL}
+								width={reviewPanel.width}
+								onWidth={reviewPanel.setWidth}
+							/>
+							<ReviewSidebar
+								width={reviewPanel.width}
+								comments={comments}
+								explanations={explanations}
+								expandedCommentIds={expandedCommentIds}
+								onJumpToComment={onJumpToComment}
+								onCollapseComment={onToggleComment}
+								actions={actions}
+								onJumpToExplanation={onJumpToExplanation}
+								onToggleTopic={onToggleTopic}
+								publishControl={
+									canPublish && review.pass !== null ? (
+										<PublishControl
+											comments={activeComments}
+											published={review.pass.published}
+											publishing={publishing}
+											error={publishError}
+											onPublish={onPublish}
+										/>
+									) : undefined
+								}
+							/>
+						</>
 					)}
 			</div>
 		</HighlightedExplanationsContext.Provider>
