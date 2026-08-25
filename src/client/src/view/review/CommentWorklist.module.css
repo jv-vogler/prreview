@@ -137,8 +137,9 @@
 		both;
 }
 
+/* an open balloon is a different object than the rows; give it air on both sides */
 .rowExpanded {
-	margin-top: var(--base-size-4);
+	margin: var(--base-size-8) 0 var(--base-size-12);
 	overflow: hidden;
 	animation: row-expand var(--motion-duration-medium) var(--motion-easing-enter)
 		both;
@@ -164,4 +165,42 @@
 	color: var(--fgColor-default);
 	font-size: var(--text-body-size-medium);
 	line-height: var(--base-text-lineHeight-normal);
+}
+
+/*
+ * An unplaceable explanation still gets a row here — the diff has no line
+ * for it, and disappearing would be the one dishonest outcome. Same visual
+ * family as the balloons: recessed, hairline, square, a book for the voice.
+ */
+.explanationEntry {
+	padding: var(--base-size-8);
+	border: var(--borderWidth-thin) solid var(--borderColor-muted);
+	background: var(--bgColor-muted);
+}
+
+.explanationPlace {
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-6);
+	margin: 0 0 var(--base-size-4);
+	color: var(--fgColor-muted);
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-body-size-small);
+}
+
+.explanationSays {
+	margin: 0;
+	color: var(--fgColor-default);
+	font-size: var(--text-body-size-small);
+	line-height: var(--text-body-lineHeight-small);
+}
+
+.explanationSays + .explanationSays {
+	margin-top: var(--base-size-4);
+}
+
+/* pushed to the panel's foot; publishing is the worklist's closing act */
+.publishDock {
+	margin-top: auto;
+	padding-top: var(--base-size-16);
 }

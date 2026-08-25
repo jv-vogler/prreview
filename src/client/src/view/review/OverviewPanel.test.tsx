@@ -1,6 +1,6 @@
 import type { ReviewPassDto } from "@dto/ReviewDto";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { OverviewPanel } from "./OverviewPanel";
 
 function pass(overrides: Partial<ReviewPassDto> = {}): ReviewPassDto {
@@ -20,6 +20,8 @@ describe("OverviewPanel", () => {
 	it("renders each blank-line-separated paragraph as its own block", () => {
 		const { container } = render(
 			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
 				pass={pass({ overview: "First paragraph.\n\nSecond paragraph." })}
 			/>,
 		);
@@ -33,6 +35,8 @@ describe("OverviewPanel", () => {
 	it("renders a backticked name as code rather than literal backticks", () => {
 		const { container } = render(
 			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
 				pass={pass({ overview: "It now tracks `.impeccable/config.json`." })}
 			/>,
 		);
@@ -44,23 +48,39 @@ describe("OverviewPanel", () => {
 
 	it("still renders an overview written as one unbroken line", () => {
 		render(
-			<OverviewPanel pass={pass({ overview: "All one line, no breaks." })} />,
+			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
+				pass={pass({ overview: "All one line, no breaks." })}
+			/>,
 		);
 		expect(screen.getByText("All one line, no breaks.")).toBeTruthy();
 	});
 
 	it("shows the verdict, and the ticket line only when there is one", () => {
-		const { rerender } = render(<OverviewPanel pass={pass()} />);
+		const { rerender } = render(
+			<OverviewPanel folded={false} onToggleFold={() => {}} pass={pass()} />,
+		);
 		expect(screen.getByText("Matches the ticket.")).toBeTruthy();
 		expect(screen.queryByText("PROJ-1")).toBeNull();
 
-		rerender(<OverviewPanel pass={pass({ ticket: "PROJ-1" })} />);
+		rerender(
+			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
+				pass={pass({ ticket: "PROJ-1" })}
+			/>,
+		);
 		expect(screen.getByText("PROJ-1")).toBeTruthy();
 	});
 
 	it("sets the verdict under the overview, colored by the scope outcome", () => {
 		const { container, rerender } = render(
-			<OverviewPanel pass={pass({ scope: "matches" })} />,
+			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
+				pass={pass({ scope: "matches" })}
+			/>,
 		);
 		const verdict = () =>
 			container.querySelector("[data-scope]") as HTMLElement;
@@ -68,16 +88,43 @@ describe("OverviewPanel", () => {
 		// below the overview: the verdict row is the panel's last block
 		expect(verdict().closest("div")?.previousElementSibling).not.toBeNull();
 
-		rerender(<OverviewPanel pass={pass({ scope: "misses-pieces" })} />);
+		rerender(
+			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
+				pass={pass({ scope: "misses-pieces" })}
+			/>,
+		);
 		expect(verdict().dataset.scope).toBe("misses-pieces");
 
-		rerender(<OverviewPanel pass={pass()} />);
+		rerender(
+			<OverviewPanel folded={false} onToggleFold={() => {}} pass={pass()} />,
+		);
 		expect(verdict().dataset.scope).toBe("neutral");
+	});
+
+	it("folded, keeps only the verdict line, colored by scope", () => {
+		const onToggleFold = vi.fn();
+		render(
+			<OverviewPanel
+				folded={true}
+				onToggleFold={onToggleFold}
+				pass={pass({ overview: "The long account.", scope: "matches" })}
+			/>,
+		);
+		expect(screen.queryByText("The long account.")).toBeNull();
+		const verdict = screen.getByText("Matches the ticket.");
+		expect(verdict.getAttribute("data-scope")).toBe("matches");
+
+		fireEvent.click(screen.getByRole("button", { name: /Overview/ }));
+		expect(onToggleFold).toHaveBeenCalledTimes(1);
 	});
 
 	it("escapes HTML in the overview rather than rendering it", () => {
 		const { container } = render(
 			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
 				pass={pass({ overview: "<img src=x onerror=alert(1)>" })}
 			/>,
 		);

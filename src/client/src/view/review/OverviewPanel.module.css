@@ -10,9 +10,59 @@
 	--composition-measure: 56rem;
 
 	max-width: var(--composition-measure);
-	padding-top: var(--base-size-16);
-	margin-top: var(--base-size-16);
+	padding-top: var(--base-size-8);
+	margin-top: var(--base-size-8);
 	border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+/*
+ * The whole account folds behind this one line: the diff is the workspace,
+ * so the prose yields its height back the moment it has been read. Folded,
+ * the line keeps the verdict — the one-glance conclusion — in its scope
+ * color, clipped to the single line rather than wrapped.
+ */
+.foldControl {
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-8);
+	width: 100%;
+	padding: var(--base-size-4) 0;
+	border: none;
+	background: none;
+	cursor: pointer;
+	text-align: left;
+}
+
+.foldChevron {
+	flex: none;
+	display: flex;
+	color: var(--fgColor-muted);
+}
+
+.foldLabel {
+	flex: none;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	/* no token for tracking; small caps close up without it */
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	transition: color var(--motion-transition-hover);
+}
+
+.foldControl:hover .foldChevron,
+.foldControl:hover .foldLabel {
+	color: var(--fgColor-default);
+}
+
+.foldedVerdict {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	color: var(--fgColor-default);
+	font-size: var(--text-body-size-small);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .label {
@@ -61,15 +111,18 @@
 	text-wrap: pretty;
 }
 
-.verdict[data-scope="matches"] {
+.verdict[data-scope="matches"],
+.foldedVerdict[data-scope="matches"] {
 	color: var(--fgColor-success);
 }
 
-.verdict[data-scope="unrelated-extras"] {
+.verdict[data-scope="unrelated-extras"],
+.foldedVerdict[data-scope="unrelated-extras"] {
 	color: var(--fgColor-attention);
 }
 
-.verdict[data-scope="misses-pieces"] {
+.verdict[data-scope="misses-pieces"],
+.foldedVerdict[data-scope="misses-pieces"] {
 	color: var(--fgColor-danger);
 }
 
@@ -84,6 +137,7 @@
 	flex-wrap: wrap;
 	align-items: flex-start;
 	gap: var(--base-size-32);
+	margin-top: var(--base-size-8);
 }
 
 .prose {

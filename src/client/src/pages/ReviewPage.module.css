@@ -12,13 +12,37 @@
 
 .overview {
 	flex-shrink: 0;
-	padding: var(--base-size-16) var(--base-size-24);
+	padding: var(--base-size-12) var(--base-size-24);
 	border-bottom: var(--borderWidth-thin) solid var(--borderColor-default);
 	background: var(--bgColor-default);
 }
 
+/*
+ * The subject and the actions share one row instead of stacking: every
+ * vertical slot this block gives up is a diff row the reader gets back.
+ */
+.headerRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--base-size-8) var(--base-size-16);
+}
+
+.headerSubject {
+	flex: 1 1 16rem;
+	min-width: 0;
+}
+
+.controls {
+	flex: none;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--base-size-8);
+}
+
 .reviewButton {
-	margin-top: var(--base-size-12);
 	padding: var(--base-size-4) var(--base-size-16);
 	background: var(--button-primary-bgColor-rest);
 	border: var(--borderWidth-thin) solid var(--button-primary-borderColor-rest);
@@ -39,7 +63,6 @@
 }
 
 .explanationsToggle {
-	margin-top: var(--base-size-12);
 	padding: var(--base-size-4) var(--base-size-16);
 	background: var(--button-default-bgColor-rest);
 	border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);

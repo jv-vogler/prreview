@@ -212,6 +212,14 @@ function buildExplanations(files) {
 			...(index < 2 ? { topic: "Mock shared intent" } : {}),
 		};
 	});
+	// one with no line in the diff, so the sidebar's explanation section
+	// (the never-silently-lost lane) is visible without a paid run
+	explanations.push({
+		path: "not/in/the/diff.ts",
+		startLine: 7,
+		endLine: 7,
+		says: ["Mock explanation the diff cannot anchor."],
+	});
 	return explanations;
 }
 

@@ -141,9 +141,31 @@ function ResolvedReview({
 	);
 	// shown by default; one toggle drops or restores all of them
 	const [showExplanations, setShowExplanations] = useState(true);
+	// folded by default so the diff keeps the screen; a run finishing live
+	// unfolds it once, because that is the moment the account is news
+	const [overviewFolded, setOverviewFolded] = useState(true);
+	const previousRunStatus = useRef<string | null>(null);
+	useEffect(() => {
+		const status =
+			review.run !== null && review.run.kind === "review"
+				? review.run.status
+				: null;
+		const was = previousRunStatus.current;
+		previousRunStatus.current = status;
+		if (status === "succeeded" && (was === "running" || was === "queued")) {
+			setOverviewFolded(false);
+		}
+	}, [review.run]);
 	const activeComments = useMemo(
 		() => comments.filter((comment) => !comment.deleted),
 		[comments],
+	);
+	const unplacedExplanations = useMemo(
+		() =>
+			explanations.filter(
+				(explanation) => explanation.placement.kind === "unplaceable",
+			),
+		[explanations],
 	);
 
 	const onToggleComment = useCallback((commentId: string) => {
@@ -346,26 +368,42 @@ function ResolvedReview({
 			<div className={styles.main}>
 				{aiAvailable && <RunStatusBar review={review} />}
 				<div className={styles.overview}>
-					<ChangesetHeading
-						source={changeset.ref.source}
-						resolved={changeset.announce.resolved}
-						overrideHint={changeset.announce.overrideHint}
-						prUrl={changeset.ref.prUrl}
-					/>
-					{aiAvailable && (
-						<button
-							type="button"
-							className={styles.reviewButton}
-							disabled={
-								review.starting ||
-								review.run?.status === "queued" ||
-								review.run?.status === "running"
-							}
-							onClick={review.start}
-						>
-							Review
-						</button>
-					)}
+					<div className={styles.headerRow}>
+						<div className={styles.headerSubject}>
+							<ChangesetHeading
+								source={changeset.ref.source}
+								resolved={changeset.announce.resolved}
+								overrideHint={changeset.announce.overrideHint}
+								prUrl={changeset.ref.prUrl}
+							/>
+						</div>
+						<div className={styles.controls}>
+							{explanations.length > 0 && (
+								<button
+									type="button"
+									className={styles.explanationsToggle}
+									aria-pressed={showExplanations}
+									onClick={() => setShowExplanations((current) => !current)}
+								>
+									{showExplanations ? "Hide explanations" : "Show explanations"}
+								</button>
+							)}
+							{aiAvailable && (
+								<button
+									type="button"
+									className={styles.reviewButton}
+									disabled={
+										review.starting ||
+										review.run?.status === "queued" ||
+										review.run?.status === "running"
+									}
+									onClick={review.start}
+								>
+									Review
+								</button>
+							)}
+						</div>
+					</div>
 					{review.startError !== null && (
 						<p className={styles.startError}>{review.startError}</p>
 					)}
@@ -374,24 +412,11 @@ function ResolvedReview({
 							{curationError}
 						</p>
 					)}
-					{review.pass !== null && <OverviewPanel pass={review.pass} />}
-					{explanations.length > 0 && (
-						<button
-							type="button"
-							className={styles.explanationsToggle}
-							aria-pressed={showExplanations}
-							onClick={() => setShowExplanations((current) => !current)}
-						>
-							{showExplanations ? "Hide explanations" : "Show explanations"}
-						</button>
-					)}
-					{canPublish && review.pass !== null && (
-						<PublishControl
-							comments={activeComments}
-							published={review.pass.published}
-							publishing={publishing}
-							error={publishError}
-							onPublish={onPublish}
+					{review.pass !== null && (
+						<OverviewPanel
+							pass={review.pass}
+							folded={overviewFolded}
+							onToggleFold={() => setOverviewFolded((current) => !current)}
 						/>
 					)}
 				</div>
@@ -417,15 +442,28 @@ function ResolvedReview({
 					</div>
 				)}
 			</div>
-			{review.pass !== null && comments.length > 0 && (
-				<CommentWorklist
-					comments={comments}
-					expandedCommentIds={expandedCommentIds}
-					onJumpTo={onJumpToComment}
-					onCollapse={onToggleComment}
-					actions={actions}
-				/>
-			)}
+			{review.pass !== null &&
+				(comments.length > 0 || unplacedExplanations.length > 0) && (
+					<CommentWorklist
+						comments={comments}
+						unplacedExplanations={unplacedExplanations}
+						expandedCommentIds={expandedCommentIds}
+						onJumpTo={onJumpToComment}
+						onCollapse={onToggleComment}
+						actions={actions}
+						publishControl={
+							canPublish && review.pass !== null ? (
+								<PublishControl
+									comments={activeComments}
+									published={review.pass.published}
+									publishing={publishing}
+									error={publishError}
+									onPublish={onPublish}
+								/>
+							) : undefined
+						}
+					/>
+				)}
 		</div>
 	);
 }

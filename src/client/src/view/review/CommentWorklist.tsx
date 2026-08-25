@@ -1,18 +1,25 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
+import type { ExplanationDto, ReviewCommentDto } from "@dto/ReviewDto";
+import { BookIcon } from "@primer/octicons-react";
+import type { ReactNode } from "react";
 import { countByTier } from "../../domain/review/countByTier";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./CommentWorklist.module.css";
+import { BacktickText } from "./ExplanationBalloon";
 import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "./reviewTier";
 
 export interface CommentWorklistProps {
 	comments: readonly ReviewCommentDto[];
+	/** explanations the diff cannot anchor; listed here so they never vanish */
+	unplacedExplanations: readonly ExplanationDto[];
 	expandedCommentIds: ReadonlySet<string>;
 	/** row clicked: expand it and, if it has a place on the diff, scroll there */
 	onJumpTo(comment: ReviewCommentDto): void;
 	/** the balloon's own collapse control: just closes it, no scrolling */
 	onCollapse(commentId: string): void;
 	actions: CommentActions;
+	/** the publish control docks at the panel's foot, under the worklist */
+	publishControl?: ReactNode;
 }
 
 /**
@@ -23,10 +30,12 @@ export interface CommentWorklistProps {
  */
 export function CommentWorklist({
 	comments,
+	unplacedExplanations,
 	expandedCommentIds,
 	onJumpTo,
 	onCollapse,
 	actions,
+	publishControl,
 }: CommentWorklistProps) {
 	const active = comments.filter((comment) => !comment.deleted);
 	const dismissed = comments.filter((comment) => comment.deleted);
@@ -94,6 +103,36 @@ export function CommentWorklist({
 					onCollapse={onCollapse}
 					actions={actions}
 				/>
+			)}
+			{unplacedExplanations.length > 0 && (
+				<section className={styles.section}>
+					<h3 className={styles.sectionTitle}>
+						Explanations not shown in the diff
+					</h3>
+					<ul className={styles.list}>
+						{unplacedExplanations.map((explanation) => (
+							<li
+								key={explanation.id}
+								className={styles.explanationEntry}
+								data-unplaced-explanation={explanation.id}
+							>
+								<p className={styles.explanationPlace}>
+									<BookIcon size={14} />
+									{explanation.path}:{explanation.startLine}
+								</p>
+								{explanation.says.map((sentence, index) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: says never reorders
+									<p key={index} className={styles.explanationSays}>
+										<BacktickText text={sentence} />
+									</p>
+								))}
+							</li>
+						))}
+					</ul>
+				</section>
+			)}
+			{publishControl !== undefined && (
+				<div className={styles.publishDock}>{publishControl}</div>
 			)}
 		</aside>
 	);

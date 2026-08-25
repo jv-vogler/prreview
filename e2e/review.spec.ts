@@ -75,7 +75,7 @@ test.describe("review pass", () => {
 		// REQ-010: a finding whose path is not in the diff is never dropped —
 		// it is listed in its own sidebar section instead
 		await expect(
-			page.getByRole("heading", { name: "Not shown in the diff" }),
+			page.getByRole("heading", { name: "Not shown in the diff", exact: true }),
 		).toBeVisible();
 		await expect(page.getByText("Mock unplaceable finding")).toBeVisible();
 
@@ -106,15 +106,24 @@ test.describe("review pass", () => {
 		// hiding explanations never touched the comments
 		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
 
-		// the topics view: one row per shared topic label above the diff,
-		// whose jump link highlights that topic's balloons
+		// an explanation the diff cannot anchor is never silently lost: it
+		// gets the sidebar's own section, next to REQ-010's comment lane
 		await expect(
-			page.getByRole("button", { name: "Mock shared intent" }),
+			page.getByRole("heading", {
+				name: "Explanations not shown in the diff",
+			}),
 		).toBeVisible();
-		await page.locator("[data-topic-jump]").first().click();
 		await expect(
-			page.locator("[data-explanation-id][data-highlighted]").first(),
+			page.getByText("Mock explanation the diff cannot anchor."),
 		).toBeVisible();
+
+		// the overview unfolded itself when the run finished; folding it gives
+		// the height back to the diff and keeps the verdict on the fold line
+		await page.getByRole("button", { name: /Overview/ }).click();
+		await expect(
+			page.getByText("Reviewed 1 file(s) with the mock agent"),
+		).toBeHidden();
+		await expect(page.locator("[data-scope='matches']")).toBeVisible();
 
 		// ?explanations=margin: the comparison mode keeps every card open,
 		// pinned right, with no chips (the pass is stored, so no second run)
