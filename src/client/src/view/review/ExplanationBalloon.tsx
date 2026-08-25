@@ -20,19 +20,19 @@ export function ExplanationBalloon({
 			data-explanation-id={explanation.id}
 			aria-label="Change explanation"
 		>
-			<span className={styles.icon}>
-				<BookIcon size={14} />
-			</span>
-			<div className={styles.says}>
-				{explanation.says.map((sentence) => (
-					<p key={sentence} className={styles.sentence}>
-						<BacktickText text={sentence} />
-					</p>
-				))}
+			<div className={styles.header}>
+				<span className={styles.icon}>
+					<BookIcon size={14} />
+				</span>
+				{explanation.topic !== undefined && (
+					<span className={styles.topic}>{explanation.topic}</span>
+				)}
 			</div>
-			{explanation.topic !== undefined && (
-				<span className={styles.topic}>{explanation.topic}</span>
-			)}
+			{explanation.says.map((sentence) => (
+				<p key={sentence} className={styles.sentence}>
+					<BacktickText text={sentence} />
+				</p>
+			))}
 		</aside>
 	);
 }

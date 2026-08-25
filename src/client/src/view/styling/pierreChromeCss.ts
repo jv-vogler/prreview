@@ -140,5 +140,23 @@ const FOLD_CSS = `
 	}
 `;
 
+/**
+ * Annotations above the hunk separators.
+ *
+ * Pierre gives `[data-annotation-content]` and the separator bars
+ * (`[data-content] [data-separator-wrapper]`, absolutely positioned with an
+ * opaque background) the same `z-index: 2`, and the separators come later in
+ * the DOM — so an explanation card floating out of its annotation row was
+ * painted through by every separator bar it crossed, reading as the card
+ * being cut off "behind the diff". One step up ends the tie; the gutter's
+ * own `z-index: 3` never overlaps annotation content, which starts at the
+ * gutter's right edge.
+ */
+const ANNOTATION_LAYER_CSS = `
+	[data-annotation-content] {
+		z-index: 3;
+	}
+`;
+
 /** for the Diff view's CodeView, where files fold */
-export const PIERRE_DIFF_CHROME_CSS = `${SCROLLBAR_CSS}${CLICKABLE_HEADER_CSS}${DIFF_LINE_COLORS_CSS}${FOLD_CSS}`;
+export const PIERRE_DIFF_CHROME_CSS = `${SCROLLBAR_CSS}${CLICKABLE_HEADER_CSS}${DIFF_LINE_COLORS_CSS}${FOLD_CSS}${ANNOTATION_LAYER_CSS}`;
