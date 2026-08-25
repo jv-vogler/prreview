@@ -62,13 +62,6 @@
 	text-decoration: underline;
 }
 
-.overrideHint {
-	margin: var(--base-size-4) 0 0;
-	font-size: var(--text-body-size-small);
-	line-height: var(--base-text-lineHeight-relaxed);
-	color: var(--fgColor-muted);
-}
-
 /* a quiet outlined link, styled as a sibling of RunStatusBar's .stop/.retry */
 .prLink {
 	display: inline-flex;

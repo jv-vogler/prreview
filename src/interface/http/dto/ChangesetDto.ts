@@ -80,7 +80,7 @@ export type FileDiffDto = z.infer<typeof fileDiffDtoSchema>;
 /** `GET /api/changeset`: the resolved ref and its files, hunks and lines. */
 export const changesetDtoSchema = z.object({
 	ref: changesetRefDtoSchema,
-	announce: z.object({ resolved: z.string(), overrideHint: z.string() }),
+	announce: z.object({ resolved: z.string() }),
 	files: z.array(fileDiffDtoSchema),
 });
 

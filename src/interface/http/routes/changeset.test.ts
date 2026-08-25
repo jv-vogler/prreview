@@ -40,7 +40,6 @@ describe("GET /api/changeset", () => {
 			},
 			announce: {
 				resolved: "working tree changes",
-				overrideHint: "override hint",
 			},
 			files: [],
 		});

@@ -438,7 +438,6 @@ function ResolvedReview({
 								<ChangesetHeading
 									source={changeset.ref.source}
 									resolved={changeset.announce.resolved}
-									overrideHint={changeset.announce.overrideHint}
 									prUrl={changeset.ref.prUrl}
 								/>
 							</div>

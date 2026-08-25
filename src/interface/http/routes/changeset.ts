@@ -14,7 +14,9 @@ export function changesetRoute(deps: ChangesetRouteDeps): Hono {
 		const review = deps.state.current();
 		const body: ChangesetDto = {
 			ref: review.ref,
-			announce: review.announce,
+			// the CLI's own override hint stays in the terminal: the page
+			// cannot be typed into, so usage text there is noise
+			announce: { resolved: review.announce.resolved },
 			files: review.files,
 		};
 		return context.json(body);
