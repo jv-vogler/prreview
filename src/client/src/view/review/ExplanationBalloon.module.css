@@ -19,12 +19,12 @@
 /*
  * The icon and the topic chip get the first row to themselves, so the
  * prose below runs the full width of the card instead of wrapping into
- * the narrow column left over beside the chip.
+ * the narrow column left over beside the chip. Both sit at the left edge,
+ * the side the code is on.
  */
 .header {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
 	gap: var(--base-size-8);
 	margin-bottom: var(--base-size-8);
 }
@@ -68,14 +68,4 @@
 	background: var(--bgColor-neutral-muted);
 	font-family: var(--fontStack-monospace);
 	font-size: var(--text-codeInline-size);
-}
-
-.topic {
-	flex: none;
-	padding: 0 var(--base-size-6);
-	border: var(--borderWidth-thin) solid var(--borderColor-muted);
-	border-radius: var(--borderRadius-full);
-	color: var(--fgColor-muted);
-	font-size: var(--text-body-size-small);
-	white-space: nowrap;
 }

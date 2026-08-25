@@ -2,7 +2,8 @@ import type { ExplanationDto } from "@dto/ReviewDto";
 import { BookIcon } from "@primer/octicons-react";
 import { Fragment } from "react";
 import styles from "./ExplanationBalloon.module.css";
-import { useHighlightedTopic } from "./highlightedTopic";
+import { useHighlightedExplanations } from "./highlightedExplanations";
+import { TopicChip } from "./TopicChip";
 
 /**
  * One change explanation on the diff: the author's account of what a change
@@ -12,12 +13,13 @@ import { useHighlightedTopic } from "./highlightedTopic";
  */
 export function ExplanationBalloon({
 	explanation,
+	topicColor,
 }: {
 	explanation: ExplanationDto;
+	/** the topic's palette slot (topicColors.ts); same label, same color */
+	topicColor?: number;
 }) {
-	const highlightedTopic = useHighlightedTopic();
-	const highlighted =
-		explanation.topic !== undefined && explanation.topic === highlightedTopic;
+	const highlighted = useHighlightedExplanations().has(explanation.id);
 	return (
 		<aside
 			className={styles.balloon}
@@ -30,7 +32,7 @@ export function ExplanationBalloon({
 					<BookIcon size={14} />
 				</span>
 				{explanation.topic !== undefined && (
-					<span className={styles.topic}>{explanation.topic}</span>
+					<TopicChip label={explanation.topic} color={topicColor} />
 				)}
 			</div>
 			{explanation.says.map((sentence, index) => (
@@ -58,7 +60,7 @@ function lineRange(explanation: ExplanationDto): string {
 /**
  * `says` sentences are plain prose that may carry inline code in backticks;
  * that is the whole grammar, so a split beats a markdown renderer here.
- * Shared with the topics panel, which renders the same sentences.
+ * Shared with the sidebar, which renders the same sentences.
  */
 export function BacktickText({ text }: { text: string }) {
 	const parts = text.split("`");

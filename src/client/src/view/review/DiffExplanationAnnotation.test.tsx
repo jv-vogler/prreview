@@ -17,7 +17,11 @@ function explanation(id: string): ExplanationDto {
 describe("DiffExplanationAnnotation", () => {
 	it("renders nothing at all for a line without explanations", () => {
 		const { container } = render(
-			<DiffExplanationAnnotation explanations={[]} mode="chips" />,
+			<DiffExplanationAnnotation
+				topicColors={new Map()}
+				explanations={[]}
+				mode="chips"
+			/>,
 		);
 		expect(container.firstChild).toBeNull();
 	});
@@ -25,6 +29,7 @@ describe("DiffExplanationAnnotation", () => {
 	it("chips mode starts unfolded; the chip folds the cards and back", () => {
 		render(
 			<DiffExplanationAnnotation
+				topicColors={new Map()}
 				explanations={[explanation("explanation-0")]}
 				mode="chips"
 			/>,
@@ -44,6 +49,7 @@ describe("DiffExplanationAnnotation", () => {
 	it("chips mode counts the explanations sharing the line on the chip", () => {
 		render(
 			<DiffExplanationAnnotation
+				topicColors={new Map()}
 				explanations={[
 					explanation("explanation-0"),
 					explanation("explanation-1"),
@@ -57,6 +63,7 @@ describe("DiffExplanationAnnotation", () => {
 	it("margin mode keeps the cards open and offers no chip", () => {
 		render(
 			<DiffExplanationAnnotation
+				topicColors={new Map()}
 				explanations={[explanation("explanation-0")]}
 				mode="margin"
 			/>,

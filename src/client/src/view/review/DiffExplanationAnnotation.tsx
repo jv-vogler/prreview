@@ -17,6 +17,8 @@ export type ExplanationsMode = "chips" | "margin";
 export interface DiffExplanationAnnotationProps {
 	explanations: readonly ExplanationDto[];
 	mode: ExplanationsMode;
+	/** each topic label's palette slot (topicColors.ts) */
+	topicColors: ReadonlyMap<string, number>;
 }
 
 /**
@@ -36,6 +38,7 @@ export interface DiffExplanationAnnotationProps {
 export function DiffExplanationAnnotation({
 	explanations,
 	mode,
+	topicColors,
 }: DiffExplanationAnnotationProps) {
 	const [open, setOpen] = useState(true);
 	const anchorRef = useRef<HTMLDivElement>(null);
@@ -89,6 +92,11 @@ export function DiffExplanationAnnotation({
 							<ExplanationBalloon
 								key={explanation.id}
 								explanation={explanation}
+								topicColor={
+									explanation.topic === undefined
+										? undefined
+										: topicColors.get(explanation.topic)
+								}
 							/>
 						))}
 					</div>,
