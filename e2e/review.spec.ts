@@ -84,20 +84,35 @@ test.describe("review pass", () => {
 		// otherwise also match and trip strict mode
 		await expect(page.getByText("1 Blocker", { exact: true })).toBeVisible();
 
-		// change explanations render expanded by default, anchored on the diff,
-		// visually distinct from comments (no actions, no tier)
+		// change explanations fold behind a right-edge chip by default: no
+		// card until the chip is clicked, and the chip takes no diff rows
+		const chip = page.locator("[data-explanation-chip]").first();
+		await expect(chip).toBeVisible();
+		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
+
+		await chip.click();
 		const balloon = page.locator("[data-explanation-id]").first();
 		await expect(balloon).toBeVisible();
 		await expect(balloon.getByRole("button")).toHaveCount(0);
-
-		// the one header toggle hides them all, and brings them all back
-		await page.getByRole("button", { name: "Hide explanations" }).click();
+		await chip.click();
 		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
+
+		// the one header toggle drops the chips entirely, and brings them back
+		await page.getByRole("button", { name: "Hide explanations" }).click();
+		await expect(page.locator("[data-explanation-chip]")).toHaveCount(0);
 		await page.getByRole("button", { name: "Show explanations" }).click();
-		await expect(balloon).toBeVisible();
+		await expect(chip).toBeVisible();
 
 		// hiding explanations never touched the comments
 		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
+
+		// ?explanations=margin: the comparison mode keeps every card open,
+		// pinned right, with no chips (the pass is stored, so no second run)
+		await page.goto(`${server.url}?explanations=margin`);
+		await expect(page.locator("[data-explanation-id]").first()).toBeVisible({
+			timeout: RUN_SETTLE_TIMEOUT_MS,
+		});
+		await expect(page.locator("[data-explanation-chip]")).toHaveCount(0);
 	});
 });
 

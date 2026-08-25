@@ -79,6 +79,7 @@ const ACTIONS: CommentActions = {
 function workspace(overrides: {
 	explanations: readonly ExplanationDto[];
 	showExplanations: boolean;
+	explanationsMode?: "chips" | "margin";
 }) {
 	return (
 		<DiffWorkspace
@@ -92,6 +93,7 @@ function workspace(overrides: {
 			expandedCommentIds={new Set()}
 			onToggleComment={() => {}}
 			actions={ACTIONS}
+			explanationsMode="chips"
 			{...overrides}
 		/>
 	);
@@ -125,5 +127,25 @@ describe("DiffWorkspace version counter", () => {
 			workspace({ explanations: [EXPLANATION], showExplanations: false }),
 		);
 		expect(lastVersion()).not.toBe(withExplanations);
+	});
+
+	it("moves when the explanations mode flips, so the presentation actually changes", () => {
+		const { rerender } = render(
+			workspace({
+				explanations: [EXPLANATION],
+				showExplanations: true,
+				explanationsMode: "chips",
+			}),
+		);
+		const chips = lastVersion();
+
+		rerender(
+			workspace({
+				explanations: [EXPLANATION],
+				showExplanations: true,
+				explanationsMode: "margin",
+			}),
+		);
+		expect(lastVersion()).not.toBe(chips);
 	});
 });

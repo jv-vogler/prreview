@@ -30,7 +30,10 @@ import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
 import type { CommentActions } from "../review/CommentActions";
 import { DiffCommentAnnotation } from "../review/DiffCommentAnnotation";
-import { ExplanationBalloon } from "../review/ExplanationBalloon";
+import {
+	DiffExplanationAnnotation,
+	type ExplanationsMode,
+} from "../review/DiffExplanationAnnotation";
 import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";
@@ -62,8 +65,10 @@ export interface DiffWorkspaceProps {
 	actions: CommentActions;
 	/** the pass's change explanations; unplaceable ones carry no annotation */
 	explanations: readonly ExplanationDto[];
-	/** the one header toggle: explanations render expanded or not at all */
+	/** the one header toggle: off drops the explanations entirely */
 	showExplanations: boolean;
+	/** chips fold behind a right-edge marker; margin keeps the cards open */
+	explanationsMode: ExplanationsMode;
 }
 
 const ANNOTATION_SIDE: Record<CommentAnchorSideDto, "deletions" | "additions"> =
@@ -86,6 +91,7 @@ export function DiffWorkspace({
 	actions,
 	explanations,
 	showExplanations,
+	explanationsMode,
 }: DiffWorkspaceProps) {
 	const codeViewRef = useRef<CodeViewHandle<DiffAnnotationMeta>>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -159,12 +165,17 @@ export function DiffWorkspace({
 
 	// Pierre reuses a file's whole rendered record — annotations included —
 	// until `version` moves (see the comment at its use below), so a new
-	// pass's comments, its explanations, and the show/hide toggle all need
-	// their own bump distinct from the fold bit.
+	// pass's comments, its explanations, the show/hide toggle and the
+	// explanations mode all need their own bump distinct from the fold bit.
 	const commentsRevisionRef = useRef(0);
 	const previousAnnotationsRef = useRef(annotationsByFileId);
-	if (previousAnnotationsRef.current !== annotationsByFileId) {
+	const previousModeRef = useRef(explanationsMode);
+	if (
+		previousAnnotationsRef.current !== annotationsByFileId ||
+		previousModeRef.current !== explanationsMode
+	) {
 		previousAnnotationsRef.current = annotationsByFileId;
+		previousModeRef.current = explanationsMode;
 		commentsRevisionRef.current += 1;
 	}
 	const commentsRevision = commentsRevisionRef.current;
@@ -290,18 +301,15 @@ export function DiffWorkspace({
 			}}
 			renderAnnotation={(annotation) => (
 				<>
-					{annotation.metadata.explanationIds
-						.map((id) => explanationsById.get(id))
-						.filter(
-							(explanation): explanation is ExplanationDto =>
-								explanation !== undefined,
-						)
-						.map((explanation) => (
-							<ExplanationBalloon
-								key={explanation.id}
-								explanation={explanation}
-							/>
-						))}
+					<DiffExplanationAnnotation
+						mode={explanationsMode}
+						explanations={annotation.metadata.explanationIds
+							.map((id) => explanationsById.get(id))
+							.filter(
+								(explanation): explanation is ExplanationDto =>
+									explanation !== undefined,
+							)}
+					/>
 					<DiffCommentAnnotation
 						commentIds={annotation.metadata.commentIds}
 						commentsById={commentsById}

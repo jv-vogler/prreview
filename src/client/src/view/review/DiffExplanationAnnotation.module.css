@@ -1,0 +1,87 @@
+/*
+ * The whole point of this file is costing the diff no rows: the anchor is
+ * zero-height, so Pierre's annotation row collapses to nothing and the code
+ * below never moves. The chip and the cards are absolutely positioned off
+ * it — the chip translated up onto the anchor line itself, the cards
+ * hanging below it, both pinned to the right edge of the visible code area
+ * (the annotation wrapper is horizontally sticky, so right means the right
+ * edge the reader sees, not the end of the longest line).
+ */
+.anchor {
+	position: relative;
+	height: 0;
+	width: 100%;
+}
+
+/*
+ * Sits over the anchor line itself (one line-height up from the annotation
+ * row below it). Deliberately calmer than a comment marker: no pulse, no
+ * tier color, no arrival animation — an explanation is ambient context,
+ * not a finding demanding triage.
+ */
+.chip {
+	position: absolute;
+	top: calc(-1 * var(--base-size-20));
+	right: var(--base-size-8);
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-4);
+	height: var(--base-size-20);
+	padding: 0 var(--base-size-6);
+	border: var(--borderWidth-thin) solid var(--borderColor-accent-muted);
+	border-radius: var(--borderRadius-full);
+	background: var(--bgColor-accent-muted);
+	color: var(--fgColor-accent);
+	cursor: pointer;
+	transition:
+		border-color var(--motion-transition-hover),
+		color var(--motion-transition-hover);
+}
+
+.chip:hover,
+.chip[aria-expanded="true"] {
+	border-color: var(--borderColor-accent-emphasis);
+	color: var(--fgColor-default);
+}
+
+.count {
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+}
+
+/*
+ * The open cards hang from the anchor, floating over the code below —
+ * never pushing it. In chip mode they start under the chip; in margin mode
+ * (always open, no chip) they start at the anchor line itself.
+ */
+.stack {
+	position: absolute;
+	top: var(--base-size-4);
+	right: var(--base-size-8);
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	gap: var(--base-size-8);
+	width: 340px;
+	max-width: 60%;
+}
+
+.stack[data-mode="margin"] {
+	top: calc(-1 * var(--base-size-20));
+}
+
+@keyframes stack-open {
+	from {
+		opacity: 0;
+		transform: translateY(calc(-1 * var(--base-size-4)));
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.stack[data-mode="chips"] {
+	animation: stack-open var(--motion-duration-short) var(--motion-easing-enter)
+		both;
+}

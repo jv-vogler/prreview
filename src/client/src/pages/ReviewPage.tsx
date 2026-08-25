@@ -28,6 +28,7 @@ import type {
 	ReworkProposal,
 } from "../view/review/CommentActions";
 import { CommentWorklist } from "../view/review/CommentWorklist";
+import type { ExplanationsMode } from "../view/review/DiffExplanationAnnotation";
 import { OverviewPanel } from "../view/review/OverviewPanel";
 import { PublishControl } from "../view/review/PublishControl";
 import { RunStatusBar } from "../view/review/RunStatusBar";
@@ -36,6 +37,17 @@ import { useReviewRun } from "../view/review/useReviewRun";
 import styles from "./ReviewPage.module.css";
 
 const api = createApiClient();
+
+/**
+ * Two candidate presentations for change explanations, side by side while
+ * the design settles: folded chips by default, `?explanations=margin` for
+ * always-open cards pinned to the right edge. Read once at module scope —
+ * the page has no router, so the URL never changes underneath it.
+ */
+const EXPLANATIONS_MODE: ExplanationsMode =
+	new URLSearchParams(window.location.search).get("explanations") === "margin"
+		? "margin"
+		: "chips";
 
 /**
  * The one screen (REQ-001): a GitHub-style diff of whatever changeset the
@@ -127,7 +139,7 @@ function ResolvedReview({
 		() => review.pass?.explanations ?? [],
 		[review.pass],
 	);
-	// expanded by default; one toggle for all of them, no per-balloon state
+	// shown by default; one toggle drops or restores all of them
 	const [showExplanations, setShowExplanations] = useState(true);
 	const activeComments = useMemo(
 		() => comments.filter((comment) => !comment.deleted),
@@ -400,6 +412,7 @@ function ResolvedReview({
 							actions={actions}
 							explanations={explanations}
 							showExplanations={showExplanations}
+							explanationsMode={EXPLANATIONS_MODE}
 						/>
 					</div>
 				)}

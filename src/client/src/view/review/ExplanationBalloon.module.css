@@ -1,7 +1,10 @@
 /*
- * Everything here exists to not read as a comment: comments are floating
- * cards with radius, shadow and buttons; this is a flat strip of prose set
- * into the diff, hairline-bordered top and bottom, square-cornered, inert.
+ * Everything here exists to not read as a comment: comments are white
+ * cards with radius, a tier stripe and buttons; this is a flat, square-
+ * cornered strip of prose in the recessed tone, hairline-bordered, inert.
+ * It floats over code (see DiffExplanationAnnotation), so the background
+ * must be an opaque token and the shadow is what separates it from the
+ * lines underneath.
  */
 .balloon {
 	display: flex;
@@ -9,12 +12,11 @@
 	gap: var(--base-size-8);
 	box-sizing: border-box;
 	width: 100%;
-	max-inline-size: 68ch;
 	padding: var(--base-size-8) var(--base-size-12);
-	border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
-	border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+	border: var(--borderWidth-thin) solid var(--borderColor-muted);
 	background: var(--bgColor-muted);
 	color: var(--fgColor-default);
+	box-shadow: var(--shadow-floating-small);
 }
 
 .icon {
