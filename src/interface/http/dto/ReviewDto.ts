@@ -129,6 +129,20 @@ export const reviewPassDtoSchema = z.object({
 
 export type ReviewPassDto = z.infer<typeof reviewPassDtoSchema>;
 
+/**
+ * How the stored pass relates to the changeset being served: reviewed at
+ * this very commit, N commits behind it, or not comparable (a worktree
+ * changeset, an older artifact, a rewritten history). Stated facts only —
+ * what the "review again" confirmation may claim.
+ */
+export const passFreshnessDtoSchema = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal("same-commit") }),
+	z.object({ kind: z.literal("new-commits"), count: z.int().min(1) }),
+	z.object({ kind: z.literal("unknown") }),
+]);
+
+export type PassFreshnessDto = z.infer<typeof passFreshnessDtoSchema>;
+
 /** `PATCH /api/review/comments/:id`'s request body (TASK-046, TASK-047). */
 export const editCommentRequestDtoSchema = z.object({
 	body: z.string().min(1),

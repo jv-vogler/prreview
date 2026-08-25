@@ -4,13 +4,14 @@ import {
 	REVIEW_IDLE_TIMEOUT_MS,
 	REWORK_IDLE_TIMEOUT_MS,
 } from "../../application/review/limits";
+import { assessPassFreshness } from "../../application/review/passFreshness";
 import type { ReworkInstruction } from "../../application/review/reworkComment";
 import { buildReworkJob } from "../../application/review/reworkComment";
 import { buildReviewJob } from "../../application/review/runReview";
 import type { Container } from "../../container";
 import { changesetIdFor } from "../../domain/changeset/ChangesetId";
 import { createRunManager } from "../../infrastructure/engine/runManager";
-import type { ReviewPassDto } from "./dto/ReviewDto";
+import type { PassFreshnessDto, ReviewPassDto } from "./dto/ReviewDto";
 import type { RunDto } from "./dto/RunDto";
 import type { ReviewState } from "./reviewState";
 import { toReviewPassDto } from "./toReviewPassDto";
@@ -43,7 +44,12 @@ export interface ReviewRunner {
 	 * so a pass persisted before a server restart still renders (TASK-041).
 	 * Null when no pass has ever been saved for this changeset.
 	 */
-	currentPass(): Promise<ReviewPassDto | null>;
+	currentPass(): Promise<CurrentPass | null>;
+}
+
+export interface CurrentPass {
+	pass: ReviewPassDto;
+	freshness: PassFreshnessDto;
 }
 
 export type StartReviewResult =
@@ -128,7 +134,17 @@ export function createReviewRunner(
 			const changeset = state.current();
 			const changesetId = changesetIdFor(changeset.ref.source);
 			const stored = await container.sessionStore.loadReview(changesetId);
-			return stored === null ? null : toReviewPassDto(stored, changeset.files);
+			if (stored === null) {
+				return null;
+			}
+			return {
+				pass: toReviewPassDto(stored, changeset.files),
+				freshness: await assessPassFreshness(
+					{ git: container.git },
+					stored.headSha,
+					changeset.ref.headSha,
+				),
+			};
 		},
 	};
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { reviewPassDtoSchema } from "./ReviewDto";
+import { passFreshnessDtoSchema, reviewPassDtoSchema } from "./ReviewDto";
 
 /**
  * Why a run ended badly. Spelled out rather than left a free string so the
@@ -117,6 +117,8 @@ export type RunConflictDto = z.infer<typeof runConflictDtoSchema>;
 export const reviewStatusDtoSchema = z.object({
 	run: runDtoSchema.nullable(),
 	pass: reviewPassDtoSchema.nullable(),
+	/** null exactly when `pass` is null — freshness is a fact about a stored pass */
+	freshness: passFreshnessDtoSchema.nullable(),
 });
 
 export type ReviewStatusDto = z.infer<typeof reviewStatusDtoSchema>;

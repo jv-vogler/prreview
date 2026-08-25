@@ -26,6 +26,8 @@ export interface Git {
 	statusPorcelain(): Promise<string>;
 	remoteUrl(remoteName: string): Promise<string>;
 	mergeBase(a: string, b: string): Promise<string>;
+	/** commits reachable from `to` but not `from` — how far a ref moved; rejects when either is unknown */
+	countCommits(from: string, to: string): Promise<number>;
 	/** canonical diff text between two commits */
 	diff(base: string, head: string): Promise<string>;
 	/** staged + unstaged versus HEAD; untracked files do not appear */
