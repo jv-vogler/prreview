@@ -49,6 +49,22 @@ describe("createExplanationCardLayout", () => {
 		expect(stack.style.visibility).toBe("visible");
 	});
 
+	// the screenshot bug: a card anchored near the fold hung off the bottom
+	// of the window and could only be read half-way
+	it("lifts a stack back inside the viewport's bottom", () => {
+		const layout = createExplanationCardLayout();
+		const stack = stackOfHeight(200);
+		releases.push(
+			layout.register(
+				"explanation-0",
+				anchorAt(window.innerHeight - 40),
+				stack,
+			),
+		);
+		expect(stack.style.top).toBe(`${window.innerHeight - 16 - 200}px`);
+		expect(stack.style.visibility).toBe("visible");
+	});
+
 	it("pushes a stack below the one above instead of overlapping it", () => {
 		const layout = createExplanationCardLayout();
 		const upper = stackOfHeight(80);

@@ -6,6 +6,8 @@ const GAP_PX = 4;
 const STACK_GAP_PX = 8;
 /** inset from the diff viewport's right edge */
 const EDGE_PX = 24;
+/** breathing room kept under the lowest card, so none of them ends at the fold */
+const FLOOR_PX = 16;
 
 export interface ExplanationCardLayout {
 	/** starts tracking one line's open card stack; returns its release */
@@ -149,7 +151,13 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 		visible.sort((a, b) => a.top - b.top || a.anchorTop - b.anchorTop);
 		let floor = Number.NEGATIVE_INFINITY;
 		for (const { stack, top } of visible) {
-			const settled = Math.max(top, floor);
+			// pushed down by whatever sits above it, then lifted back inside
+			// the viewport's own bottom: a card anchored to one of the last
+			// lines would otherwise hang off the screen and be read half-way.
+			// No matching lift at the top, which is where a stack sliding out
+			// under its own block's end is supposed to go.
+			const lowest = limit - FLOOR_PX - stack.offsetHeight;
+			const settled = Math.min(Math.max(top, floor), lowest);
 			stack.style.top = `${settled}px`;
 			stack.style.right = right;
 			stack.style.visibility = "visible";
