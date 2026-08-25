@@ -97,6 +97,7 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("says something the diff does not");
 		expect(prompt).toContain("Never restate the code in words");
 		expect(prompt).toContain("Skip mechanical changes");
+		expect(prompt).toContain("Cover the whole change");
 		expect(prompt).toContain("never review feedback and never report problems");
 	});
 
