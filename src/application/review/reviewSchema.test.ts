@@ -83,23 +83,28 @@ describe("reviewPassSchema findings", () => {
 			...BARE_PASS,
 			findings: [finding({ kind: "question", tier: undefined })],
 		};
-		expect(reviewPassSchema.parse(pass).findings[0].tier).toBeUndefined();
+		expect(reviewPassSchema.parse(pass).findings[0]).not.toHaveProperty("tier");
 		expect(storedReviewPassSchema.safeParse(pass).success).toBe(true);
 	});
 
-	it("rejects a question that carries a tier, and a defect that carries none", () => {
-		const tieredQuestion = {
-			...BARE_PASS,
-			findings: [finding({ kind: "question" })],
-		};
+	it("rejects a defect with no tier: the ladder is what a defect is placed on", () => {
 		const untieredDefect = {
 			...BARE_PASS,
 			findings: [finding({ tier: undefined })],
 		};
-		for (const pass of [tieredQuestion, untieredDefect]) {
-			expect(reviewPassSchema.safeParse(pass).success).toBe(false);
-			expect(storedReviewPassSchema.safeParse(pass).success).toBe(false);
-		}
+		expect(reviewPassSchema.safeParse(untieredDefect).success).toBe(false);
+		expect(storedReviewPassSchema.safeParse(untieredDefect).success).toBe(
+			false,
+		);
+	});
+
+	// dropping the stray field beats discarding a finished pass over it
+	it("drops a tier a question should never have carried", () => {
+		const parsed = reviewPassSchema.parse({
+			...BARE_PASS,
+			findings: [finding({ kind: "question" })],
+		});
+		expect(parsed.findings[0]).not.toHaveProperty("tier");
 	});
 });
 

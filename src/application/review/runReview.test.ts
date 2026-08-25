@@ -226,6 +226,17 @@ describe("buildReviewJob", () => {
 						verified: true,
 						lane: "review",
 					},
+					{
+						path: "src/greeting.ts",
+						startLine: 2,
+						endLine: 2,
+						kind: "question",
+						title: "Why greet by first name only",
+						body: "Why only the first name here?",
+						proof: "Looked at the callers; none answer it.",
+						verified: false,
+						lane: "review",
+					},
 				],
 			},
 			residue: [],
@@ -271,6 +282,8 @@ describe("buildReviewJob", () => {
 		expect(prompt).toContain("Greeting drops the name");
 		expect(prompt).toContain("reader wording");
 		expect(prompt).toContain("alice on src/greeting.ts:2");
+		// a prior question has no tier to print, and says so where the tier goes
+		expect(prompt).toContain("2. (question) Why greet by first name only");
 	});
 
 	it("re-reviews without the conversation when GitHub is unreachable", async () => {

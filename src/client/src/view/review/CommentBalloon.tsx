@@ -2,9 +2,9 @@ import type { ReviewCommentDto } from "@dto/ReviewDto";
 import {
 	CheckCircleIcon,
 	PencilIcon,
-	QuestionIcon,
 	TrashIcon,
 	UndoIcon,
+	UnverifiedIcon,
 	XIcon,
 } from "@primer/octicons-react";
 import { useState } from "react";
@@ -112,7 +112,7 @@ export function CommentBalloon({
 				{comment.verified ? (
 					<CheckCircleIcon size={12} />
 				) : (
-					<QuestionIcon size={12} />
+					<UnverifiedIcon size={12} />
 				)}
 				{comment.proof}
 			</p>

@@ -59,7 +59,7 @@ function toEffectiveComment(
 		startLine: finding.startLine,
 		endLine: finding.endLine,
 		kind: finding.kind,
-		...(finding.tier === undefined ? {} : { tier: finding.tier }),
+		...(finding.kind === "question" ? {} : { tier: finding.tier }),
 		title: finding.title,
 		body: effectiveBody(finding, edit),
 		...(finding.evidence === undefined ? {} : { evidence: finding.evidence }),

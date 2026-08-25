@@ -80,37 +80,51 @@ function bounded(max: number, enforce: boolean) {
 	return enforce ? z.string().max(max) : z.string();
 }
 
+/**
+ * A union on `kind`, not one object with a rule bolted on afterwards. The
+ * shape reaches the CLI as `oneOf` in `--json-schema`, so a tier-less defect
+ * or a tiered question is caught where the CLI still has a turn to fix it,
+ * rather than at `parse` time after the run, where the only outcome left is
+ * discarding the whole pass.
+ *
+ * A finding with no `kind` at all reads as a defect: that is every pass
+ * written before questions existed, and it must keep loading off disk.
+ */
 function buildFindingSchema(enforce: boolean) {
-	return z
-		.object({
-			path: z.string().min(1),
-			startLine: z.int().min(1),
-			endLine: z.int().min(1),
-			/** defaulted so passes written before questions existed still parse */
-			kind: z.enum(KIND).default("defect"),
-			/** absent exactly when this is a question */
-			tier: z.enum(TIER).optional(),
-			/** plain-language scan aid for the reviewer's list; never published */
-			title: bounded(TITLE_MAX, enforce),
-			/** the alert block plus the pasteable paragraph — never restates the diff */
-			body: bounded(BODY_MAX, enforce),
-			/** the visual aid pasted under `body`: a ```diff fix, a table, or input → expected/got */
-			evidence: bounded(EVIDENCE_MAX, enforce).optional(),
-			/** "Verified: <how>" or "Inferred: <why still confident>" — the triage line */
-			proof: bounded(PROOF_MAX, enforce),
-			/** true when `proof` describes something actually run, not inferred */
-			verified: z.boolean(),
-			lane: z.enum(LANE),
-		})
-		.refine((finding) => (finding.tier === undefined) === isQuestion(finding), {
-			error:
-				"a defect carries a tier and a question carries none: `tier` is present exactly when `kind` is `defect`",
-			path: ["tier"],
-		});
+	const shared = {
+		path: z.string().min(1),
+		startLine: z.int().min(1),
+		endLine: z.int().min(1),
+		/** plain-language scan aid for the reviewer's list; never published */
+		title: bounded(TITLE_MAX, enforce),
+		/** the alert block plus the pasteable paragraph — never restates the diff */
+		body: bounded(BODY_MAX, enforce),
+		/** the visual aid pasted under `body`: a ```diff fix, a table, or input → expected/got */
+		evidence: bounded(EVIDENCE_MAX, enforce).optional(),
+		/** "Verified: <how>" or "Inferred: <why still confident>" — the triage line */
+		proof: bounded(PROOF_MAX, enforce),
+		/** true when `proof` describes something actually run, not inferred */
+		verified: z.boolean(),
+		lane: z.enum(LANE),
+	};
+	return z.preprocess(
+		defaultToDefect,
+		z.discriminatedUnion("kind", [
+			z.object({
+				kind: z.literal("defect"),
+				tier: z.enum(TIER),
+				...shared,
+			}),
+			z.object({ kind: z.literal("question"), ...shared }),
+		]),
+	);
 }
 
-function isQuestion(finding: { kind: (typeof KIND)[number] }): boolean {
-	return finding.kind === "question";
+function defaultToDefect(finding: unknown): unknown {
+	if (typeof finding !== "object" || finding === null || "kind" in finding) {
+		return finding;
+	}
+	return { ...finding, kind: "defect" };
 }
 
 /**

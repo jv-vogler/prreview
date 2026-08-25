@@ -151,7 +151,7 @@ async function previousReviewInput(
 		comments: stored.pass.findings.map((finding, index) => {
 			const edit = stored.commentEdits[reviewCommentId(index)];
 			return {
-				tier: finding.tier ?? finding.kind,
+				tier: finding.kind === "question" ? "question" : finding.tier,
 				title: finding.title,
 				body: effectiveBody(finding, edit),
 				path: finding.path,

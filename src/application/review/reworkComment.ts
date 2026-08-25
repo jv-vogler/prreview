@@ -165,7 +165,7 @@ function buildReworkPrompt(input: ReworkPromptInput): string {
 		"## The comment as it stands",
 		"",
 		`Path: ${input.finding.path}, lines ${input.finding.startLine}-${input.finding.endLine}`,
-		`Tier: ${input.finding.tier ?? "none (this comment is a question, not a defect)"}`,
+		`Tier: ${input.finding.kind === "question" ? "none (this comment is a question, not a defect)" : input.finding.tier}`,
 		`Title: ${input.finding.title}`,
 		`Current body: ${input.currentBody}`,
 		...(input.finding.evidence === undefined

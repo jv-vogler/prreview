@@ -1,4 +1,8 @@
-import type { ReviewCommentDto, ReviewTierDto } from "@dto/ReviewDto";
+import type {
+	ReviewCommentDto,
+	ReviewFindingKindDto,
+	ReviewTierDto,
+} from "@dto/ReviewDto";
 import {
 	AlertFillIcon,
 	CommentIcon,
@@ -51,6 +55,7 @@ export function DiffCommentAnnotation({
 					className={styles.marker}
 					data-comment-marker="true"
 					data-tier={worstTier(collapsed)}
+					data-kind={markerKind(collapsed)}
 					onClick={() => {
 						for (const comment of collapsed) {
 							onToggle(comment.id);
@@ -136,11 +141,10 @@ const TIER_SEVERITY: Record<ReviewTierDto, number> = {
 	nitpick: 3,
 };
 
-/**
- * The marker's colour. Questions carry no tier, so a marker holding only
- * questions says so instead of borrowing the mildest tier's colour.
- */
-function worstTier(comments: readonly ReviewCommentDto[]): string {
+/** The worst tier under this marker, or nothing when it holds only questions. */
+function worstTier(
+	comments: readonly ReviewCommentDto[],
+): ReviewTierDto | undefined {
 	let worst: ReviewTierDto | undefined;
 	for (const comment of comments) {
 		if (comment.tier === undefined) {
@@ -153,5 +157,18 @@ function worstTier(comments: readonly ReviewCommentDto[]): string {
 			worst = comment.tier;
 		}
 	}
-	return worst ?? "question";
+	return worst;
+}
+
+/**
+ * `question` only when there is nothing but questions here, so the marker
+ * says the same thing through the same attribute the balloon, the row and
+ * the sidebar count all use.
+ */
+function markerKind(
+	comments: readonly ReviewCommentDto[],
+): ReviewFindingKindDto | undefined {
+	return comments.every((comment) => comment.kind === "question")
+		? "question"
+		: undefined;
 }
