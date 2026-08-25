@@ -100,7 +100,7 @@ async function main() {
 
 	const pass = process.env.MOCK_AGENT_EMPTY === undefined
 		? buildPass(files)
-		: { overview: "A clean pass: nothing worth flagging.", verdict: "matches the ticket", ticket: null, findings: [] };
+		: { overview: "A clean pass: nothing worth flagging.", verdict: "no ticket was found (mock)", scope: "no-ticket", ticket: null, findings: [] };
 
 	await emitTaskUpdate(4, "completed");
 	await emitLine({
@@ -183,12 +183,54 @@ function buildPass(files) {
 			lane: "review",
 		});
 	}
+	const explanations = buildExplanations(files);
+	const labels = [
+		...new Set(explanations.map((entry) => entry.topic).filter(Boolean)),
+	];
+	const topicsLine =
+		labels.length === 0
+			? ""
+			: `\n\nThe change groups under ${labels.join(" and ")}.`;
 	return {
-		overview: `Reviewed ${files.length} file(s) with the mock agent (no real analysis happened).`,
+		overview: `Reviewed ${files.length} file(s) with the mock agent (no real analysis happened).${topicsLine}`,
 		verdict: "matches the ticket (mock)",
+		scope: "matches",
 		ticket: null,
 		findings,
+		explanations,
 	};
+}
+
+// 2–3 explanations anchored to real parsed lines, at least two sharing a
+// `topic`, so `npm run dev:mock` shows the balloons and the grouping
+// without a paid run
+function buildExplanations(files) {
+	const explanations = files.slice(0, 3).map((file, index) => {
+		const anchor =
+			file.lines.filter((line) => line.marker === "+").at(-1) ?? file.lines.at(-1);
+		const line = anchor?.lineNumber ?? 1;
+		return {
+			path: file.path,
+			startLine: line,
+			endLine: line,
+			says: [
+				`Mock account of what ${file.path} now does.`,
+				"It exists so the balloon has more than one sentence to lay out.",
+			],
+			...(index < 2
+				? { topic: "Mock shared intent" }
+				: { topic: "Mock second theme" }),
+		};
+	});
+	// one with no line in the diff, so the sidebar's explanation section
+	// (the never-silently-lost lane) is visible without a paid run
+	explanations.push({
+		path: "not/in/the/diff.ts",
+		startLine: 7,
+		endLine: 7,
+		says: ["Mock explanation the diff cannot anchor."],
+	});
+	return explanations;
 }
 
 function alertFor(tier) {

@@ -16,10 +16,11 @@ export interface CommentWorklistProps {
 }
 
 /**
- * The comment sidebar worklist (TASK-044, REQ-005): per-tier counts, then
- * three sections so nothing is ever silently missing — the on-diff review
- * comments, anything `clamped`/`unplaceable` that the diff cannot show
- * (REQ-010), and pre-existing findings in their own lane (REQ-011).
+ * The Comments tab of the review sidebar (TASK-044, REQ-005): per-tier
+ * counts, then three sections so nothing is ever silently missing — the
+ * on-diff review comments, anything `clamped`/`unplaceable` that the diff
+ * cannot show (REQ-010), and pre-existing findings in their own lane
+ * (REQ-011).
  */
 export function CommentWorklist({
 	comments,
@@ -43,8 +44,7 @@ export function CommentWorklist({
 	const counts = countByTier(reviewComments);
 
 	return (
-		<aside className={styles.panel} aria-label="Review comments">
-			<h2 className={styles.heading}>Comments</h2>
+		<div>
 			{comments.length === 0 ? (
 				<p className={styles.empty}>No comments.</p>
 			) : (
@@ -95,7 +95,7 @@ export function CommentWorklist({
 					actions={actions}
 				/>
 			)}
-		</aside>
+		</div>
 	);
 }
 

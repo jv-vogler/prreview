@@ -92,6 +92,56 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("renders as markdown");
 	});
 
+	it("asks for mid-level change explanations covering every file", () => {
+		expect(prompt).toContain("## Explain the change");
+		expect(prompt).toContain("Pitch each explanation mid-level");
+		expect(prompt).toContain("what the diff cannot show");
+		expect(prompt).toContain("Never narrate syntax");
+		expect(prompt).toContain("never float so high the mechanism disappears");
+		expect(prompt).toContain("Skip only purely mechanical changes");
+		expect(prompt).toContain("Cover the whole change");
+		expect(prompt).toContain(
+			"every file in the diff gets at least one explanation",
+		);
+		expect(prompt).toContain("one sentence naming its role in the change");
+		expect(prompt).toContain("never review feedback and never report problems");
+	});
+
+	it("worked explanation example contrasts narrating the diff with the what-then-why", () => {
+		expect(prompt).toContain("conditionally concatenate the evidence field");
+		expect(prompt).toContain(
+			"The evidence block now ships inside the body GitHub receives.",
+		);
+	});
+
+	it("asks for the topic labels to be mentioned in the overview, verbatim", () => {
+		expect(prompt).toContain("Mention each `topic` label in the overview");
+		expect(prompt).toContain("colored chip");
+	});
+
+	it("asks for the scope outcome as a machine-readable field", () => {
+		expect(prompt).toContain("Record the outcome in `scope`");
+		for (const value of [
+			'"matches"',
+			'"misses-pieces"',
+			'"unrelated-extras"',
+			'"no-ticket"',
+		]) {
+			expect(prompt).toContain(value);
+		}
+	});
+
+	it("grounds explanations in the code, not the PR description", () => {
+		expect(prompt).toContain(
+			"the description is the author's claim about their own work",
+		);
+	});
+
+	it("anchors explanations exactly like findings, with shared topic labels", () => {
+		expect(prompt).toContain("Anchor each explanation exactly like a finding");
+		expect(prompt).toContain("same short `topic` label");
+	});
+
 	it("scopes the no-hard-wrap rule to `body`, so the overview may paragraph", () => {
 		expect(prompt).toContain("Never hard-wrap a `body` paragraph");
 		expect(prompt).not.toContain("**Never hard-wrap prose.**");

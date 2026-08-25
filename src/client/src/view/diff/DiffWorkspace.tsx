@@ -1,6 +1,10 @@
 import type { BlobRequest } from "@dto/BlobRequest";
 import type { ChangesetDto, FileDiffDto } from "@dto/ChangesetDto";
-import type { CommentAnchorSideDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type {
+	CommentAnchorSideDto,
+	ExplanationDto,
+	ReviewCommentDto,
+} from "@dto/ReviewDto";
 import type {
 	CodeViewDiffItem,
 	DiffLineAnnotation,
@@ -17,11 +21,24 @@ import {
 	groupPlacedComments,
 	placedComments,
 } from "../../domain/review/placedComments";
+import {
+	groupPlacedExplanations,
+	placedExplanations,
+} from "../../domain/review/placedExplanations";
+import { topicColorsFor } from "../../domain/review/topicColors";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
 import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
 import type { CommentActions } from "../review/CommentActions";
 import { DiffCommentAnnotation } from "../review/DiffCommentAnnotation";
+import {
+	DiffExplanationAnnotation,
+	type ExplanationsMode,
+} from "../review/DiffExplanationAnnotation";
+import {
+	createExplanationCardLayout,
+	ExplanationCardLayoutContext,
+} from "../review/explanationCardLayout";
 import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";
@@ -30,11 +47,13 @@ import { useHeaderFoldClicks } from "./useHeaderFoldClicks";
 /** the annotation metadata carried per rendered diff line (TASK-043) */
 interface DiffAnnotationMeta {
 	commentIds: string[];
+	explanationIds: string[];
 }
 
 export interface DiffWorkspaceHandle {
 	scrollToFile(fileId: string): void;
 	scrollToComment(comment: ReviewCommentDto): void;
+	scrollToExplanation(explanation: ExplanationDto): void;
 }
 
 export interface DiffWorkspaceProps {
@@ -50,6 +69,12 @@ export interface DiffWorkspaceProps {
 	expandedCommentIds: ReadonlySet<string>;
 	onToggleComment(commentId: string): void;
 	actions: CommentActions;
+	/** the pass's change explanations; unplaceable ones carry no annotation */
+	explanations: readonly ExplanationDto[];
+	/** the one header toggle: off drops the explanations entirely */
+	showExplanations: boolean;
+	/** chips fold behind a right-edge marker; margin keeps the cards open */
+	explanationsMode: ExplanationsMode;
 }
 
 const ANNOTATION_SIDE: Record<CommentAnchorSideDto, "deletions" | "additions"> =
@@ -70,6 +95,9 @@ export function DiffWorkspace({
 	expandedCommentIds,
 	onToggleComment,
 	actions,
+	explanations,
+	showExplanations,
+	explanationsMode,
 }: DiffWorkspaceProps) {
 	const codeViewRef = useRef<CodeViewHandle<DiffAnnotationMeta>>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -81,28 +109,79 @@ export function DiffWorkspace({
 		[comments],
 	);
 
+	const explanationsById = useMemo(
+		() =>
+			new Map(explanations.map((explanation) => [explanation.id, explanation])),
+		[explanations],
+	);
+
+	// one annotation per line carries both kinds: the hidden state drops the
+	// explanation groups entirely, so a line with only explanations loses its
+	// annotation rather than rendering an empty slot
 	const annotationsByFileId = useMemo(() => {
-		const groups = groupPlacedComments(placedComments(comments));
+		const merged = new Map<
+			string,
+			{
+				fileId: string;
+				side: CommentAnchorSideDto;
+				line: number;
+				meta: DiffAnnotationMeta;
+			}
+		>();
+		const at = (fileId: string, side: CommentAnchorSideDto, line: number) => {
+			const key = `${fileId}:${side}:${line}`;
+			let entry = merged.get(key);
+			if (entry === undefined) {
+				entry = {
+					fileId,
+					side,
+					line,
+					meta: { commentIds: [], explanationIds: [] },
+				};
+				merged.set(key, entry);
+			}
+			return entry;
+		};
+		if (showExplanations) {
+			for (const group of groupPlacedExplanations(
+				placedExplanations(explanations),
+			)) {
+				at(group.fileId, group.side, group.line).meta.explanationIds.push(
+					...group.explanationIds,
+				);
+			}
+		}
+		for (const group of groupPlacedComments(placedComments(comments))) {
+			at(group.fileId, group.side, group.line).meta.commentIds.push(
+				...group.commentIds,
+			);
+		}
 		const byFile = new Map<string, DiffLineAnnotation<DiffAnnotationMeta>[]>();
-		for (const group of groups) {
-			const forFile = byFile.get(group.fileId) ?? [];
+		for (const entry of merged.values()) {
+			const forFile = byFile.get(entry.fileId) ?? [];
 			forFile.push({
-				side: ANNOTATION_SIDE[group.side],
-				lineNumber: group.line,
-				metadata: { commentIds: group.commentIds },
+				side: ANNOTATION_SIDE[entry.side],
+				lineNumber: entry.line,
+				metadata: entry.meta,
 			});
-			byFile.set(group.fileId, forFile);
+			byFile.set(entry.fileId, forFile);
 		}
 		return byFile;
-	}, [comments]);
+	}, [comments, explanations, showExplanations]);
 
 	// Pierre reuses a file's whole rendered record — annotations included —
 	// until `version` moves (see the comment at its use below), so a new
-	// pass's comments need their own bump distinct from the fold bit.
+	// pass's comments, its explanations, the show/hide toggle and the
+	// explanations mode all need their own bump distinct from the fold bit.
 	const commentsRevisionRef = useRef(0);
-	const previousCommentsRef = useRef(comments);
-	if (previousCommentsRef.current !== comments) {
-		previousCommentsRef.current = comments;
+	const previousAnnotationsRef = useRef(annotationsByFileId);
+	const previousModeRef = useRef(explanationsMode);
+	if (
+		previousAnnotationsRef.current !== annotationsByFileId ||
+		previousModeRef.current !== explanationsMode
+	) {
+		previousAnnotationsRef.current = annotationsByFileId;
+		previousModeRef.current = explanationsMode;
 		commentsRevisionRef.current += 1;
 	}
 	const commentsRevision = commentsRevisionRef.current;
@@ -181,6 +260,14 @@ export function DiffWorkspace({
 
 	useHeaderFoldClicks(containerRef, onToggleFold);
 
+	// every open card stack positions through one shared layout, so stacks
+	// on nearby lines can see each other (explanationCardLayout.ts)
+	const cardLayout = useMemo(() => createExplanationCardLayout(), []);
+	const topicColors = useMemo(
+		() => topicColorsFor(explanations),
+		[explanations],
+	);
+
 	handleRef.current = {
 		scrollToFile: (fileId) => {
 			codeViewRef.current?.scrollTo({
@@ -203,48 +290,75 @@ export function DiffWorkspace({
 				behavior: "smooth",
 			});
 		},
+		scrollToExplanation: (explanation) => {
+			if (explanation.placement.kind === "unplaceable") {
+				return;
+			}
+			codeViewRef.current?.scrollTo({
+				type: "line",
+				id: explanation.placement.fileId,
+				lineNumber: explanation.placement.line,
+				side: ANNOTATION_SIDE[explanation.placement.side],
+				align: "center",
+				behavior: "smooth",
+			});
+		},
 	};
 
 	return (
-		<CodeView<DiffAnnotationMeta>
-			ref={codeViewRef}
-			containerRef={containerRef}
-			items={items}
-			className={styles.codeView}
-			// the far-left slot, immediately before the change-type icon
-			renderHeaderPrefix={(item) => {
-				const file = filesById.get(item.id);
-				if (file === undefined) {
-					return null;
-				}
-				return (
-					<FileFoldChevron
-						fileId={file.id}
-						path={file.path}
-						folded={foldedFileIds.has(file.id)}
-						onToggle={onToggleFold}
-					/>
-				);
-			}}
-			renderAnnotation={(annotation) => (
-				<DiffCommentAnnotation
-					commentIds={annotation.metadata.commentIds}
-					commentsById={commentsById}
-					expandedCommentIds={expandedCommentIds}
-					onToggle={onToggleComment}
-					actions={actions}
-				/>
-			)}
-			options={{
-				theme: PIERRE_THEME_NAME,
-				diffStyle: "unified",
-				diffIndicators: "classic",
-				loadDiffFiles,
-				hunkSeparators: "line-info",
-				stickyHeaders: true,
-				unsafeCSS: PIERRE_DIFF_CHROME_CSS,
-				preferredHighlighter: HIGHLIGHTER.preferredHighlighter,
-			}}
-		/>
+		<ExplanationCardLayoutContext.Provider value={cardLayout}>
+			<CodeView<DiffAnnotationMeta>
+				ref={codeViewRef}
+				containerRef={containerRef}
+				items={items}
+				className={styles.codeView}
+				// the far-left slot, immediately before the change-type icon
+				renderHeaderPrefix={(item) => {
+					const file = filesById.get(item.id);
+					if (file === undefined) {
+						return null;
+					}
+					return (
+						<FileFoldChevron
+							fileId={file.id}
+							path={file.path}
+							folded={foldedFileIds.has(file.id)}
+							onToggle={onToggleFold}
+						/>
+					);
+				}}
+				renderAnnotation={(annotation) => (
+					<>
+						<DiffExplanationAnnotation
+							mode={explanationsMode}
+							topicColors={topicColors}
+							explanations={annotation.metadata.explanationIds
+								.map((id) => explanationsById.get(id))
+								.filter(
+									(explanation): explanation is ExplanationDto =>
+										explanation !== undefined,
+								)}
+						/>
+						<DiffCommentAnnotation
+							commentIds={annotation.metadata.commentIds}
+							commentsById={commentsById}
+							expandedCommentIds={expandedCommentIds}
+							onToggle={onToggleComment}
+							actions={actions}
+						/>
+					</>
+				)}
+				options={{
+					theme: PIERRE_THEME_NAME,
+					diffStyle: "unified",
+					diffIndicators: "classic",
+					loadDiffFiles,
+					hunkSeparators: "line-info",
+					stickyHeaders: true,
+					unsafeCSS: PIERRE_DIFF_CHROME_CSS,
+					preferredHighlighter: HIGHLIGHTER.preferredHighlighter,
+				}}
+			/>
+		</ExplanationCardLayoutContext.Provider>
 	);
 }

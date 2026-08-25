@@ -1,6 +1,12 @@
 import type { ChangesetDto } from "@dto/ChangesetDto";
-import type { ReviewCommentDto, ReworkInstructionDto } from "@dto/ReviewDto";
+import type {
+	ExplanationDto,
+	ReviewCommentDto,
+	ReworkInstructionDto,
+} from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { topicColorsFor } from "../domain/review/topicColors";
+import { type Topic, topicsFor } from "../domain/review/topics";
 import { getChangeset } from "../infrastructure/endpoints/getChangeset";
 import { getSession } from "../infrastructure/endpoints/getSession";
 import { publishReview } from "../infrastructure/endpoints/publishReview";
@@ -23,15 +29,30 @@ import type {
 	CommentActions,
 	ReworkProposal,
 } from "../view/review/CommentActions";
-import { CommentWorklist } from "../view/review/CommentWorklist";
+import type { ExplanationsMode } from "../view/review/DiffExplanationAnnotation";
+import { HighlightedExplanationsContext } from "../view/review/highlightedExplanations";
 import { OverviewPanel } from "../view/review/OverviewPanel";
 import { PublishControl } from "../view/review/PublishControl";
+import { ReviewSidebar } from "../view/review/ReviewSidebar";
 import { RunStatusBar } from "../view/review/RunStatusBar";
 import { REVIEW_FAILURE_COPY } from "../view/review/reviewFailureCopy";
 import { useReviewRun } from "../view/review/useReviewRun";
 import styles from "./ReviewPage.module.css";
 
 const api = createApiClient();
+
+const NO_HIGHLIGHT: ReadonlySet<string> = new Set();
+
+/**
+ * Two candidate presentations for change explanations, side by side while
+ * the design settles: folded chips by default, `?explanations=margin` for
+ * always-open cards pinned to the right edge. Read once at module scope —
+ * the page has no router, so the URL never changes underneath it.
+ */
+const EXPLANATIONS_MODE: ExplanationsMode =
+	new URLSearchParams(window.location.search).get("explanations") === "margin"
+		? "margin"
+		: "chips";
 
 /**
  * The one screen (REQ-001): a GitHub-style diff of whatever changeset the
@@ -119,10 +140,37 @@ function ResolvedReview({
 		() => review.pass?.comments ?? [],
 		[review.pass],
 	);
+	const explanations = useMemo<readonly ExplanationDto[]>(
+		() => review.pass?.explanations ?? [],
+		[review.pass],
+	);
+	// shown by default; one toggle drops or restores all of them
+	const [showExplanations, setShowExplanations] = useState(true);
+	// folded by default so the diff keeps the screen; a run finishing live
+	// unfolds it once, because that is the moment the account is news
+	const [overviewFolded, setOverviewFolded] = useState(true);
+	const previousRunStatus = useRef<string | null>(null);
+	useEffect(() => {
+		const status =
+			review.run !== null && review.run.kind === "review"
+				? review.run.status
+				: null;
+		const was = previousRunStatus.current;
+		previousRunStatus.current = status;
+		if (status === "succeeded" && (was === "running" || was === "queued")) {
+			setOverviewFolded(false);
+		}
+	}, [review.run]);
 	const activeComments = useMemo(
 		() => comments.filter((comment) => !comment.deleted),
 		[comments],
 	);
+	// what the sidebar's jumps and topic chips light up on the diff; never
+	// part of the renderer's version, so highlighting folds nothing
+	const [highlighted, setHighlighted] = useState<{
+		key: string;
+		ids: ReadonlySet<string>;
+	} | null>(null);
 
 	const onToggleComment = useCallback((commentId: string) => {
 		setExpandedCommentIds((current) => {
@@ -140,6 +188,37 @@ function ResolvedReview({
 		setExpandedCommentIds((current) => new Set(current).add(comment.id));
 		handleRef.current?.scrollToComment(comment);
 	}, []);
+
+	const onJumpToExplanation = useCallback((explanation: ExplanationDto) => {
+		setHighlighted({ key: explanation.id, ids: new Set([explanation.id]) });
+		handleRef.current?.scrollToExplanation(explanation);
+	}, []);
+
+	const onToggleTopic = useCallback((topic: Topic) => {
+		setHighlighted((current) =>
+			current?.key === topic.label
+				? null
+				: {
+						key: topic.label,
+						ids: new Set(topic.explanations.map((entry) => entry.id)),
+					},
+		);
+	}, []);
+
+	const topics = useMemo(() => topicsFor(explanations), [explanations]);
+	const topicColors = useMemo(
+		() => topicColorsFor(explanations),
+		[explanations],
+	);
+	const onToggleTopicLabel = useCallback(
+		(label: string) => {
+			const topic = topics.find((entry) => entry.label === label);
+			if (topic !== undefined) {
+				onToggleTopic(topic);
+			}
+		},
+		[topics, onToggleTopic],
+	);
 
 	const onEditComment = useCallback(
 		(commentId: string, body: string) => {
@@ -312,86 +391,125 @@ function ResolvedReview({
 	}, []);
 
 	return (
-		<div className={styles.layout}>
-			<div style={{ width }}>
-				<FileTreePanel
-					files={changeset.files}
-					currentFileIndex={cursorFileIndex}
-					onJumpToFile={onJumpToFile}
-				/>
-			</div>
-			<SidebarResizer width={width} onWidth={setWidth} />
-			<div className={styles.main}>
-				{aiAvailable && <RunStatusBar review={review} />}
-				<div className={styles.overview}>
-					<ChangesetHeading
-						source={changeset.ref.source}
-						resolved={changeset.announce.resolved}
-						overrideHint={changeset.announce.overrideHint}
-						prUrl={changeset.ref.prUrl}
+		<HighlightedExplanationsContext.Provider
+			value={highlighted?.ids ?? NO_HIGHLIGHT}
+		>
+			<div className={styles.layout}>
+				<div style={{ width }}>
+					<FileTreePanel
+						files={changeset.files}
+						currentFileIndex={cursorFileIndex}
+						onJumpToFile={onJumpToFile}
 					/>
-					{aiAvailable && (
-						<button
-							type="button"
-							className={styles.reviewButton}
-							disabled={
-								review.starting ||
-								review.run?.status === "queued" ||
-								review.run?.status === "running"
-							}
-							onClick={review.start}
-						>
-							Review
-						</button>
-					)}
-					{review.startError !== null && (
-						<p className={styles.startError}>{review.startError}</p>
-					)}
-					{curationError !== null && (
-						<p className={styles.startError} role="alert">
-							{curationError}
-						</p>
-					)}
-					{review.pass !== null && <OverviewPanel pass={review.pass} />}
-					{canPublish && review.pass !== null && (
-						<PublishControl
-							comments={activeComments}
-							published={review.pass.published}
-							publishing={publishing}
-							error={publishError}
-							onPublish={onPublish}
-						/>
+				</div>
+				<SidebarResizer width={width} onWidth={setWidth} />
+				<div className={styles.main}>
+					{aiAvailable && <RunStatusBar review={review} />}
+					<div className={styles.overview}>
+						<div className={styles.headerRow}>
+							<div className={styles.headerSubject}>
+								<ChangesetHeading
+									source={changeset.ref.source}
+									resolved={changeset.announce.resolved}
+									overrideHint={changeset.announce.overrideHint}
+									prUrl={changeset.ref.prUrl}
+								/>
+							</div>
+							<div className={styles.controls}>
+								{explanations.length > 0 && (
+									<button
+										type="button"
+										className={styles.explanationsToggle}
+										aria-pressed={showExplanations}
+										onClick={() => setShowExplanations((current) => !current)}
+									>
+										{showExplanations
+											? "Hide explanations"
+											: "Show explanations"}
+									</button>
+								)}
+								{aiAvailable && (
+									<button
+										type="button"
+										className={styles.reviewButton}
+										disabled={
+											review.starting ||
+											review.run?.status === "queued" ||
+											review.run?.status === "running"
+										}
+										onClick={review.start}
+									>
+										Review
+									</button>
+								)}
+							</div>
+						</div>
+						{review.startError !== null && (
+							<p className={styles.startError}>{review.startError}</p>
+						)}
+						{curationError !== null && (
+							<p className={styles.startError} role="alert">
+								{curationError}
+							</p>
+						)}
+						{review.pass !== null && (
+							<OverviewPanel
+								pass={review.pass}
+								topicColors={topicColors}
+								onToggleTopic={onToggleTopicLabel}
+								folded={overviewFolded}
+								onToggleFold={() => setOverviewFolded((current) => !current)}
+							/>
+						)}
+					</div>
+					{renderedFiles.length === 0 ? (
+						<div className={styles.centered}>Nothing to review.</div>
+					) : (
+						<div className={styles.diff}>
+							<DiffWorkspace
+								api={api}
+								changeset={changeset}
+								renderedFiles={renderedFiles}
+								foldedFileIds={foldedFileIds}
+								onToggleFold={onToggleFold}
+								handleRef={handleRef}
+								comments={activeComments}
+								expandedCommentIds={expandedCommentIds}
+								onToggleComment={onToggleComment}
+								actions={actions}
+								explanations={explanations}
+								showExplanations={showExplanations}
+								explanationsMode={EXPLANATIONS_MODE}
+							/>
+						</div>
 					)}
 				</div>
-				{renderedFiles.length === 0 ? (
-					<div className={styles.centered}>Nothing to review.</div>
-				) : (
-					<div className={styles.diff}>
-						<DiffWorkspace
-							api={api}
-							changeset={changeset}
-							renderedFiles={renderedFiles}
-							foldedFileIds={foldedFileIds}
-							onToggleFold={onToggleFold}
-							handleRef={handleRef}
-							comments={activeComments}
+				{review.pass !== null &&
+					(comments.length > 0 || explanations.length > 0) && (
+						<ReviewSidebar
+							comments={comments}
+							explanations={explanations}
 							expandedCommentIds={expandedCommentIds}
-							onToggleComment={onToggleComment}
+							onJumpToComment={onJumpToComment}
+							onCollapseComment={onToggleComment}
 							actions={actions}
+							onJumpToExplanation={onJumpToExplanation}
+							onToggleTopic={onToggleTopic}
+							publishControl={
+								canPublish && review.pass !== null ? (
+									<PublishControl
+										comments={activeComments}
+										published={review.pass.published}
+										publishing={publishing}
+										error={publishError}
+										onPublish={onPublish}
+									/>
+								) : undefined
+							}
 						/>
-					</div>
-				)}
+					)}
 			</div>
-			{review.pass !== null && comments.length > 0 && (
-				<CommentWorklist
-					comments={comments}
-					expandedCommentIds={expandedCommentIds}
-					onJumpTo={onJumpToComment}
-					onCollapse={onToggleComment}
-					actions={actions}
-				/>
-			)}
-		</div>
+		</HighlightedExplanationsContext.Provider>
 	);
 }
 

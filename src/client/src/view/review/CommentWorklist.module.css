@@ -1,22 +1,3 @@
-.panel {
-	flex: none;
-	width: 340px;
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	padding: var(--base-size-16);
-	overflow-y: auto;
-	border-left: var(--borderWidth-thin) solid var(--borderColor-default);
-	background: var(--bgColor-default);
-}
-
-.heading {
-	margin: 0 0 var(--base-size-8);
-	font-size: var(--text-body-size-medium);
-	font-weight: var(--base-text-weight-semibold);
-	color: var(--fgColor-default);
-}
-
 .empty {
 	margin: 0;
 	color: var(--fgColor-muted);
@@ -137,8 +118,9 @@
 		both;
 }
 
+/* an open balloon is a different object than the rows; give it air on both sides */
 .rowExpanded {
-	margin-top: var(--base-size-4);
+	margin: var(--base-size-8) 0 var(--base-size-12);
 	overflow: hidden;
 	animation: row-expand var(--motion-duration-medium) var(--motion-easing-enter)
 		both;

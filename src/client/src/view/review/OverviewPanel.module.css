@@ -10,9 +10,59 @@
 	--composition-measure: 56rem;
 
 	max-width: var(--composition-measure);
-	padding-top: var(--base-size-16);
-	margin-top: var(--base-size-16);
+	padding-top: var(--base-size-8);
+	margin-top: var(--base-size-8);
 	border-top: var(--borderWidth-thin) solid var(--borderColor-default);
+}
+
+/*
+ * The whole account folds behind this one line: the diff is the workspace,
+ * so the prose yields its height back the moment it has been read. Folded,
+ * the line keeps the verdict — the one-glance conclusion — in its scope
+ * color, clipped to the single line rather than wrapped.
+ */
+.foldControl {
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-8);
+	width: 100%;
+	padding: var(--base-size-4) 0;
+	border: none;
+	background: none;
+	cursor: pointer;
+	text-align: left;
+}
+
+.foldChevron {
+	flex: none;
+	display: flex;
+	color: var(--fgColor-muted);
+}
+
+.foldLabel {
+	flex: none;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	/* no token for tracking; small caps close up without it */
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	transition: color var(--motion-transition-hover);
+}
+
+.foldControl:hover .foldChevron,
+.foldControl:hover .foldLabel {
+	color: var(--fgColor-default);
+}
+
+.foldedVerdict {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	color: var(--fgColor-default);
+	font-size: var(--text-body-size-small);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .label {
@@ -25,34 +75,55 @@
 	text-transform: uppercase;
 }
 
-.lede {
-	padding-bottom: var(--base-size-16);
-	margin-bottom: var(--base-size-20);
-	border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+/*
+ * The verdict closes the panel instead of opening it: the reader gets the
+ * account first and the judgement as its last line, small and in the app's
+ * own sans rather than the overview's serif — a conclusion stamped under
+ * the prose, not a headline over it. The color IS the reading: the scope
+ * check's outcome, soft foreground tones rather than filled banners.
+ */
+.verdictRow {
+	display: flex;
+	align-items: baseline;
+	gap: var(--base-size-12);
+	padding-top: var(--base-size-12);
+	margin-top: var(--base-size-16);
+	border-top: var(--borderWidth-thin) solid var(--borderColor-muted);
 }
 
-/*
- * A label above and a rule below, and deliberately no bar down its side: a
- * left bar is the blockquote signal, and this is the review's conclusion
- * rather than something being quoted. Size carries the emphasis on its own,
- * so the weight stays normal.
- */
+.verdictLabel {
+	flex: none;
+	margin: 0;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	/* no token for tracking; small caps close up without it */
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
 .verdict {
 	margin: 0;
 	color: var(--fgColor-default);
-	/*
-	 * Primer jumps 20px straight to 32px. At 20px this is only 1.25x the prose
-	 * and reads as another paragraph; at 32px it wraps to four lines and
-	 * shouts. 24px is 1.5x, and holds the same three lines the 20px did.
-	 */
-	--verdict-size: 1.5rem;
-
-	font-family: var(--fontStack-prose);
-	font-size: var(--verdict-size);
-	font-style: italic;
-	line-height: var(--base-text-lineHeight-snug);
+	font-size: var(--text-body-size-medium);
+	line-height: var(--base-text-lineHeight-relaxed);
 	/* one short block: without this its last line strands a single word */
 	text-wrap: pretty;
+}
+
+.verdict[data-scope="matches"],
+.foldedVerdict[data-scope="matches"] {
+	color: var(--fgColor-success);
+}
+
+.verdict[data-scope="unrelated-extras"],
+.foldedVerdict[data-scope="unrelated-extras"] {
+	color: var(--fgColor-attention);
+}
+
+.verdict[data-scope="misses-pieces"],
+.foldedVerdict[data-scope="misses-pieces"] {
+	color: var(--fgColor-danger);
 }
 
 /*
@@ -66,6 +137,7 @@
 	flex-wrap: wrap;
 	align-items: flex-start;
 	gap: var(--base-size-32);
+	margin-top: var(--base-size-8);
 }
 
 .prose {

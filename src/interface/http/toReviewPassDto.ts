@@ -1,8 +1,14 @@
 import type { StoredReview } from "../../application/ports/SessionStore";
 import type { EffectiveComment } from "../../application/review/effectiveComments";
 import { effectiveComments } from "../../application/review/effectiveComments";
+import type { EffectiveExplanation } from "../../application/review/effectiveExplanations";
+import { effectiveExplanations } from "../../application/review/effectiveExplanations";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { ReviewCommentDto, ReviewPassDto } from "./dto/ReviewDto";
+import type {
+	ExplanationDto,
+	ReviewCommentDto,
+	ReviewPassDto,
+} from "./dto/ReviewDto";
 
 /**
  * Turns the persisted pass into the wire shape the client renders
@@ -16,10 +22,24 @@ export function toReviewPassDto(
 	return {
 		overview: stored.pass.overview,
 		verdict: stored.pass.verdict,
+		...(stored.pass.scope === undefined ? {} : { scope: stored.pass.scope }),
 		ticket: stored.pass.ticket,
 		residue: stored.residue,
 		published: stored.published,
 		comments: effectiveComments(stored, files).map(toReviewCommentDto),
+		explanations: effectiveExplanations(stored, files).map(toExplanationDto),
+	};
+}
+
+function toExplanationDto(explanation: EffectiveExplanation): ExplanationDto {
+	return {
+		id: explanation.id,
+		path: explanation.path,
+		startLine: explanation.startLine,
+		endLine: explanation.endLine,
+		says: explanation.says,
+		...(explanation.topic === undefined ? {} : { topic: explanation.topic }),
+		placement: explanation.placement,
 	};
 }
 

@@ -75,12 +75,83 @@ test.describe("review pass", () => {
 		// REQ-010: a finding whose path is not in the diff is never dropped —
 		// it is listed in its own sidebar section instead
 		await expect(
-			page.getByRole("heading", { name: "Not shown in the diff" }),
+			page.getByRole("heading", { name: "Not shown in the diff", exact: true }),
 		).toBeVisible();
 		await expect(page.getByText("Mock unplaceable finding")).toBeVisible();
 
 		// REQ-005: per-tier counts in the sidebar
-		await expect(page.getByText("1 Blocker")).toBeVisible();
+		// exact: the run status detail line ("… 2 findings, 1 blocker") would
+		// otherwise also match and trip strict mode
+		await expect(page.getByText("1 Blocker", { exact: true })).toBeVisible();
+
+		// change explanations start unfolded at the right edge, costing no
+		// diff rows; the chip folds each line's cards away and back
+		const chip = page.locator("[data-explanation-chip]").first();
+		await expect(chip).toBeVisible();
+		const balloon = page.locator("[data-explanation-id]").first();
+		await expect(balloon).toBeVisible();
+		await expect(balloon.getByRole("button")).toHaveCount(0);
+
+		await chip.click();
+		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
+		await chip.click();
+		await expect(balloon).toBeVisible();
+
+		// the one header toggle drops the chips entirely, and brings them back
+		await page.getByRole("button", { name: "Hide explanations" }).click();
+		await expect(page.locator("[data-explanation-chip]")).toHaveCount(0);
+		await page.getByRole("button", { name: "Show explanations" }).click();
+		await expect(chip).toBeVisible();
+
+		// hiding explanations never touched the comments
+		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
+
+		// the overview mentions each topic label verbatim, and the mention
+		// renders as that topic's colored chip, inline in the prose
+		await expect(
+			page
+				.locator("[class*='overview']")
+				.getByRole("button", { name: "Mock shared intent" }),
+		).toBeVisible();
+
+		// the sidebar's second tab retells the pass as explanations: topics
+		// first with one jump per anchored change, and an explanation the
+		// diff cannot anchor listed and marked instead of vanishing
+		await page.getByRole("tab", { name: /Explanations/ }).click();
+		await expect(
+			page
+				.getByRole("tabpanel")
+				.getByRole("button", { name: "Mock shared intent" }),
+		).toBeVisible();
+		await expect(
+			page.getByText("Mock explanation the diff cannot anchor."),
+		).toBeVisible();
+		await expect(page.getByText(/· not in the diff/)).toBeVisible();
+
+		// jumping from an entry lights that balloon on the diff
+		await page.locator("[data-explanation-entry] button").first().click();
+		await expect(
+			page.locator("[data-explanation-id][data-highlighted]").first(),
+		).toBeVisible();
+
+		// back to the worklist for everything below
+		await page.getByRole("tab", { name: /Comments/ }).click();
+
+		// the overview unfolded itself when the run finished; folding it gives
+		// the height back to the diff and keeps the verdict on the fold line
+		await page.getByRole("button", { name: /Overview/ }).click();
+		await expect(
+			page.getByText("Reviewed 1 file(s) with the mock agent"),
+		).toBeHidden();
+		await expect(page.locator("[data-scope='matches']")).toBeVisible();
+
+		// ?explanations=margin: the comparison mode keeps every card open,
+		// pinned right, with no chips (the pass is stored, so no second run)
+		await page.goto(`${server.url}?explanations=margin`);
+		await expect(page.locator("[data-explanation-id]").first()).toBeVisible({
+			timeout: RUN_SETTLE_TIMEOUT_MS,
+		});
+		await expect(page.locator("[data-explanation-chip]")).toHaveCount(0);
 	});
 });
 

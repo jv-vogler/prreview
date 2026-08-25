@@ -13,6 +13,7 @@ function storedReview(): StoredReview {
 			overview: "x",
 			verdict: "x",
 			ticket: null,
+			explanations: [],
 			findings: [
 				{
 					path: "src/a.ts",
