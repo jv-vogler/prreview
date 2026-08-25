@@ -8,7 +8,7 @@ import {
 import type { Engine, EngineResultEvent } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { RunContext, RunOutcome } from "../ports/RunManager";
-import type { SessionStore } from "../ports/SessionStore";
+import type { SessionStore, StoredReview } from "../ports/SessionStore";
 import { REVIEW_IDLE_TIMEOUT_MS, REVIEW_MAX_TURNS } from "./limits";
 import { reviewContract } from "./reviewContract";
 import { buildReviewPrompt } from "./reviewPrompt";
@@ -19,6 +19,8 @@ export interface RunReviewInput {
 	changesetId: ChangesetId;
 	announce: string;
 	files: readonly FileDiff[];
+	/** the changeset's head commit; null for worktree */
+	headSha: string | null;
 }
 
 export interface RunReviewDeps {
@@ -99,19 +101,31 @@ export function buildReviewJob(
 			}
 
 			const after = await deps.git.statusPorcelain();
+			const previous = await deps.sessionStore.loadReview(input.changesetId);
 			await deps.sessionStore.saveReview({
 				changesetId: input.changesetId,
 				createdAt: new Date().toISOString(),
+				headSha: input.headSha,
 				pass: reviewPassSchema.parse(terminal.structuredOutput),
 				residue: diffStatusResidue(before, after),
-				// a fresh pass replaces the whole artifact (ASSUMPTION-003) — any
-				// curation or publish record on the previous one no longer applies
+				// a fresh pass replaces the curation (ASSUMPTION-003): comment ids
+				// are positional, so edits keyed on the old pass cannot apply
 				commentEdits: {},
-				published: null,
+				// but a pending review the old pass left on GitHub is still out
+				// there — its id must survive so the next publish replaces it
+				// instead of 422ing. commentIds is emptied for the same
+				// positional-id reason: nothing in THIS pass has been published.
+				published: carriedPublished(previous?.published ?? null),
 			});
 			return { ok: true };
 		} finally {
 			context.signal.removeEventListener("abort", onAbort);
 		}
 	};
+}
+
+function carriedPublished(
+	published: StoredReview["published"],
+): StoredReview["published"] {
+	return published === null ? null : { ...published, commentIds: [] };
 }

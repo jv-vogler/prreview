@@ -75,6 +75,7 @@ export function createReviewRunner(
 					changesetId: changesetIdFor(changeset.ref.source),
 					announce: changeset.announce.resolved,
 					files: changeset.files,
+					headSha: changeset.ref.headSha,
 				},
 			);
 			const result = runManager.start(job, REVIEW_IDLE_TIMEOUT_MS, {

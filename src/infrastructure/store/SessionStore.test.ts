@@ -29,6 +29,7 @@ describe("SessionStore", () => {
 		const review: StoredReview = {
 			changesetId: "pr:acme/api#42",
 			createdAt: "2026-08-21T10:00:00.000Z",
+			headSha: null,
 			pass: PASS,
 			residue: [],
 			commentEdits: {},
@@ -51,6 +52,7 @@ describe("SessionStore", () => {
 		const first: StoredReview = {
 			changesetId: "worktree",
 			createdAt: "t1",
+			headSha: null,
 			pass: PASS,
 			residue: [],
 			commentEdits: {},
@@ -72,6 +74,7 @@ describe("SessionStore", () => {
 			JSON.stringify({
 				changesetId: "worktree",
 				createdAt: "2026-08-21T10:00:00.000Z",
+				headSha: null,
 				pass: PASS,
 				residue: [],
 			}),
@@ -93,6 +96,7 @@ describe("SessionStore", () => {
 			JSON.stringify({
 				changesetId: "worktree",
 				createdAt: "2026-08-24T02:59:18.375Z",
+				headSha: null,
 				pass: { ...PASS, overview },
 				residue: [],
 			}),

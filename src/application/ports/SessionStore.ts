@@ -35,6 +35,12 @@ export interface PublishedRecord {
 export interface StoredReview {
 	changesetId: ChangesetId;
 	createdAt: string;
+	/**
+	 * The head commit the pass reviewed — null for a worktree changeset,
+	 * where there is no commit to name. What a later "review again" compares
+	 * against to say how far the change has moved since.
+	 */
+	headSha: string | null;
 	pass: ReviewPass;
 	/** files SEC-003's residue check found left behind by the run, if any */
 	residue: string[];
