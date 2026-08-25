@@ -59,7 +59,7 @@ async function main(): Promise<void> {
 	// --dev pins the port (the Vite proxy targets it) and leaves static
 	// serving to Vite
 	const port = args.dev
-		? args.port
+		? await pinnedPort(args.port)
 		: await getPort({
 				host: BIND_HOST,
 				port: portNumbers(args.port, args.port + PORT_WALK_SPAN),
@@ -87,6 +87,31 @@ async function main(): Promise<void> {
 		});
 	}
 }
+
+/**
+ * A pinned port cannot walk, so it has to be free. Checked before serving
+ * rather than reported from the failed listen: `serve` emits that error
+ * where nothing can catch it, and the reader gets a stack trace instead of
+ * the one fact that matters. In dev the answer is never "use another port"
+ * anyway, since the Vite proxy targets this one: a server already holding it
+ * means the browser is quietly talking to that older process, its stored
+ * review and all.
+ */
+async function pinnedPort(port: number): Promise<number> {
+	const free = await getPort({
+		host: BIND_HOST,
+		port: portNumbers(port, port + 1),
+	});
+	if (free !== port) {
+		throw new PortInUseError(
+			`port ${port} is already in use, most likely by a prreview still serving there. Stop that one, or start this with --port <number>.`,
+		);
+	}
+	return port;
+}
+
+/** Boot's one expected failure, so it prints as a sentence and not a stack. */
+class PortInUseError extends Error {}
 
 function listen(app: Hono, port: number): Promise<void> {
 	return new Promise((resolveListening, rejectListening) => {
@@ -141,6 +166,10 @@ function announce(
  * raw.
  */
 function handleBootFailure(error: unknown): never {
+	if (error instanceof PortInUseError) {
+		process.stderr.write(`prreview: ${error.message}\n`);
+		process.exit(FAILURE_EXIT_CODE);
+	}
 	if (error instanceof CommanderError) {
 		// commander already wrote its message (or the help/version text)
 		process.exit(error.exitCode === 0 ? 0 : USAGE_EXIT_CODE);
