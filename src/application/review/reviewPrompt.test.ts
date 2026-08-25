@@ -58,6 +58,10 @@ describe("buildReviewPrompt", () => {
 		files: [FILE],
 	});
 
+	it("carries no previous-review section on a first pass", () => {
+		expect(prompt).not.toContain("## Previous review");
+	});
+
 	it("carries the resolved target forward", () => {
 		expect(prompt).toContain("reviewing PR #42");
 	});
@@ -168,5 +172,93 @@ describe("buildReviewPrompt", () => {
 
 	it("carries the numbered diff", () => {
 		expect(prompt).toContain(renderNumberedDiff([FILE]));
+	});
+});
+
+describe("buildReviewPrompt with a previous pass", () => {
+	const prompt = buildReviewPrompt({
+		announce: "reviewing PR #42 (base main, head feature-x)",
+		files: [FILE],
+		previous: {
+			createdAt: "2026-08-20T00:00:00.000Z",
+			overview: "adds the greeting",
+			verdict: "matches the ticket",
+			comments: [
+				{
+					tier: "should-fix",
+					title: "Greeting drops the name",
+					body: "The reader's own rewrite of the body.",
+					path: "src/greeting.ts",
+					startLine: 2,
+					endLine: 2,
+					dismissed: false,
+					edited: true,
+				},
+				{
+					tier: "nitpick",
+					title: "Prefer template literals",
+					body: "Use a template literal here.",
+					path: "src/greeting.ts",
+					startLine: 2,
+					endLine: 2,
+					dismissed: true,
+					edited: false,
+				},
+			],
+			conversation: [
+				{
+					author: "alice",
+					path: "src/greeting.ts",
+					line: 2,
+					body: "This is intentional, see the ticket.",
+					isReply: false,
+				},
+				{
+					author: "bob",
+					path: "src/greeting.ts",
+					line: 2,
+					body: "Agreed, leaving as is.",
+					isReply: true,
+				},
+			],
+		},
+	});
+
+	it("frames the previous pass as prior notes with the resolution rules", () => {
+		expect(prompt).toContain("## Previous review");
+		expect(prompt).toContain("is resolved: do not re-emit it");
+		expect(prompt).toContain("re-anchor it to the numbered diff below");
+		expect(prompt).toContain("dismissed was removed by the reviewer");
+		expect(prompt).toContain("reviewed fresh, as if for the first time");
+	});
+
+	it("renders each previous finding with its curated body and flags", () => {
+		expect(prompt).toContain(
+			"1. (should-fix) Greeting drops the name @ src/greeting.ts:2-2 [wording edited by the reviewer]",
+		);
+		expect(prompt).toContain("The reader's own rewrite of the body.");
+		expect(prompt).toContain("[dismissed by the reviewer]");
+	});
+
+	it("renders the GitHub conversation, replies marked", () => {
+		expect(prompt).toContain("### Conversation on GitHub");
+		expect(prompt).toContain("alice on src/greeting.ts:2");
+		expect(prompt).toContain("reply by bob");
+	});
+
+	it("says so when the previous pass had no findings", () => {
+		const clean = buildReviewPrompt({
+			announce: "reviewing",
+			files: [FILE],
+			previous: {
+				createdAt: "2026-08-20T00:00:00.000Z",
+				overview: "o",
+				verdict: "v",
+				comments: [],
+				conversation: null,
+			},
+		});
+		expect(clean).toContain("It had no findings.");
+		expect(clean).not.toContain("### Conversation on GitHub");
 	});
 });

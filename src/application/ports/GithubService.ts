@@ -40,6 +40,21 @@ export interface ReviewInput {
 	comments?: ReviewComment[];
 }
 
+/**
+ * One inline review comment already on the PR — anyone's, replies included.
+ * What a re-review reads to know which previous findings the conversation
+ * has answered. `line` is null when GitHub has marked the comment outdated.
+ */
+export interface PrReviewCommentInfo {
+	id: number;
+	/** the comment this one replies to, or null for a thread opener */
+	inReplyToId: number | null;
+	path: string;
+	line: number | null;
+	author: string;
+	body: string;
+}
+
 /** A review draft sitting on GitHub, not yet submitted by the user. */
 export interface PendingReview {
 	id: number;
@@ -61,6 +76,8 @@ export interface GithubService {
 	getPrDiff(number: number): Promise<string>;
 	/** makes the head commit available locally; resolves with its sha */
 	fetchPrHead(number: number): Promise<string>;
+	/** every inline review comment on the PR, replies included, oldest first */
+	listPrReviewComments(pr: number): Promise<PrReviewCommentInfo[]>;
 	/** the caller's own pending review on this PR, or null if there is none */
 	findPendingReview(pr: number): Promise<PendingReview | null>;
 	/** event is always omitted (docs/github-review-notes.md): the review lands PENDING */

@@ -19,6 +19,44 @@ export interface ReviewPromptInput {
 	/** what was resolved, in the same words the CLI announced to the user */
 	announce: string;
 	files: readonly FileDiff[];
+	/** the stored pass this run replaces, when there is one — a re-review */
+	previous?: PreviousReviewInput;
+}
+
+/**
+ * The previous pass, curation applied, plus whatever conversation it
+ * produced on GitHub — the notes a re-review starts from instead of
+ * starting blind.
+ */
+export interface PreviousReviewInput {
+	createdAt: string;
+	overview: string;
+	verdict: string;
+	comments: readonly PreviousCommentInput[];
+	/** inline PR comments on GitHub, anyone's; null = not a PR or unreadable */
+	conversation: readonly PrConversationEntry[] | null;
+}
+
+export interface PreviousCommentInput {
+	tier: string;
+	title: string;
+	/** the reader's edited wording when they rewrote it, else the engine's */
+	body: string;
+	path: string;
+	startLine: number;
+	endLine: number;
+	/** the reader removed this finding from the pass */
+	dismissed: boolean;
+	/** the body above is the reader's own rewrite */
+	edited: boolean;
+}
+
+export interface PrConversationEntry {
+	author: string;
+	path: string;
+	line: number | null;
+	body: string;
+	isReply: boolean;
 }
 
 export function buildReviewPrompt(input: ReviewPromptInput): string {
@@ -29,6 +67,7 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		input.announce,
 		"",
+		...renderPreviousReview(input.previous),
 		"## Working plan",
 		"",
 		"Before you start, call `TaskCreate` five times **in a single message**, once per step, in this order: find the ticket, read the big picture, find problems, verify findings, write it up. All five in one message and not one per turn: the reviewer then sees the whole plan at once instead of watching it assemble itself a step at a time, and it costs you one turn rather than five. Then use `TaskUpdate` to set a step to `in_progress` when you begin it and `completed` the moment it is genuinely done — never in a batch at the end. The reviewer watches this plan advance live while the run is in progress; it is the only window they have into where the review has got to.",
@@ -181,6 +220,82 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		renderNumberedDiff(input.files),
 	].join("\n");
+}
+
+/**
+ * The re-review framing: the previous pass is prior notes, not a verdict to
+ * defend. What got fixed is dropped and credited; what still stands is
+ * re-emitted against the new diff; what the reviewer dismissed stays gone.
+ */
+function renderPreviousReview(
+	previous: PreviousReviewInput | undefined,
+): string[] {
+	if (previous === undefined) {
+		return [];
+	}
+	return [
+		"## Previous review",
+		"",
+		`You reviewed this change before (${previous.createdAt}). Below are that pass and, when present, the conversation it produced on GitHub. Treat them as your own prior notes, then review the CURRENT diff at the bottom of this prompt in full, with these rules:`,
+		"",
+		"- A previous finding the current code has fixed, or that an author reply below convincingly answers, is resolved: do not re-emit it, and credit what was resolved in one clause of the verdict.",
+		"- A previous finding still true in the current code is re-emitted: keep its substance (keep the reader's wording where a finding is marked edited), re-anchor it to the numbered diff below, and re-verify it against the code as it is now.",
+		"- A finding marked dismissed was removed by the reviewer on purpose: leave it out unless the code changed in a way that makes it newly dangerous.",
+		"- Everything else in the current diff is reviewed fresh, as if for the first time.",
+		"- Never repeat a point the conversation below already makes unless it is unresolved and matters.",
+		"",
+		"### The previous pass",
+		"",
+		`Overview: ${previous.overview}`,
+		"",
+		`Verdict: ${previous.verdict}`,
+		"",
+		previous.comments.length === 0
+			? "It had no findings."
+			: previous.comments.map(renderPreviousComment).join("\n\n"),
+		"",
+		...renderConversation(previous.conversation),
+	];
+}
+
+function renderPreviousComment(
+	comment: PreviousCommentInput,
+	index: number,
+): string {
+	const flags = [
+		comment.dismissed ? "dismissed by the reviewer" : null,
+		comment.edited ? "wording edited by the reviewer" : null,
+	].filter((flag) => flag !== null);
+	const suffix = flags.length === 0 ? "" : ` [${flags.join(", ")}]`;
+	const anchor = `${comment.path}:${comment.startLine}-${comment.endLine}`;
+	return [
+		`${index + 1}. (${comment.tier}) ${comment.title} @ ${anchor}${suffix}`,
+		indent(comment.body),
+	].join("\n");
+}
+
+function renderConversation(
+	conversation: readonly PrConversationEntry[] | null,
+): string[] {
+	if (conversation === null || conversation.length === 0) {
+		return [];
+	}
+	const entries = conversation.map((entry) => {
+		const where =
+			entry.line === null ? entry.path : `${entry.path}:${entry.line}`;
+		const head = entry.isReply
+			? `reply by ${entry.author}`
+			: `${entry.author} on ${where}`;
+		return `- ${head}:\n${indent(entry.body)}`;
+	});
+	return ["### Conversation on GitHub", "", entries.join("\n"), ""];
+}
+
+function indent(text: string): string {
+	return text
+		.split("\n")
+		.map((line) => `   ${line}`)
+		.join("\n");
 }
 
 /**

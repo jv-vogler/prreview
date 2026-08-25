@@ -75,6 +75,7 @@ export function createReviewRunner(
 					engine: container.engine,
 					git: container.git,
 					sessionStore: container.sessionStore,
+					githubService: container.githubService,
 					report: runManager.report,
 				},
 				{
@@ -82,6 +83,7 @@ export function createReviewRunner(
 					announce: changeset.announce.resolved,
 					files: changeset.files,
 					headSha: changeset.ref.headSha,
+					source: changeset.ref.source,
 				},
 			);
 			const result = runManager.start(job, REVIEW_IDLE_TIMEOUT_MS, {
