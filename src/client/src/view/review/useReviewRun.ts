@@ -1,5 +1,5 @@
 import type { PassFreshnessDto, ReviewPassDto } from "@dto/ReviewDto";
-import type { RunDto } from "@dto/RunDto";
+import type { ReviewStatusDto, RunDto } from "@dto/RunDto";
 import { serverEventSchema } from "@dto/ServerEvent";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -29,6 +29,13 @@ export interface ReviewRunState {
 	 * server-authoritative artifact without a second `GET`.
 	 */
 	applyPass(pass: ReviewPassDto): void;
+	/**
+	 * Adopts a whole status answered by `POST /api/changeset/refresh`: the
+	 * freshness a re-review dialog states is only true of the changeset it
+	 * was computed against, so it arrives with that changeset rather than
+	 * being fetched separately afterwards.
+	 */
+	applyStatus(status: ReviewStatusDto): void;
 	start(): void;
 	cancel(): void;
 }
@@ -84,6 +91,12 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		return () => clearInterval(timer);
 	}, [runStatus, refetch]);
 
+	const applyStatus = useCallback((status: ReviewStatusDto) => {
+		setRun(status.run);
+		setPass(status.pass);
+		setFreshness(status.freshness);
+	}, []);
+
 	const start = useCallback(() => {
 		setStarting(true);
 		setStartError(null);
@@ -110,6 +123,7 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		pass,
 		freshness,
 		applyPass: setPass,
+		applyStatus,
 		starting,
 		startError,
 		start,

@@ -32,7 +32,7 @@ function testApp(
 				: { statusPorcelainSequence: ["", options.statusPorcelainAfter] },
 		github: options.github,
 	});
-	const state = createReviewState({
+	const current: CurrentChangeset = {
 		ref: {
 			source: options.source ?? { kind: "worktree" },
 			baseSha: "a".repeat(40),
@@ -41,7 +41,8 @@ function testApp(
 		},
 		announce: { resolved: "working tree changes", overrideHint: "x" },
 		files: options.files ?? [],
-	});
+	};
+	const state = createReviewState(current, async () => current);
 	const hub = createSseHub();
 	const runner = createReviewRunner(
 		container,

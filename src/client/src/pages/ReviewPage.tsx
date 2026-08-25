@@ -8,7 +8,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sortExplanationsByDiff } from "../domain/review/explanationOrder";
 import { topicColorsFor } from "../domain/review/topicColors";
 import { type Topic, topicsFor } from "../domain/review/topics";
-import { getChangeset } from "../infrastructure/endpoints/getChangeset";
+import {
+	getChangeset,
+	refreshChangeset,
+} from "../infrastructure/endpoints/getChangeset";
 import { getSession } from "../infrastructure/endpoints/getSession";
 import { publishReview } from "../infrastructure/endpoints/publishReview";
 import {
@@ -111,6 +114,7 @@ export function ReviewPage() {
 	return (
 		<ResolvedReview
 			changeset={changeset}
+			onChangeset={setChangeset}
 			aiAvailable={aiAvailable}
 			githubAvailable={githubAvailable}
 		/>
@@ -119,10 +123,13 @@ export function ReviewPage() {
 
 function ResolvedReview({
 	changeset,
+	onChangeset,
 	aiAvailable,
 	githubAvailable,
 }: {
 	changeset: ChangesetDto;
+	/** adopts a changeset the server re-resolved, so the diff matches the pass */
+	onChangeset(changeset: ChangesetDto): void;
 	aiAvailable: boolean;
 	githubAvailable: boolean;
 }) {
@@ -163,6 +170,10 @@ function ResolvedReview({
 	// a Review click over a stored pass always confirms first: the run
 	// replaces that pass, and destructive never rides on a bare click
 	const [confirmingReReview, setConfirmingReReview] = useState(false);
+	// the re-resolution a Review click starts with, and its own failure —
+	// a target that has vanished says so here, not by starting a run
+	const [reResolving, setReResolving] = useState(false);
+	const [reResolveError, setReResolveError] = useState<string | null>(null);
 	// folded by default so the diff keeps the screen; a run finishing live
 	// unfolds it once, because that is the moment the account is news
 	const [overviewFolded, setOverviewFolded] = useState(true);
@@ -176,8 +187,37 @@ function ResolvedReview({
 		previousRunStatus.current = status;
 		if (status === "succeeded" && (was === "running" || was === "queued")) {
 			setOverviewFolded(false);
+			// the pass was computed against whatever the server resolved when
+			// the run started, which a refresh may have moved: re-read the
+			// changeset so the diff on screen carries the placements the pass
+			// was anchored to
+			getChangeset(api).then(onChangeset, noop);
 		}
-	}, [review.run]);
+	}, [review.run, onChangeset]);
+
+	// Review never runs against the snapshot taken at boot: it re-resolves
+	// the target first, so the dialog's commit count is true at click time
+	// and the run reviews the commits that are actually there.
+	const onReviewPressed = useCallback(() => {
+		setReResolving(true);
+		setReResolveError(null);
+		refreshChangeset(api).then(
+			({ changeset: resolved, review: status }) => {
+				setReResolving(false);
+				onChangeset(resolved);
+				review.applyStatus(status);
+				if (status.pass === null) {
+					review.start();
+				} else {
+					setConfirmingReReview(true);
+				}
+			},
+			(cause) => {
+				setReResolving(false);
+				setReResolveError(describeError(cause));
+			},
+		);
+	}, [onChangeset, review.applyStatus, review.start]);
 	const activeComments = useMemo(
 		() => comments.filter((comment) => !comment.deleted),
 		[comments],
@@ -468,14 +508,11 @@ function ResolvedReview({
 										className={styles.reviewButton}
 										disabled={
 											review.starting ||
+											reResolving ||
 											review.run?.status === "queued" ||
 											review.run?.status === "running"
 										}
-										onClick={
-											review.pass === null
-												? review.start
-												: () => setConfirmingReReview(true)
-										}
+										onClick={onReviewPressed}
 									>
 										Review
 									</button>
@@ -484,6 +521,11 @@ function ResolvedReview({
 						</div>
 						{review.startError !== null && (
 							<p className={styles.startError}>{review.startError}</p>
+						)}
+						{reResolveError !== null && (
+							<p className={styles.startError} role="alert">
+								{reResolveError}
+							</p>
 						)}
 						{curationError !== null && (
 							<p className={styles.startError} role="alert">
@@ -562,3 +604,5 @@ function ResolvedReview({
 function describeError(cause: unknown): string {
 	return cause instanceof Error ? cause.message : String(cause);
 }
+
+function noop(): void {}

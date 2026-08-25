@@ -12,7 +12,7 @@ import type { Container } from "../../container";
 import { changesetIdFor } from "../../domain/changeset/ChangesetId";
 import { createRunManager } from "../../infrastructure/engine/runManager";
 import type { PassFreshnessDto, ReviewPassDto } from "./dto/ReviewDto";
-import type { RunDto } from "./dto/RunDto";
+import type { ReviewStatusDto, RunDto } from "./dto/RunDto";
 import type { ReviewState } from "./reviewState";
 import { toReviewPassDto } from "./toReviewPassDto";
 import { toRunDto } from "./toRunDto";
@@ -148,5 +148,23 @@ export function createReviewRunner(
 				),
 			};
 		},
+	};
+}
+
+/**
+ * The run and the stored pass as one answer, the shape `GET /api/review`
+ * has always had. Shared so `POST /api/changeset/refresh` cannot drift from
+ * it: a refreshed changeset and the freshness read against it have to come
+ * back together, or the dialog states a fact about a snapshot that is
+ * already gone.
+ */
+export async function reviewStatusOf(
+	runner: ReviewRunner,
+): Promise<ReviewStatusDto> {
+	const current = await runner.currentPass();
+	return {
+		run: runner.current(),
+		pass: current?.pass ?? null,
+		freshness: current?.freshness ?? null,
 	};
 }

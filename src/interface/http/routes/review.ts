@@ -9,12 +9,9 @@ import {
 	editCommentRequestDtoSchema,
 	reworkRequestDtoSchema,
 } from "../dto/ReviewDto";
-import type {
-	ReviewStatusDto,
-	RunAcceptedDto,
-	RunConflictDto,
-} from "../dto/RunDto";
+import type { RunAcceptedDto, RunConflictDto } from "../dto/RunDto";
 import type { ReviewRunner } from "../reviewRunner";
+import { reviewStatusOf } from "../reviewRunner";
 import type { ReviewState } from "../reviewState";
 import { toReviewPassDto } from "../toReviewPassDto";
 import { validatedJson } from "../validate";
@@ -67,13 +64,7 @@ export function reviewRoute(deps: ReviewRouteDeps): Hono {
 	});
 
 	route.get("/", async (context) => {
-		const current = await deps.runner.currentPass();
-		const body: ReviewStatusDto = {
-			run: deps.runner.current(),
-			pass: current?.pass ?? null,
-			freshness: current?.freshness ?? null,
-		};
-		return context.json(body);
+		return context.json(await reviewStatusOf(deps.runner));
 	});
 
 	route.delete("/run", (context) => {

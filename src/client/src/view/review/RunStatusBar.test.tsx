@@ -26,6 +26,7 @@ function stateWith(
 		pass,
 		freshness: null,
 		applyPass: vi.fn(),
+		applyStatus: vi.fn(),
 		starting: false,
 		startError: null,
 		start: vi.fn(),

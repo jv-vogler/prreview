@@ -6,7 +6,7 @@ import getPort, { portNumbers } from "get-port";
 import type { Hono } from "hono";
 import open from "open";
 import { readChangesetFiles } from "../../application/readChangesetFiles";
-import { buildContainer } from "../../container";
+import { buildContainer, type Container } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
 import { GitClient } from "../../infrastructure/git/GitClient";
 import { probeToolchain } from "../../infrastructure/toolchain/probeToolchain";
@@ -14,9 +14,9 @@ import { createApp } from "../http/app";
 import { createAppEventPublisher } from "../http/events/appEventPublisher";
 import { createSseHub } from "../http/events/sseHub";
 import { createReviewRunner } from "../http/reviewRunner";
-import { createReviewState } from "../http/reviewState";
+import { type CurrentChangeset, createReviewState } from "../http/reviewState";
 import { resolveClientDir } from "../http/static";
-import { parseCliArgs } from "./args";
+import { type CliArgs, parseCliArgs } from "./args";
 
 const execFileAsync = promisify(execFile);
 
@@ -37,17 +37,9 @@ async function main(): Promise<void> {
 		await container.git.gitCommonDir(),
 	);
 
-	const { ref, announce: changesetAnnounce } = await container.resolveChangeset(
-		{
-			...(args.target === undefined ? {} : { target: args.target }),
-			...(args.base === undefined ? {} : { base: args.base }),
-		},
-	);
-	const files = await readChangesetFiles(
-		{ git: container.git, githubService: container.githubService },
-		ref,
-	);
-	const state = createReviewState({ ref, announce: changesetAnnounce, files });
+	const resolveCurrentChangeset = () => currentChangeset(container, args);
+	const initial = await resolveCurrentChangeset();
+	const state = createReviewState(initial, resolveCurrentChangeset);
 
 	const hub = createSseHub();
 	const runner = createReviewRunner(
@@ -75,7 +67,7 @@ async function main(): Promise<void> {
 	await listen(app, port);
 
 	const url = `http://${BIND_HOST}:${port}/`;
-	announce(url, args, changesetAnnounce);
+	announce(url, args, initial.announce);
 
 	if (args.open && !args.dev) {
 		// fire-and-forget: a browser that cannot be opened (WSL2, headless
@@ -86,6 +78,27 @@ async function main(): Promise<void> {
 			);
 		});
 	}
+}
+
+/**
+ * Boot's resolution, as a function the server can call again: pressing
+ * Review re-resolves the same target rather than reusing the snapshot taken
+ * at boot, so a commit pushed while prreview is serving is reviewed instead
+ * of ignored.
+ */
+async function currentChangeset(
+	container: Container,
+	args: CliArgs,
+): Promise<CurrentChangeset> {
+	const { ref, announce } = await container.resolveChangeset({
+		...(args.target === undefined ? {} : { target: args.target }),
+		...(args.base === undefined ? {} : { base: args.base }),
+	});
+	const files = await readChangesetFiles(
+		{ git: container.git, githubService: container.githubService },
+		ref,
+	);
+	return { ref, announce, files };
 }
 
 /**

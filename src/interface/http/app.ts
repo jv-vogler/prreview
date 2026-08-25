@@ -76,7 +76,10 @@ export function createApp(deps: AppDeps): Hono {
 		};
 		return context.json(body);
 	});
-	app.route("/api/changeset", changesetRoute({ state: deps.state }));
+	app.route(
+		"/api/changeset",
+		changesetRoute({ state: deps.state, runner: deps.runner }),
+	);
 	app.route(
 		"/api/blob",
 		blobRoute({

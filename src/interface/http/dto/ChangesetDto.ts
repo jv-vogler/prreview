@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reviewStatusDtoSchema } from "./RunDto";
 
 // This folder redeclares the IR's wire shape in zod rather than importing
 // the domain types: it may import nothing but zod (CON-002), which is what
@@ -85,3 +86,16 @@ export const changesetDtoSchema = z.object({
 });
 
 export type ChangesetDto = z.infer<typeof changesetDtoSchema>;
+
+/**
+ * `POST /api/changeset/refresh`: the changeset re-resolved from git right
+ * now, together with the review status read against it. One answer rather
+ * than two round trips, because the freshness a "review again" dialog
+ * states is only true of the changeset it was computed against.
+ */
+export const changesetRefreshDtoSchema = z.object({
+	changeset: changesetDtoSchema,
+	review: reviewStatusDtoSchema,
+});
+
+export type ChangesetRefreshDto = z.infer<typeof changesetRefreshDtoSchema>;
