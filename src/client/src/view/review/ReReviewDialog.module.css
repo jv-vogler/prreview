@@ -1,0 +1,80 @@
+.backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--overlay-backdrop-bgColor);
+}
+
+.dialog {
+	max-width: 34rem;
+	margin: var(--base-size-16);
+	padding: var(--base-size-20);
+	background: var(--overlay-bgColor);
+	border: var(--borderWidth-thin) solid var(--borderColor-default);
+	border-radius: var(--borderRadius-large);
+	box-shadow: var(--shadow-floating-large);
+}
+
+.title {
+	margin: 0 0 var(--base-size-8);
+	color: var(--fgColor-default);
+	font-size: var(--text-title-size-medium);
+	font-weight: var(--base-text-weight-semibold);
+}
+
+.fact {
+	margin: 0;
+	color: var(--fgColor-default);
+	font-size: var(--text-body-size-medium);
+}
+
+.consequences {
+	margin: var(--base-size-8) 0 0;
+	padding-left: var(--base-size-20);
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+}
+
+.consequences a {
+	color: var(--fgColor-accent);
+}
+
+.buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--base-size-8);
+	margin-top: var(--base-size-16);
+}
+
+.cancelButton {
+	padding: var(--base-size-4) var(--base-size-16);
+	background: var(--button-default-bgColor-rest);
+	border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	color: var(--button-default-fgColor-rest);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+}
+
+.cancelButton:hover {
+	background: var(--button-default-bgColor-hover);
+}
+
+.confirmButton {
+	padding: var(--base-size-4) var(--base-size-16);
+	background: var(--button-danger-bgColor-rest);
+	border: var(--borderWidth-thin) solid var(--button-danger-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	color: var(--button-danger-fgColor-rest);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+}
+
+.confirmButton:hover {
+	background: var(--button-danger-bgColor-hover);
+}

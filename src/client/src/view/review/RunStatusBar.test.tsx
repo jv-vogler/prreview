@@ -24,6 +24,7 @@ function stateWith(
 	return {
 		run,
 		pass,
+		freshness: null,
 		applyPass: vi.fn(),
 		starting: false,
 		startError: null,

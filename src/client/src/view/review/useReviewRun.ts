@@ -1,4 +1,4 @@
-import type { ReviewPassDto } from "@dto/ReviewDto";
+import type { PassFreshnessDto, ReviewPassDto } from "@dto/ReviewDto";
 import type { RunDto } from "@dto/RunDto";
 import { serverEventSchema } from "@dto/ServerEvent";
 import { useCallback, useEffect, useState } from "react";
@@ -20,6 +20,8 @@ export interface ReviewRunState {
 	startError: string | null;
 	/** the last completed pass for this changeset, if any has ever been saved */
 	pass: ReviewPassDto | null;
+	/** how far the change moved since that pass; null exactly when `pass` is null */
+	freshness: PassFreshnessDto | null;
 	/**
 	 * Adopts a pass answered directly by a curation call (TASK-046, TASK-047)
 	 * — edit/delete/restore all answer the recomputed pass in the same
@@ -40,6 +42,7 @@ export interface ReviewRunState {
 export function useReviewRun(api: ApiClient): ReviewRunState {
 	const [run, setRun] = useState<RunDto | null>(null);
 	const [pass, setPass] = useState<ReviewPassDto | null>(null);
+	const [freshness, setFreshness] = useState<PassFreshnessDto | null>(null);
 	const [starting, setStarting] = useState(false);
 	const [startError, setStartError] = useState<string | null>(null);
 
@@ -47,6 +50,7 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		getReviewRun(api).then((status) => {
 			setRun(status.run);
 			setPass(status.pass);
+			setFreshness(status.freshness);
 		}, noop);
 	}, [api]);
 
@@ -101,7 +105,16 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		void cancelReviewRun(api);
 	}, [api]);
 
-	return { run, pass, applyPass: setPass, starting, startError, start, cancel };
+	return {
+		run,
+		pass,
+		freshness,
+		applyPass: setPass,
+		starting,
+		startError,
+		start,
+		cancel,
+	};
 }
 
 function noop(): void {}
