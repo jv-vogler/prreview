@@ -165,6 +165,108 @@ describe("buildReviewPrompt", () => {
 		}
 	});
 
+	it("sizes the review to the change without moving the standards", () => {
+		expect(prompt).toContain("## Review depth");
+		expect(prompt).toContain(
+			"**Calibrate the depth of the review to the change. Never calibrate the standards to the change.**",
+		);
+		expect(prompt).toContain(
+			"Say which depth you chose in one clause of the overview",
+		);
+	});
+
+	it("names each craft standard the review holds code to", () => {
+		expect(prompt).toContain("## Craft");
+		expect(prompt).toContain("**Names spell out meaning.**");
+		expect(prompt).toContain("**Return early.**");
+		expect(prompt).toContain("**Never nest ternaries**");
+		expect(prompt).toContain("**Comments explain why, never what.**");
+		expect(prompt).toContain("**No magic numbers.**");
+		expect(prompt).toContain("**Pure by default.**");
+	});
+
+	// the clause the section exists for: without it, "it's only a small
+	// helper" excuses every craft finding away
+	it("refuses to excuse a craft violation by the size of the code", () => {
+		expect(prompt).toContain(
+			"Never excuse a violation by the size or triviality of the code it appears in.",
+		);
+		expect(prompt).toContain(
+			"A magic number in a three-line helper is still a magic number",
+		);
+		expect(prompt).toContain("that is the violation talking");
+	});
+
+	it("has the standards imbued rather than cited, and not doubling as lint", () => {
+		expect(prompt).toContain("**The standards are imbued, never cited.**");
+		expect(prompt).toContain(
+			'"Violates the no-nested-ternaries standard" is not.',
+		);
+		expect(prompt).toContain("These are review findings, not lint output.");
+	});
+
+	it("carries all eight problem-finding checks", () => {
+		for (const check of [
+			"**Should this exist?**",
+			"**Is each added thing necessary, and what did this make dead?**",
+			"**Do the types and names tell the truth?**",
+			"**Simulate the runtime.**",
+			"**Does it belong here?**",
+			"**Does it match decisions already made here?**",
+			"**Will we know when it breaks?**",
+			"**What do the tests prove?**",
+		]) {
+			expect(prompt).toContain(check);
+		}
+	});
+
+	it("applies the kill test before any finding is written", () => {
+		expect(prompt).toContain(
+			"**The kill test, before you write any finding:**",
+		);
+		expect(prompt).toContain(
+			"could you have written this comment without knowing anything about this system?",
+		);
+		expect(prompt).toContain(
+			"An argument from evidence is checkable, taste is not.",
+		);
+	});
+
+	it("holds a nitpick to a bar without ever setting a quota", () => {
+		expect(prompt).toContain(
+			"one that would not survive being said aloud in a review call does not belong in the pass",
+		);
+		expect(prompt).toContain("That is a bar, not a quota");
+	});
+
+	it("gates a question on all five conditions and names no expected number", () => {
+		expect(prompt).toContain("## Questions");
+		expect(prompt).toContain("only when all five of these hold");
+		expect(prompt).toContain("**The code and the codebase do not answer it.**");
+		expect(prompt).toContain("**The answer would change the review.**");
+		expect(prompt).toContain("**The choice is load-bearing:**");
+		expect(prompt).toContain("**You looked and did not find it:**");
+		expect(prompt).toContain("**It deviates from a rule or a sibling**");
+		expect(prompt).toContain("There is no expected number of questions.");
+	});
+
+	it("gives a question no tier and no alert block", () => {
+		expect(prompt).toContain("A question has no tier at all");
+		expect(prompt).toContain("its `body` carries no alert block");
+	});
+
+	it("asks explanations to record whether the reason was read or reconstructed", () => {
+		expect(prompt).toContain("Set `grounding` on every explanation");
+		expect(prompt).toContain("Nobody is ever shown this field.");
+		expect(prompt).toContain(
+			"that is the signal to ask it as a question rather than write a confident reason nobody checked",
+		);
+	});
+
+	it("requires the finding to argue from evidence rather than taste", () => {
+		expect(prompt).toContain("**Argue from evidence, never from taste.**");
+	});
+
 	it("instructs structured output rather than a scratchfile", () => {
 		expect(prompt).not.toContain("review-notes");
 		expect(prompt).not.toContain("scratchfile");
