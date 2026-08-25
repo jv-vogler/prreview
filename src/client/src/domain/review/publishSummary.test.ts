@@ -19,6 +19,7 @@ function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
 		edited: false,
 		deleted: false,
 		published: false,
+		carried: false,
 		...overrides,
 	};
 }

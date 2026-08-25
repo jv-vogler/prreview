@@ -32,6 +32,33 @@ export interface PublishedRecord {
 	commentIds: string[];
 }
 
+/**
+ * One file as the pass saw it. `(oldOid, newOid)` identifies a file's diff
+ * byte for byte and independently of commit ancestry: the same pair means
+ * the same hunks on the same lines, so everything anchored in that file
+ * carries over with no re-anchoring, and a rebase that did not touch the
+ * file's content leaves the pair alone.
+ */
+export interface CheckpointFile {
+	path: string;
+	/** null on an added file */
+	oldOid: string | null;
+	/** null on a deleted file */
+	newOid: string | null;
+}
+
+/**
+ * The changeset this pass actually reviewed, in enough detail for the next
+ * run to say what has moved since — which is what lets a re-review cost what
+ * moved rather than the size of the whole change.
+ */
+export interface ReviewCheckpoint {
+	baseSha: string;
+	/** null for a worktree changeset, where there is no commit to name */
+	headSha: string | null;
+	files: CheckpointFile[];
+}
+
 export interface StoredReview {
 	changesetId: ChangesetId;
 	createdAt: string;
@@ -59,6 +86,15 @@ export interface StoredReview {
 	 * finding later.
 	 */
 	nextFindingId?: number;
+	/**
+	 * The ids of findings this pass carried from an earlier one without
+	 * looking at them again. Cross-file invalidation cannot be made sound, so
+	 * the reader is told which findings were re-checked and which were taken
+	 * on trust rather than being left to assume.
+	 */
+	carriedFindingIds?: string[];
+	/** what this pass reviewed; absent on a pass written before checkpoints */
+	checkpoint?: ReviewCheckpoint;
 	/** null until this pass has been published at least once */
 	published: PublishedRecord | null;
 }

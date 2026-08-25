@@ -24,8 +24,17 @@ import { toRunDto } from "./toRunDto";
  * `"agent-missing"` rather than throwing — no `claude` on this machine is an
  * ordinary, expected outcome (REQ-009), not a server bug.
  */
+export interface StartReviewOptions {
+	/**
+	 * Look at the whole change again rather than only what moved since the
+	 * stored pass. The reader's way out of a delta pass, never a fallback
+	 * the code takes on its own.
+	 */
+	full?: boolean;
+}
+
 export interface ReviewRunner {
-	start(): StartReviewResult;
+	start(options?: StartReviewOptions): StartReviewResult;
 	/**
 	 * A rework shares the same one-run-at-a-time lane as a full pass
 	 * (TASK-048) — starting one while either is active answers `"conflict"`
@@ -65,7 +74,7 @@ export function createReviewRunner(
 	const runManager: RunManager = createRunManager({ publish });
 
 	return {
-		start() {
+		start(options) {
 			if (container.engine === null) {
 				return { kind: "agent-missing" };
 			}
@@ -82,8 +91,10 @@ export function createReviewRunner(
 					changesetId: changesetIdFor(changeset.ref.source),
 					announce: changeset.announce.resolved,
 					files: changeset.files,
+					baseSha: changeset.ref.baseSha,
 					headSha: changeset.ref.headSha,
 					source: changeset.ref.source,
+					full: options?.full === true,
 				},
 			);
 			const result = runManager.start(job, REVIEW_IDLE_TIMEOUT_MS, {

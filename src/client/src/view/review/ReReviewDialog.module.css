@@ -78,3 +78,23 @@
 .confirmButton:hover {
 	background: var(--button-danger-bgColor-hover);
 }
+
+/*
+ * The way out of the delta pass, and the more expensive one. A real choice,
+ * so it is a button, but never the one the eye lands on first.
+ */
+.secondaryButton {
+	padding: var(--base-size-4) var(--base-size-16);
+	background: transparent;
+	border: var(--borderWidth-thin) solid var(--button-default-borderColor-rest);
+	border-radius: var(--borderRadius-medium);
+	color: var(--fgColor-muted);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+}
+
+.secondaryButton:hover {
+	background: var(--button-default-bgColor-hover);
+	color: var(--fgColor-default);
+}

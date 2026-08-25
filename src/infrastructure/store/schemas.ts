@@ -13,6 +13,18 @@ const publishedRecordSchema = z.object({
 	commentIds: z.array(z.string()),
 });
 
+const checkpointSchema = z.object({
+	baseSha: z.string(),
+	headSha: z.string().nullable(),
+	files: z.array(
+		z.object({
+			path: z.string(),
+			oldOid: z.string().nullable(),
+			newOid: z.string().nullable(),
+		}),
+	),
+});
+
 /** what a stored `review.json` must look like to be trusted back off disk */
 export const storedReviewSchema = z.object({
 	changesetId: z.string(),
@@ -31,6 +43,12 @@ export const storedReviewSchema = z.object({
 	// named by position, which is exactly the ids the first pass minted
 	findingIds: z.array(z.string()).optional(),
 	nextFindingId: z.int().min(0).optional(),
+	// absent on a pass whose findings were all looked at in the run that
+	// wrote it, which is every pass written before delta re-reviews
+	carriedFindingIds: z.array(z.string()).optional(),
+	// absent on a pass written before checkpoints: a re-review over one of
+	// those re-reads everything, exactly as it always did
+	checkpoint: checkpointSchema.optional(),
 	// defaulted so a review.json written before TASK-050 still loads
 	published: publishedRecordSchema.nullable().default(null),
 });

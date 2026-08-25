@@ -20,6 +20,7 @@ const COMMENT: ReviewCommentDto = {
 	edited: false,
 	deleted: false,
 	published: false,
+	carried: false,
 };
 
 function actions(overrides: Partial<CommentActions> = {}): CommentActions {

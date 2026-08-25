@@ -17,14 +17,22 @@ export type PostReviewResult =
 	| { kind: "started"; runId: string }
 	| { kind: "conflict"; existingRunId: string; message: string };
 
+export interface PostReviewOptions {
+	/** look at the whole change again, not only what moved since the pass */
+	full?: boolean;
+}
+
 /**
  * `POST /api/review`. A 409 conflict is an ordinary answer, not a thrown
  * error — the caller decides what "already running" means on screen.
  */
-export async function postReviewRun(api: ApiClient): Promise<PostReviewResult> {
+export async function postReviewRun(
+	api: ApiClient,
+	options: PostReviewOptions = {},
+): Promise<PostReviewResult> {
 	try {
 		const body: RunAcceptedDto = runAcceptedDtoSchema.parse(
-			await api.post("/api/review"),
+			await api.post("/api/review", { full: options.full === true }),
 		);
 		return { kind: "started", runId: body.runId };
 	} catch (error) {

@@ -2,6 +2,7 @@ import type { PassFreshnessDto, ReviewPassDto } from "@dto/ReviewDto";
 import type { ReviewStatusDto, RunDto } from "@dto/RunDto";
 import { serverEventSchema } from "@dto/ServerEvent";
 import { useCallback, useEffect, useState } from "react";
+import type { PostReviewOptions } from "../../infrastructure/endpoints/reviewRun";
 import {
 	cancelReviewRun,
 	getReviewRun,
@@ -36,7 +37,7 @@ export interface ReviewRunState {
 	 * being fetched separately afterwards.
 	 */
 	applyStatus(status: ReviewStatusDto): void;
-	start(): void;
+	start(options?: PostReviewOptions): void;
 	cancel(): void;
 }
 
@@ -97,22 +98,25 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		setFreshness(status.freshness);
 	}, []);
 
-	const start = useCallback(() => {
-		setStarting(true);
-		setStartError(null);
-		postReviewRun(api).then(
-			(result) => {
-				setStarting(false);
-				if (result.kind === "conflict") {
-					setStartError(result.message);
-				}
-			},
-			(error: unknown) => {
-				setStarting(false);
-				setStartError(error instanceof Error ? error.message : String(error));
-			},
-		);
-	}, [api]);
+	const start = useCallback(
+		(options: PostReviewOptions = {}) => {
+			setStarting(true);
+			setStartError(null);
+			postReviewRun(api, options).then(
+				(result) => {
+					setStarting(false);
+					if (result.kind === "conflict") {
+						setStartError(result.message);
+					}
+				},
+				(error: unknown) => {
+					setStarting(false);
+					setStartError(error instanceof Error ? error.message : String(error));
+				},
+			);
+		},
+		[api],
+	);
 
 	const cancel = useCallback(() => {
 		void cancelReviewRun(api);

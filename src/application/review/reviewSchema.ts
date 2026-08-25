@@ -27,6 +27,12 @@ const KIND = ["defect", "question"] as const;
 const GROUNDING = ["code", "inferred"] as const;
 
 /**
+ * What a re-checked carried finding came back as. `resolved` drops it from
+ * the pass and credits the fix; `stands` keeps it, re-verified.
+ */
+const CARRIED_VERDICT = ["stands", "resolved"] as const;
+
+/**
  * `review` findings are feedback on this change; `pre-existing` findings
  * predate it. The split is a schema field, not a flag, because it has to
  * survive every downstream step: a pre-existing finding must never become a
@@ -66,6 +72,8 @@ const SAYS_LINES_MAX = 3;
 /** a clause, not a category: enough for "Questions get their own count and are never tiered" */
 const TOPIC_MAX = 110;
 const MAX_EXPLANATIONS = 120;
+/** one clause saying why a carried finding no longer holds, not a second review */
+const CARRIED_WHY_MAX = 240;
 
 /**
  * The lengths are a budget the engine is held to as it writes a pass, not an
@@ -107,6 +115,13 @@ function buildFindingSchema(enforce: boolean) {
 		/** true when `proof` describes something actually run, not inferred */
 		verified: z.boolean(),
 		lane: z.enum(LANE),
+		/**
+		 * The other files opened to convince yourself this finding is real.
+		 * A later pass re-checks a carried finding only when one of these has
+		 * moved, so a finding that names none has to be re-checked from
+		 * scratch every time.
+		 */
+		dependsOn: z.array(z.string()).optional(),
 	};
 	return z.preprocess(
 		defaultToDefect,
@@ -168,6 +183,20 @@ function buildPassSchema(enforce: boolean) {
 			? explanations.max(MAX_EXPLANATIONS)
 			: explanations
 		).default([]),
+		/**
+		 * One verdict per carried finding the prompt asked to have re-checked.
+		 * Absent on a pass that carried nothing, which is every full pass.
+		 */
+		carried: z
+			.array(
+				z.object({
+					id: z.string(),
+					verdict: z.enum(CARRIED_VERDICT),
+					/** one clause, for the verdict line's credit */
+					why: bounded(CARRIED_WHY_MAX, enforce).optional(),
+				}),
+			)
+			.optional(),
 	});
 }
 
@@ -185,6 +214,7 @@ export type ReviewScope = (typeof SCOPE)[number];
 export type ReviewTier = (typeof TIER)[number];
 export type ReviewLane = (typeof LANE)[number];
 export type ReviewFindingKind = (typeof KIND)[number];
+export type CarriedVerdict = (typeof CARRIED_VERDICT)[number];
 export type ExplanationGrounding = (typeof GROUNDING)[number];
 
 export const REVIEW_TIERS: readonly ReviewTier[] = TIER;

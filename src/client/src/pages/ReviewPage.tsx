@@ -458,9 +458,9 @@ function ResolvedReview({
 					editedCount={activeComments.filter((c) => c.edited).length}
 					dismissedCount={comments.filter((c) => c.deleted).length}
 					pendingReviewUrl={review.pass?.published?.htmlUrl ?? null}
-					onConfirm={() => {
+					onConfirm={(options) => {
 						setConfirmingReReview(false);
-						review.start();
+						review.start({ full: options.full });
 					}}
 					onCancel={() => setConfirmingReReview(false)}
 				/>

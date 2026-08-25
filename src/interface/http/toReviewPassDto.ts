@@ -20,6 +20,7 @@ export function toReviewPassDto(
 	files: readonly FileDiff[],
 ): ReviewPassDto {
 	const publishedIds = new Set(stored.published?.commentIds ?? []);
+	const carriedIds = new Set(stored.carriedFindingIds ?? []);
 	return {
 		overview: stored.pass.overview,
 		verdict: stored.pass.verdict,
@@ -28,7 +29,7 @@ export function toReviewPassDto(
 		residue: stored.residue,
 		published: stored.published,
 		comments: effectiveComments(stored, files).map((comment) =>
-			toReviewCommentDto(comment, publishedIds),
+			toReviewCommentDto(comment, publishedIds, carriedIds),
 		),
 		explanations: effectiveExplanations(stored, files).map(toExplanationDto),
 	};
@@ -49,6 +50,7 @@ function toExplanationDto(explanation: EffectiveExplanation): ExplanationDto {
 function toReviewCommentDto(
 	comment: EffectiveComment,
 	publishedIds: ReadonlySet<string>,
+	carriedIds: ReadonlySet<string>,
 ): ReviewCommentDto {
 	return {
 		id: comment.id,
@@ -67,5 +69,6 @@ function toReviewCommentDto(
 		edited: comment.edited,
 		deleted: comment.deleted,
 		published: publishedIds.has(comment.id),
+		carried: carriedIds.has(comment.id),
 	};
 }

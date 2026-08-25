@@ -21,6 +21,39 @@ export interface ReviewPromptInput {
 	files: readonly FileDiff[];
 	/** the stored pass this run replaces, when there is one — a re-review */
 	previous?: PreviousReviewInput;
+	/**
+	 * What this re-review may take from the previous pass rather than pay
+	 * for again. Absent means the full pass: every file in the diff, read
+	 * from scratch.
+	 */
+	reuse?: ReusePromptInput;
+}
+
+/**
+ * The delta framing. The files that have not moved are named but not
+ * rendered: their diffs are identical byte for byte, so their anchors hold
+ * and their findings and explanations come across as they are.
+ */
+export interface ReusePromptInput {
+	baseMoved: boolean;
+	changedPaths: readonly string[];
+	addedPaths: readonly string[];
+	removedPaths: readonly string[];
+	unchanged: readonly UnchangedFileInput[];
+	/** the carried ids that must come back with a `carried` verdict */
+	recheckIds: readonly string[];
+}
+
+export interface UnchangedFileInput {
+	path: string;
+	/** carried findings' ids, quoted in full in the previous pass above */
+	findingIds: readonly string[];
+	explanations: readonly UnchangedExplanationInput[];
+}
+
+export interface UnchangedExplanationInput {
+	topic?: string;
+	says: readonly string[];
 }
 
 /**
@@ -38,6 +71,8 @@ export interface PreviousReviewInput {
 }
 
 export interface PreviousCommentInput {
+	/** the finding's own id — what a `carried` verdict names it by */
+	id: string;
 	/** the tier, or `question` for a finding that asked rather than claimed */
 	tier: string;
 	title: string;
@@ -50,6 +85,16 @@ export interface PreviousCommentInput {
 	dismissed: boolean;
 	/** the body above is the reader's own rewrite */
 	edited: boolean;
+	/** present exactly when this finding is carried into the new pass */
+	carried?: CarriedNote;
+}
+
+/** Why a carried finding does or does not need looking at again. */
+export interface CarriedNote {
+	/** files it leaned on that have moved since */
+	movedDependencies: readonly string[];
+	/** it recorded nothing it leaned on, so nothing can vouch for it */
+	unrecorded: boolean;
 }
 
 export interface PrConversationEntry {
@@ -68,7 +113,8 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		input.announce,
 		"",
-		...renderPreviousReview(input.previous),
+		...renderPreviousReview(input.previous, input.reuse),
+		...renderReuse(input.reuse),
 		"## Working plan",
 		"",
 		"Before you start, call `TaskCreate` five times **in a single message**, once per step, in this order: find the ticket, read the big picture, find problems, verify findings, write it up. All five in one message and not one per turn: the reviewer then sees the whole plan at once instead of watching it assemble itself a step at a time, and it costs you one turn rather than five. Then use `TaskUpdate` to set a step to `in_progress` when you begin it and `completed` the moment it is genuinely done — never in a batch at the end. The reviewer watches this plan advance live while the run is in progress; it is the only window they have into where the review has got to.",
@@ -176,6 +222,8 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"Every finding claiming a defect gets tested before you write it up (a question claims nothing, so there is nothing to test). Prefer a failing test that reproduces the bug — its diff can go in the evidence block, it is the most useful artifact you can hand back. When a test cannot capture it, run the app and interact with it. You have Bash, Write and Edit here specifically so you can do this — work in place on this working directory, and **delete any temp test or scratch file you create before you finish**, whether or not the finding survives. A killed false positive, discovered by actually running something, is the system working; discard whatever fails verification. Genuinely impractical to test (network, third parties)? A high-confidence inference is acceptable — hedge honestly in `proof` and set `verified: false`.",
 		"",
+		"Record what you leaned on: set `dependsOn` on every finding to the other files you opened to convince yourself it is real, by the same paths printed below. A later review re-checks a carried finding only when one of those files has moved, and a finding that names nothing has to be re-checked from scratch every time. Leave it off only when the finding rests on nothing but the lines it points at.",
+		"",
 		"## Severity",
 		"",
 		"| Tier | GitHub alert | Bar |",
@@ -276,17 +324,35 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"## The change",
 		"",
-		renderNumberedDiff(input.files),
+		renderNumberedDiff(diffFiles(input)),
 	].join("\n");
+}
+
+/**
+ * The files the numbered diff renders. A re-review with a reuse plan leaves
+ * out the unchanged ones: they are identical to the diff already reviewed,
+ * so rendering them again is the whole cost the delta pass exists to avoid.
+ */
+function diffFiles(input: ReviewPromptInput): readonly FileDiff[] {
+	if (input.reuse === undefined) {
+		return input.files;
+	}
+	const unchanged = new Set(input.reuse.unchanged.map((file) => file.path));
+	return input.files.filter((file) => !unchanged.has(file.path));
 }
 
 /**
  * The re-review framing: the previous pass is prior notes, not a verdict to
  * defend. What got fixed is dropped and credited; what still stands is
  * re-emitted against the new diff; what the reviewer dismissed stays gone.
+ *
+ * With a reuse plan the second half of that changes: the findings on files
+ * that have not moved are already in the new pass, so re-emitting one
+ * duplicates it rather than keeping it.
  */
 function renderPreviousReview(
 	previous: PreviousReviewInput | undefined,
+	reuse: ReusePromptInput | undefined,
 ): string[] {
 	if (previous === undefined) {
 		return [];
@@ -294,13 +360,9 @@ function renderPreviousReview(
 	return [
 		"## Previous review",
 		"",
-		`You reviewed this change before (${previous.createdAt}). Below are that pass and, when present, the conversation it produced on GitHub. Treat them as your own prior notes, then review the CURRENT diff at the bottom of this prompt in full, with these rules:`,
-		"",
-		"- A previous finding the current code has fixed, or that an author reply below convincingly answers, is resolved: do not re-emit it, and credit what was resolved in one clause of the verdict.",
-		"- A previous finding still true in the current code is re-emitted: keep its substance (keep the reader's wording where a finding is marked edited), re-anchor it to the numbered diff below, and re-verify it against the code as it is now.",
-		"- A finding marked dismissed was removed by the reviewer on purpose: leave it out unless the code changed in a way that makes it newly dangerous.",
-		"- Everything else in the current diff is reviewed fresh, as if for the first time.",
-		"- Never repeat a point the conversation below already makes unless it is unresolved and matters.",
+		...(reuse === undefined
+			? fullReviewRules(previous.createdAt)
+			: deltaReviewRules(previous.createdAt)),
 		"",
 		"### The previous pass",
 		"",
@@ -316,6 +378,31 @@ function renderPreviousReview(
 	];
 }
 
+function fullReviewRules(createdAt: string): string[] {
+	return [
+		`You reviewed this change before (${createdAt}). Below are that pass and, when present, the conversation it produced on GitHub. Treat them as your own prior notes, then review the CURRENT diff at the bottom of this prompt in full, with these rules:`,
+		"",
+		"- A previous finding the current code has fixed, or that an author reply below convincingly answers, is resolved: do not re-emit it, and credit what was resolved in one clause of the verdict.",
+		"- A previous finding still true in the current code is re-emitted: keep its substance (keep the reader's wording where a finding is marked edited), re-anchor it to the numbered diff below, and re-verify it against the code as it is now.",
+		"- A finding marked dismissed was removed by the reviewer on purpose: leave it out unless the code changed in a way that makes it newly dangerous.",
+		"- Everything else in the current diff is reviewed fresh, as if for the first time.",
+		"- Never repeat a point the conversation below already makes unless it is unresolved and matters.",
+	];
+}
+
+function deltaReviewRules(createdAt: string): string[] {
+	return [
+		`You reviewed this change before (${createdAt}). Below are that pass and, when present, the conversation it produced on GitHub. Most of the change has not moved since, so the diff at the bottom of this prompt holds only the files that did, and "## Since the last review" says what is already carried for you. The rules:`,
+		"",
+		"- A previous finding anchored in the diff below is judged again from scratch: fixed means dropped and credited in one clause of the verdict, still true means re-emitted, re-anchored and re-verified.",
+		"- A finding marked `carried` is already in this pass. Do not re-emit it and do not make its point again as a new finding; that duplicates it.",
+		"- A finding marked `RE-CHECK` is carried too, but something it leaned on has moved. Read the code as it is now and answer it in `carried`.",
+		"- A finding marked dismissed was removed by the reviewer on purpose: leave it out unless the code changed in a way that makes it newly dangerous.",
+		"- Everything in the diff below that the previous pass did not cover is reviewed fresh, as if for the first time.",
+		"- Never repeat a point the conversation below already makes unless it is unresolved and matters.",
+	];
+}
+
 function renderPreviousComment(
 	comment: PreviousCommentInput,
 	index: number,
@@ -323,13 +410,104 @@ function renderPreviousComment(
 	const flags = [
 		comment.dismissed ? "dismissed by the reviewer" : null,
 		comment.edited ? "wording edited by the reviewer" : null,
+		carriedFlag(comment.carried),
 	].filter((flag) => flag !== null);
 	const suffix = flags.length === 0 ? "" : ` [${flags.join(", ")}]`;
 	const anchor = `${comment.path}:${comment.startLine}-${comment.endLine}`;
 	return [
-		`${index + 1}. (${comment.tier}) ${comment.title} @ ${anchor}${suffix}`,
+		`${index + 1}. [${comment.id}] (${comment.tier}) ${comment.title} @ ${anchor}${suffix}`,
 		indent(comment.body),
 	].join("\n");
+}
+
+function carriedFlag(carried: CarriedNote | undefined): string | null {
+	if (carried === undefined) {
+		return null;
+	}
+	if (carried.unrecorded) {
+		return "carried, RE-CHECK: the pass recorded nothing this finding leaned on";
+	}
+	if (carried.movedDependencies.length > 0) {
+		return `carried, RE-CHECK: ${carried.movedDependencies.map(quotePath).join(", ")} moved since you verified it`;
+	}
+	return "carried: its file has not changed since you reviewed it";
+}
+
+/**
+ * What is the same, what moved, and what the pass already said about the
+ * files that did not. This section is what replaces the diff of the
+ * unchanged files: identical blobs mean identical hunks and identical line
+ * numbers, so nothing anchored in them needs re-anchoring or re-reading.
+ */
+function renderReuse(reuse: ReusePromptInput | undefined): string[] {
+	if (reuse === undefined) {
+		return [];
+	}
+	return [
+		"## Since the last review",
+		"",
+		reuse.baseMoved
+			? "The base commit moved, so this change is measured against different starting content than it was."
+			: "The base commit is the one the previous pass measured against.",
+		"",
+		...pathList("Changed", reuse.changedPaths),
+		...pathList("Added", reuse.addedPaths),
+		...pathList("Gone from the change", reuse.removedPaths),
+		...pathList(
+			"Unchanged, byte for byte",
+			reuse.unchanged.map((file) => file.path),
+		),
+		"",
+		"**The diff at the bottom holds only the changed and added files.** Every unchanged file is identical to the one you already reviewed, hunk for hunk and line for line, so its anchors still hold and there is nothing in it to read again. What the previous pass said about those files is carried into this pass for you, already marked above. Do not spend turns reopening them.",
+		"",
+		reuse.recheckIds.length === 0
+			? "Nothing needs re-checking: no carried finding leaned on a file that moved. Leave `carried` empty."
+			: `Re-check exactly these, and answer one \`carried\` entry for each: ${reuse.recheckIds.join(", ")}. \`stands\` when the finding is still true in the code as it is now, \`resolved\` when it is not, with a one-clause \`why\` on a \`resolved\` so the verdict line can credit the fix. An id outside that list is ignored.`,
+		"",
+		...renderUnchangedInventory(reuse.unchanged),
+	];
+}
+
+function pathList(label: string, paths: readonly string[]): string[] {
+	return paths.length === 0
+		? []
+		: [`- ${label}: ${paths.map(quotePath).join(", ")}`];
+}
+
+function renderUnchangedInventory(
+	unchanged: readonly UnchangedFileInput[],
+): string[] {
+	const withNotes = unchanged.filter(
+		(file) => file.findingIds.length > 0 || file.explanations.length > 0,
+	);
+	if (withNotes.length === 0) {
+		return [];
+	}
+	return [
+		"### What the last pass already said about the unchanged files",
+		"",
+		withNotes.map(renderUnchangedFile).join("\n"),
+		"",
+		"Those explanations are carried into this pass exactly as they are. Write explanations only for the files in the diff below.",
+		"",
+	];
+}
+
+function renderUnchangedFile(file: UnchangedFileInput): string {
+	const notes = [
+		...(file.findingIds.length === 0
+			? []
+			: [`  - carried findings: ${file.findingIds.join(", ")}`]),
+		...file.explanations.map(
+			(explanation) =>
+				`  - explanation${explanation.topic === undefined ? "" : ` (topic "${explanation.topic}")`}: ${explanation.says.join(" ")}`,
+		),
+	];
+	return [`- ${quotePath(file.path)}`, ...notes].join("\n");
+}
+
+function quotePath(path: string): string {
+	return `\`${path}\``;
 }
 
 function renderConversation(

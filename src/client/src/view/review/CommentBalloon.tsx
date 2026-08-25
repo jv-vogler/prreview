@@ -116,6 +116,11 @@ export function CommentBalloon({
 				)}
 				{comment.proof}
 			</p>
+			{comment.carried && (
+				<p className={styles.carried}>
+					Carried from the earlier pass. This run did not look at it again.
+				</p>
+			)}
 			{!dismissed && actions.onRework !== undefined && (
 				<ReworkControl comment={comment} actions={actions} />
 			)}

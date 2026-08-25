@@ -7,6 +7,7 @@ import { changesetIdFor } from "../../../domain/changeset/ChangesetId";
 import { EngineError } from "../../../domain/errors/EngineError";
 import {
 	editCommentRequestDtoSchema,
+	reviewRunRequestDtoSchema,
 	reworkRequestDtoSchema,
 } from "../dto/ReviewDto";
 import type { RunAcceptedDto, RunConflictDto } from "../dto/RunDto";
@@ -14,7 +15,7 @@ import type { ReviewRunner } from "../reviewRunner";
 import { reviewStatusOf } from "../reviewRunner";
 import type { ReviewState } from "../reviewState";
 import { toReviewPassDto } from "../toReviewPassDto";
-import { validatedJson } from "../validate";
+import { optionalJson, validatedJson } from "../validate";
 
 export interface ReviewRouteDeps {
 	runner: ReviewRunner;
@@ -43,8 +44,9 @@ export interface ReviewRouteDeps {
 export function reviewRoute(deps: ReviewRouteDeps): Hono {
 	const route = new Hono();
 
-	route.post("/", (context) => {
-		const result = deps.runner.start();
+	route.post("/", async (context) => {
+		const request = await optionalJson(context, reviewRunRequestDtoSchema);
+		const result = deps.runner.start({ full: request.full === true });
 		if (result.kind === "agent-missing") {
 			throw new EngineError(
 				"agent-missing",

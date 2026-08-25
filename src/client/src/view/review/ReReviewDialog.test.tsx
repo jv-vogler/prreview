@@ -70,8 +70,10 @@ describe("ReReviewDialog", () => {
 
 	it("confirms and cancels through its buttons, and cancels on Escape", () => {
 		const { onConfirm, onCancel } = renderDialog();
-		fireEvent.click(screen.getByRole("button", { name: "Run new review" }));
-		expect(onConfirm).toHaveBeenCalledOnce();
+		fireEvent.click(
+			screen.getByRole("button", { name: "Review what changed" }),
+		);
+		expect(onConfirm).toHaveBeenCalledWith({ full: false });
 		fireEvent.click(
 			screen.getByRole("button", { name: "Keep the current review" }),
 		);
@@ -85,5 +87,13 @@ describe("ReReviewDialog", () => {
 		expect(document.activeElement).toBe(
 			screen.getByRole("button", { name: "Keep the current review" }),
 		);
+	});
+
+	it("offers the whole change as its own choice", () => {
+		const { onConfirm } = renderDialog();
+		fireEvent.click(
+			screen.getByRole("button", { name: "Review everything again" }),
+		);
+		expect(onConfirm).toHaveBeenCalledWith({ full: true });
 	});
 });

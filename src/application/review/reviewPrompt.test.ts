@@ -297,6 +297,7 @@ describe("buildReviewPrompt with a previous pass", () => {
 			verdict: "matches the ticket",
 			comments: [
 				{
+					id: "finding-0",
 					tier: "should-fix",
 					title: "Greeting drops the name",
 					body: "The reader's own rewrite of the body.",
@@ -307,6 +308,7 @@ describe("buildReviewPrompt with a previous pass", () => {
 					edited: true,
 				},
 				{
+					id: "finding-1",
 					tier: "nitpick",
 					title: "Prefer template literals",
 					body: "Use a template literal here.",
@@ -346,7 +348,7 @@ describe("buildReviewPrompt with a previous pass", () => {
 
 	it("renders each previous finding with its curated body and flags", () => {
 		expect(prompt).toContain(
-			"1. (should-fix) Greeting drops the name @ src/greeting.ts:2-2 [wording edited by the reviewer]",
+			"1. [finding-0] (should-fix) Greeting drops the name @ src/greeting.ts:2-2 [wording edited by the reviewer]",
 		);
 		expect(prompt).toContain("The reader's own rewrite of the body.");
 		expect(prompt).toContain("[dismissed by the reviewer]");
@@ -372,5 +374,137 @@ describe("buildReviewPrompt with a previous pass", () => {
 		});
 		expect(clean).toContain("It had no findings.");
 		expect(clean).not.toContain("### Conversation on GitHub");
+	});
+});
+
+const UNCHANGED_FILE: FileDiff = {
+	...FILE,
+	id: "f2",
+	path: "src/settled.ts",
+	hunks: [
+		{
+			id: "h2",
+			header: "",
+			oldStart: 1,
+			oldLines: 1,
+			newStart: 1,
+			newLines: 1,
+			lines: [{ type: "add", content: "const settled = true;", newLine: 1 }],
+		},
+	],
+};
+
+describe("buildReviewPrompt with a reuse plan", () => {
+	const prompt = buildReviewPrompt({
+		announce: "reviewing PR #42",
+		files: [FILE, UNCHANGED_FILE],
+		previous: {
+			createdAt: "2026-08-20T00:00:00.000Z",
+			overview: "adds the greeting",
+			verdict: "matches the ticket",
+			comments: [
+				{
+					id: "finding-0",
+					tier: "should-fix",
+					title: "Settled file still leaks",
+					body: "It leaks.",
+					path: "src/settled.ts",
+					startLine: 1,
+					endLine: 1,
+					dismissed: false,
+					edited: false,
+					carried: { movedDependencies: [], unrecorded: false },
+				},
+				{
+					id: "finding-1",
+					tier: "nitpick",
+					title: "Settled file names it oddly",
+					body: "Odd name.",
+					path: "src/settled.ts",
+					startLine: 1,
+					endLine: 1,
+					dismissed: false,
+					edited: false,
+					carried: {
+						movedDependencies: ["src/greeting.ts"],
+						unrecorded: false,
+					},
+				},
+			],
+			conversation: null,
+		},
+		reuse: {
+			baseMoved: false,
+			changedPaths: ["src/greeting.ts"],
+			addedPaths: [],
+			removedPaths: ["src/dropped.ts"],
+			unchanged: [
+				{
+					path: "src/settled.ts",
+					findingIds: ["finding-0", "finding-1"],
+					explanations: [
+						{ topic: "Settling the flag", says: ["It settles.", "For good."] },
+					],
+				},
+			],
+			recheckIds: ["finding-1"],
+		},
+	});
+
+	it("renders the diff of the files that moved and not of the ones that did not", () => {
+		expect(prompt).toContain("### src/greeting.ts");
+		expect(prompt).not.toContain("### src/settled.ts —");
+		expect(prompt).not.toContain("const settled = true;");
+	});
+
+	it("inventories each unchanged file with what the last pass said about it", () => {
+		expect(prompt).toContain("- `src/settled.ts`");
+		expect(prompt).toContain("carried findings: finding-0, finding-1");
+		expect(prompt).toContain(
+			'explanation (topic "Settling the flag"): It settles. For good.',
+		);
+	});
+
+	it("states what moved, including the files that left the change", () => {
+		expect(prompt).toContain("- Changed: `src/greeting.ts`");
+		expect(prompt).toContain("- Gone from the change: `src/dropped.ts`");
+		expect(prompt).toContain("- Unchanged, byte for byte: `src/settled.ts`");
+		expect(prompt).toContain("The base commit is the one the previous pass");
+	});
+
+	it("marks a carried finding as standing, and a re-check with what moved under it", () => {
+		expect(prompt).toContain(
+			"[carried: its file has not changed since you reviewed it]",
+		);
+		expect(prompt).toContain(
+			"[carried, RE-CHECK: `src/greeting.ts` moved since you verified it]",
+		);
+	});
+
+	it("asks for a verdict on exactly the re-checked ids", () => {
+		expect(prompt).toContain("Re-check exactly these");
+		expect(prompt).toContain("finding-1");
+		expect(prompt).toContain("An id outside that list is ignored.");
+	});
+});
+
+describe("buildReviewPrompt with a previous pass but no reuse plan", () => {
+	it("renders every file and asks for the whole diff to be reviewed", () => {
+		const prompt = buildReviewPrompt({
+			announce: "reviewing PR #42",
+			files: [FILE, UNCHANGED_FILE],
+			previous: {
+				createdAt: "2026-08-20T00:00:00.000Z",
+				overview: "adds the greeting",
+				verdict: "matches the ticket",
+				comments: [],
+				conversation: null,
+			},
+		});
+
+		expect(prompt).toContain("### src/settled.ts");
+		expect(prompt).toContain("const settled = true;");
+		expect(prompt).toContain("review the CURRENT diff at the bottom");
+		expect(prompt).not.toContain("## Since the last review");
 	});
 });

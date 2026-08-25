@@ -204,6 +204,7 @@ describe("RunStatusBar", () => {
 					edited: false,
 					deleted: false,
 					published: false,
+					carried: false,
 					placement: { kind: "exact", fileId: "a.ts", side: "new", line: 1 },
 				},
 				{
@@ -221,6 +222,7 @@ describe("RunStatusBar", () => {
 					edited: false,
 					deleted: false,
 					published: false,
+					carried: false,
 					placement: { kind: "exact", fileId: "a.ts", side: "new", line: 2 },
 				},
 			],

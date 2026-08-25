@@ -130,4 +130,35 @@ describe("toReviewPassDto", () => {
 			false,
 		]);
 	});
+
+	it("marks a finding this pass carried without looking at it again", () => {
+		const finding = {
+			path: "src/a.ts",
+			startLine: 1,
+			endLine: 1,
+			kind: "defect" as const,
+			tier: "nitpick" as const,
+			title: "t",
+			body: "b",
+			proof: "Inferred: x",
+			verified: false,
+			lane: "review" as const,
+		};
+		const pass = toReviewPassDto(
+			{
+				...STORED,
+				pass: { ...STORED.pass, findings: [finding, finding] },
+				findingIds: ["finding-4", "finding-9"],
+				carriedFindingIds: ["finding-4"],
+			},
+			[FILE],
+		);
+
+		expect(
+			pass.comments.map((comment) => [comment.id, comment.carried]),
+		).toEqual([
+			["finding-4", true],
+			["finding-9", false],
+		]);
+	});
 });
