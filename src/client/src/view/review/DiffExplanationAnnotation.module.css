@@ -50,49 +50,29 @@
 }
 
 /*
- * The open cards hang from the anchor, floating over the code below —
- * never pushing it. In chip mode they start under the chip; in margin mode
- * (always open, no chip) they start at the anchor line itself.
+ * The open cards live in a body-level portal, not in the diff: every file
+ * block is its own scroller, so a card kept inline is clipped at the
+ * block's edge (a one-line file cannot fit one on any side). The component
+ * positions this element against the live anchor rect on every scroll and
+ * hides it when its anchor leaves the diff viewport.
  */
-.stack {
-	position: absolute;
-	top: var(--base-size-4);
-	right: var(--base-size-8);
-	z-index: 1;
+.floating {
+	position: fixed;
+	z-index: 10;
 	display: flex;
 	flex-direction: column;
 	gap: var(--base-size-8);
 	width: 340px;
-	max-width: 60%;
+	max-width: 40vw;
+	animation: floating-open var(--motion-duration-short)
+		var(--motion-easing-enter) both;
 }
 
-.stack[data-mode="margin"] {
-	top: calc(-1 * var(--base-size-20));
-}
-
-/*
- * Near the end of a file the cards hang upward instead: the file block is
- * a scroller, so growing past its bottom edge is clipped mid-card — there
- * is no z-index across a scroller's clip. Bottom is measured from the
- * zero-height anchor, so the stack ends just above the anchored line.
- */
-.stack[data-direction="up"] {
-	top: auto;
-	bottom: var(--base-size-20);
-}
-
-@keyframes stack-open {
+@keyframes floating-open {
 	from {
 		opacity: 0;
-		transform: translateY(calc(-1 * var(--base-size-4)));
 	}
 	to {
 		opacity: 1;
-		transform: none;
 	}
-}
-
-.stack[data-mode="chips"] {
-	animation: stack-open var(--motion-duration-short) var(--motion-easing-enter)
-		both;
 }
