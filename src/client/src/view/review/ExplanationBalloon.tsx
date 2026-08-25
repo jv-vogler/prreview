@@ -33,13 +33,26 @@ export function ExplanationBalloon({
 					<span className={styles.topic}>{explanation.topic}</span>
 				)}
 			</div>
-			{explanation.says.map((sentence) => (
-				<p key={sentence} className={styles.sentence}>
+			{explanation.says.map((sentence, index) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: says never reorders, and a repeated sentence would collide as its own key
+				<p key={index} className={styles.sentence}>
 					<BacktickText text={sentence} />
 				</p>
 			))}
+			{explanation.placement.kind === "clamped" && (
+				<p className={styles.clampNote}>
+					Written about {lineRange(explanation)}, which this diff does not show;
+					pinned to the nearest line.
+				</p>
+			)}
 		</aside>
 	);
+}
+
+function lineRange(explanation: ExplanationDto): string {
+	return explanation.startLine === explanation.endLine
+		? `line ${explanation.startLine}`
+		: `lines ${explanation.startLine}–${explanation.endLine}`;
 }
 
 /**

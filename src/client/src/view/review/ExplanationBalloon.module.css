@@ -53,6 +53,15 @@
 	margin-top: var(--base-size-4);
 }
 
+/* a clamped card sits beside a line it is not about; it has to say so */
+.clampNote {
+	margin: var(--base-size-8) 0 0;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	font-style: italic;
+	line-height: var(--text-body-lineHeight-small);
+}
+
 .code {
 	padding: 0 var(--base-size-2);
 	border-radius: var(--borderRadius-small);

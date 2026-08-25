@@ -29,6 +29,29 @@ describe("ExplanationBalloon", () => {
 		expect(screen.queryByRole("button")).toBeNull();
 	});
 
+	it("says so when it sits beside a line it is not about", () => {
+		render(
+			<ExplanationBalloon
+				explanation={{
+					...EXPLANATION,
+					startLine: 42,
+					endLine: 42,
+					placement: {
+						kind: "clamped",
+						fileId: "file-1",
+						side: "new",
+						line: 3,
+						requestedStartLine: 42,
+						requestedEndLine: 42,
+					},
+				}}
+			/>,
+		);
+		expect(screen.getByText(/Written about line 42/).textContent).toContain(
+			"pinned to the nearest line",
+		);
+	});
+
 	it("omits the topic chip when the explanation stands alone", () => {
 		const { topic, ...rest } = EXPLANATION;
 		void topic;
