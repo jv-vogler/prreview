@@ -237,8 +237,8 @@ function buildExplanations(files) {
 			// exercised on both values even though nothing renders it
 			grounding: index === 0 ? "inferred" : "code",
 			...(index < 2
-				? { topic: "Mock shared intent" }
-				: { topic: "Mock second theme" }),
+				? { topic: "Mock intent: two files change for one reason" }
+				: { topic: "Mock second theme: the supporting change" }),
 		};
 	});
 	// one with no line in the diff, so the sidebar's explanation section

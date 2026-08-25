@@ -141,9 +141,19 @@ describe("buildReviewPrompt", () => {
 		);
 	});
 
+	it("asks a topic label to carry the change, not name an area", () => {
+		expect(prompt).toContain(
+			"**A `topic` label says what changed, not which area it touched.**",
+		);
+		expect(prompt).toContain('not "Question in the UI"');
+		expect(prompt).toContain(
+			"A label naming only a layer, a file or a feature area is too vague",
+		);
+	});
+
 	it("anchors explanations exactly like findings, with shared topic labels", () => {
 		expect(prompt).toContain("Anchor each explanation exactly like a finding");
-		expect(prompt).toContain("same short `topic` label");
+		expect(prompt).toContain("give them the same `topic` label");
 	});
 
 	it("scopes the no-hard-wrap rule to `body`, so the overview may paragraph", () => {

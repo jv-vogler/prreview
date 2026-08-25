@@ -13,9 +13,9 @@ const TIER = ["blocker", "should-fix", "suggestion", "nitpick"] as const;
 /**
  * A finding either claims something is wrong or asks the author why. A
  * question carries no `tier` because the ladder measures how bad something
- * is, and a question has no badness — the refinement below is what keeps
- * those two facts from drifting apart. `defect` is the default so every
- * pass written before questions existed still parses.
+ * is, and a question has no badness; the union below is what keeps those two
+ * facts from drifting apart. A finding that names no kind at all reads as a
+ * defect, which is every pass written before questions existed.
  */
 const KIND = ["defect", "question"] as const;
 
@@ -63,7 +63,8 @@ const TICKET_MAX = 300;
 const MAX_FINDINGS = 40;
 const SAYS_LINE_MAX = 160;
 const SAYS_LINES_MAX = 3;
-const TOPIC_MAX = 60;
+/** a clause, not a category: enough for "Questions get their own count and are never tiered" */
+const TOPIC_MAX = 110;
 const MAX_EXPLANATIONS = 120;
 
 /**
@@ -141,7 +142,7 @@ function buildExplanationSchema(enforce: boolean) {
 		endLine: z.int().min(1),
 		/** one sentence per entry — what the diff cannot say on its own */
 		says: enforce ? says.max(SAYS_LINES_MAX) : says,
-		/** short plain-language label; explanations sharing a label form one topic */
+		/** a clause saying what changed; explanations sharing a label form one topic */
 		topic: bounded(TOPIC_MAX, enforce).optional(),
 		/** read the reason, or reconstructed it — never rendered, see GROUNDING */
 		grounding: z.enum(GROUNDING).default("inferred"),
