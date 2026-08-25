@@ -24,8 +24,20 @@ export interface ExplanationCardLayout {
  * reflow case). Stacks lay out top to bottom pinned beside their anchors; a
  * stack that would overlap the one above it slides down below it instead.
  */
+interface TrackedStack {
+	anchor: HTMLElement;
+	stack: HTMLElement;
+	/** the anchored file block, looked up once the anchor is in a document */
+	block?: Element | null;
+	/** which side of the viewport the anchor was last measured on: the
+	 * renderer drops a row's layout (and reshapes the block) once it scrolls
+	 * far enough out, so this remembered side is the only trustworthy fact
+	 * left about where the line went */
+	lastSeen?: "above" | "below";
+}
+
 export function createExplanationCardLayout(): ExplanationCardLayout {
-	const stacks = new Map<string, { anchor: HTMLElement; stack: HTMLElement }>();
+	const stacks = new Map<string, TrackedStack>();
 	let frame: number | null = null;
 	let watchedViewport: Element | null = null;
 
@@ -78,25 +90,70 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 		const roof = bounds?.top ?? 0;
 		const limit = bounds?.bottom ?? window.innerHeight;
 		const right = `${Math.max(0, window.innerWidth - (bounds?.right ?? window.innerWidth)) + EDGE_PX}px`;
-		const visible: { stack: HTMLElement; anchorTop: number }[] = [];
-		for (const { anchor, stack } of stacks.values()) {
-			const anchorTop = anchor.getBoundingClientRect().top;
-			// a fixed element would otherwise float over the surrounding chrome
-			// once its anchor scrolls out of the diff viewport
-			if (anchorTop < roof || anchorTop > limit) {
+		const visible: { stack: HTMLElement; top: number; anchorTop: number }[] =
+			[];
+		for (const entry of stacks.values()) {
+			const { anchor, stack } = entry;
+			if (entry.block === undefined) {
+				entry.block = anchor.closest("diffs-container");
+			}
+			const blockRect = entry.block?.getBoundingClientRect();
+			const blockOnScreen =
+				blockRect !== undefined &&
+				blockRect.width > 0 &&
+				blockRect.bottom > roof;
+			const stuckTop = () =>
+				blockRect === undefined
+					? roof + GAP_PX
+					: Math.min(roof + GAP_PX, blockRect.bottom - stack.offsetHeight);
+			const anchorRect = anchor.getBoundingClientRect();
+			if (anchorRect.width === 0) {
+				// the renderer drops a far-out row's layout (and reshapes the
+				// block), so a zero rect says nothing about where the line is.
+				// The remembered side does: last seen above and its block still
+				// on screen, the card stays stuck at the top; last seen below,
+				// or never measured at all, there is nothing honest to show.
+				if (entry.lastSeen === "above" && blockOnScreen) {
+					visible.push({
+						stack,
+						top: stuckTop(),
+						anchorTop: Number.NEGATIVE_INFINITY,
+					});
+				} else {
+					stack.style.visibility = "hidden";
+				}
+				continue;
+			}
+			const anchorTop = anchorRect.top;
+			entry.lastSeen =
+				anchorTop < roof ? "above" : anchorTop > limit ? "below" : undefined;
+			// below the viewport it just waits its turn; a fixed element would
+			// otherwise float over the surrounding chrome
+			if (anchorTop > limit) {
 				stack.style.visibility = "hidden";
 				continue;
 			}
-			visible.push({ stack, anchorTop });
+			let top = anchorTop + GAP_PX;
+			if (anchorTop < roof) {
+				// the line scrolled past, but its context is still on screen:
+				// the card sticks at the viewport top while its file block
+				// remains, and slides out under the block's own end
+				if (!blockOnScreen) {
+					stack.style.visibility = "hidden";
+					continue;
+				}
+				top = stuckTop();
+			}
+			visible.push({ stack, top, anchorTop });
 		}
-		visible.sort((a, b) => a.anchorTop - b.anchorTop);
+		visible.sort((a, b) => a.top - b.top || a.anchorTop - b.anchorTop);
 		let floor = Number.NEGATIVE_INFINITY;
-		for (const { stack, anchorTop } of visible) {
-			const top = Math.max(anchorTop + GAP_PX, floor);
-			stack.style.top = `${top}px`;
+		for (const { stack, top } of visible) {
+			const settled = Math.max(top, floor);
+			stack.style.top = `${settled}px`;
 			stack.style.right = right;
 			stack.style.visibility = "visible";
-			floor = top + stack.offsetHeight + STACK_GAP_PX;
+			floor = settled + stack.offsetHeight + STACK_GAP_PX;
 		}
 	};
 
