@@ -59,6 +59,8 @@
 .floating {
 	position: fixed;
 	z-index: 10;
+	/* hidden until the shared layout's first pass places it */
+	visibility: hidden;
 	display: flex;
 	flex-direction: column;
 	gap: var(--base-size-8);
