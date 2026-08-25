@@ -17,6 +17,7 @@ function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
 		placement: { kind: "unplaceable" },
 		edited: false,
 		deleted: false,
+		published: false,
 		...overrides,
 	};
 }

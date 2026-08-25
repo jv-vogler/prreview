@@ -130,12 +130,16 @@ function CommentSection({
 							className={styles.row}
 							data-comment-row={comment.id}
 							data-tier={comment.tier}
+							data-published={comment.published || undefined}
 							onClick={() => onJumpTo(comment)}
 						>
 							<span className={styles.rowTier}>
 								{REVIEW_TIER_LABEL[comment.tier]}
 							</span>
 							<span className={styles.rowTitle}>{comment.title}</span>
+							{comment.published && (
+								<span className={styles.rowPublished}>published</span>
+							)}
 						</button>
 						{expandedCommentIds.has(comment.id) && (
 							<div className={styles.rowExpanded}>

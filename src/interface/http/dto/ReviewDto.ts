@@ -67,6 +67,8 @@ export const reviewCommentDtoSchema = z.object({
 	edited: z.boolean(),
 	/** dismissed, not published — but still shown, so a restore is possible */
 	deleted: z.boolean(),
+	/** part of the pending review the last publish sent to GitHub (TASK-053) */
+	published: z.boolean(),
 });
 
 export type ReviewCommentDto = z.infer<typeof reviewCommentDtoSchema>;

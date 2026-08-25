@@ -48,6 +48,7 @@ export function CommentBalloon({
 				{comment.lane === "pre-existing" && (
 					<span className={styles.lane}>Pre-existing</span>
 				)}
+				{comment.published && <span className={styles.lane}>Published</span>}
 				{comment.edited && <span className={styles.lane}>Edited</span>}
 				{dismissed && <span className={styles.lane}>Dismissed</span>}
 				<span className={styles.title}>{comment.title}</span>

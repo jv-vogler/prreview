@@ -201,6 +201,7 @@ describe("RunStatusBar", () => {
 					lane: "review",
 					edited: false,
 					deleted: false,
+					published: false,
 					placement: { kind: "exact", fileId: "a.ts", side: "new", line: 1 },
 				},
 				{
@@ -216,6 +217,7 @@ describe("RunStatusBar", () => {
 					lane: "review",
 					edited: false,
 					deleted: false,
+					published: false,
 					placement: { kind: "exact", fileId: "a.ts", side: "new", line: 2 },
 				},
 			],

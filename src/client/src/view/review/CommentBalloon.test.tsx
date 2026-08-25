@@ -18,6 +18,7 @@ const COMMENT: ReviewCommentDto = {
 	placement: { kind: "unplaceable" },
 	edited: false,
 	deleted: false,
+	published: false,
 };
 
 function actions(overrides: Partial<CommentActions> = {}): CommentActions {

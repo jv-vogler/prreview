@@ -147,3 +147,18 @@
 	font-size: var(--text-body-size-medium);
 	line-height: var(--base-text-lineHeight-normal);
 }
+
+/* already sent to GitHub in the pending review: settled, not actionable */
+.row[data-published] .rowTier,
+.row[data-published] .rowTitle {
+	color: var(--fgColor-muted);
+}
+
+.rowPublished {
+	flex: none;
+	padding: 0 var(--base-size-8);
+	border-radius: var(--borderRadius-full);
+	background: var(--bgColor-neutral-muted);
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+}

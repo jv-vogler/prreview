@@ -81,4 +81,49 @@ describe("toReviewPassDto", () => {
 		]);
 		expect(reviewPassDtoSchema.safeParse(dto).success).toBe(true);
 	});
+
+	it("marks exactly the comments the last publish sent", () => {
+		const stored: StoredReview = {
+			...STORED,
+			pass: {
+				...STORED.pass,
+				explanations: [],
+				findings: [
+					{
+						path: "src/a.ts",
+						startLine: 1,
+						endLine: 1,
+						tier: "nitpick",
+						title: "sent",
+						body: "b",
+						proof: "Inferred: x",
+						verified: false,
+						lane: "review",
+					},
+					{
+						path: "src/a.ts",
+						startLine: 1,
+						endLine: 1,
+						tier: "nitpick",
+						title: "kept back",
+						body: "b",
+						proof: "Inferred: x",
+						verified: false,
+						lane: "review",
+					},
+				],
+			},
+			published: {
+				reviewId: 1,
+				htmlUrl: "https://example.com/r/1",
+				publishedAt: "2026-08-23T00:00:00.000Z",
+				commentIds: ["finding-0"],
+			},
+		};
+		const dto = toReviewPassDto(stored, [FILE]);
+		expect(dto.comments.map((comment) => comment.published)).toEqual([
+			true,
+			false,
+		]);
+	});
 });
