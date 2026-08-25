@@ -48,7 +48,7 @@ const MAX_FINDINGS = 40;
 const SAYS_LINE_MAX = 160;
 const SAYS_LINES_MAX = 3;
 const TOPIC_MAX = 60;
-const MAX_EXPLANATIONS = 40;
+const MAX_EXPLANATIONS = 120;
 
 /**
  * The lengths are a budget the engine is held to as it writes a pass, not an

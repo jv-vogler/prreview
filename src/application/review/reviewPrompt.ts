@@ -57,7 +57,7 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"Alongside the findings, fill `explanations`: short accounts of what the meaningful changes do, written in the PR author's voice, as if explaining each file's changes to a colleague with zero context. These are never review feedback and never report problems; problems belong in findings.",
 		"",
-		"**The bar: an explanation earns its place only if it says something the diff does not.** The why, the cross-file cause, the consequence. Never restate the code in words. **Cover the whole change**: walk every file in the diff and explain each change in it that carries intent, so a reader gets the full picture of the PR from the explanations alone. Skip mechanical changes (imports, renames, fixtures, formatting); they are the only changes that get nothing.",
+		'**The bar: an explanation earns its place only if it says something the diff does not.** The why, the cross-file cause, the consequence. Never restate the code in words. **Cover the whole change**: every file in the diff gets at least one explanation, so a reader gets the full picture of the PR from the explanations alone. For a supporting file, one sentence naming its role in the change is enough ("Defines the card that renders one explanation beside the diff."), and repeating a shared `topic` across related files is encouraged — that is what groups them into one unit. Skip only purely mechanical changes (import churn, renames, fixtures, formatting); they are the only changes that get nothing.',
 		"",
 		"`says` is an array of sentences, one sentence per entry, at most three. Each entry is one short plain sentence, not a paragraph.",
 		"",
