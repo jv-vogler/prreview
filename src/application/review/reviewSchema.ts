@@ -11,6 +11,22 @@ import { z } from "zod";
 const TIER = ["blocker", "should-fix", "suggestion", "nitpick"] as const;
 
 /**
+ * A finding either claims something is wrong or asks the author why. A
+ * question carries no `tier` because the ladder measures how bad something
+ * is, and a question has no badness — the refinement below is what keeps
+ * those two facts from drifting apart. `defect` is the default so every
+ * pass written before questions existed still parses.
+ */
+const KIND = ["defect", "question"] as const;
+
+/**
+ * Whether an explanation's reason was read or reconstructed. Never
+ * rendered: it exists to mark where an explanation stops and a question
+ * starts, and is stored on the pass so it stays minable later.
+ */
+const GROUNDING = ["code", "inferred"] as const;
+
+/**
  * `review` findings are feedback on this change; `pre-existing` findings
  * predate it. The split is a schema field, not a flag, because it has to
  * survive every downstream step: a pre-existing finding must never become a
@@ -65,23 +81,36 @@ function bounded(max: number, enforce: boolean) {
 }
 
 function buildFindingSchema(enforce: boolean) {
-	return z.object({
-		path: z.string().min(1),
-		startLine: z.int().min(1),
-		endLine: z.int().min(1),
-		tier: z.enum(TIER),
-		/** plain-language scan aid for the reviewer's list; never published */
-		title: bounded(TITLE_MAX, enforce),
-		/** the alert block plus the pasteable paragraph — never restates the diff */
-		body: bounded(BODY_MAX, enforce),
-		/** the visual aid pasted under `body`: a ```diff fix, a table, or input → expected/got */
-		evidence: bounded(EVIDENCE_MAX, enforce).optional(),
-		/** "Verified: <how>" or "Inferred: <why still confident>" — the triage line */
-		proof: bounded(PROOF_MAX, enforce),
-		/** true when `proof` describes something actually run, not inferred */
-		verified: z.boolean(),
-		lane: z.enum(LANE),
-	});
+	return z
+		.object({
+			path: z.string().min(1),
+			startLine: z.int().min(1),
+			endLine: z.int().min(1),
+			/** defaulted so passes written before questions existed still parse */
+			kind: z.enum(KIND).default("defect"),
+			/** absent exactly when this is a question */
+			tier: z.enum(TIER).optional(),
+			/** plain-language scan aid for the reviewer's list; never published */
+			title: bounded(TITLE_MAX, enforce),
+			/** the alert block plus the pasteable paragraph — never restates the diff */
+			body: bounded(BODY_MAX, enforce),
+			/** the visual aid pasted under `body`: a ```diff fix, a table, or input → expected/got */
+			evidence: bounded(EVIDENCE_MAX, enforce).optional(),
+			/** "Verified: <how>" or "Inferred: <why still confident>" — the triage line */
+			proof: bounded(PROOF_MAX, enforce),
+			/** true when `proof` describes something actually run, not inferred */
+			verified: z.boolean(),
+			lane: z.enum(LANE),
+		})
+		.refine((finding) => (finding.tier === undefined) === isQuestion(finding), {
+			error:
+				"a defect carries a tier and a question carries none: `tier` is present exactly when `kind` is `defect`",
+			path: ["tier"],
+		});
+}
+
+function isQuestion(finding: { kind: (typeof KIND)[number] }): boolean {
+	return finding.kind === "question";
 }
 
 /**
@@ -100,6 +129,8 @@ function buildExplanationSchema(enforce: boolean) {
 		says: enforce ? says.max(SAYS_LINES_MAX) : says,
 		/** short plain-language label; explanations sharing a label form one topic */
 		topic: bounded(TOPIC_MAX, enforce).optional(),
+		/** read the reason, or reconstructed it — never rendered, see GROUNDING */
+		grounding: z.enum(GROUNDING).default("inferred"),
 	});
 }
 
@@ -138,6 +169,8 @@ export type ReviewPass = z.infer<typeof reviewPassSchema>;
 export type ReviewScope = (typeof SCOPE)[number];
 export type ReviewTier = (typeof TIER)[number];
 export type ReviewLane = (typeof LANE)[number];
+export type ReviewFindingKind = (typeof KIND)[number];
+export type ExplanationGrounding = (typeof GROUNDING)[number];
 
 export const REVIEW_TIERS: readonly ReviewTier[] = TIER;
 export const REVIEW_LANES: readonly ReviewLane[] = LANE;

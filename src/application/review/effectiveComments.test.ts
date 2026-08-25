@@ -18,6 +18,7 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 					path: "src/a.ts",
 					startLine: 1,
 					endLine: 1,
+					kind: "defect",
 					tier: "nitpick",
 					title: "t",
 					body: "original body",

@@ -12,7 +12,7 @@ import type { CommentActions } from "./CommentActions";
 import styles from "./CommentBalloon.module.css";
 import { CommentMarkdown } from "./CommentMarkdown";
 import { ReworkControl } from "./ReworkControl";
-import { REVIEW_TIER_LABEL } from "./reviewTier";
+import { commentTierLabel } from "./reviewTier";
 
 export interface CommentBalloonProps {
 	comment: ReviewCommentDto;
@@ -40,11 +40,12 @@ export function CommentBalloon({
 			className={styles.balloon}
 			data-comment-id={comment.id}
 			data-tier={comment.tier}
+			data-kind={comment.kind}
 			data-dismissed={dismissed}
 			role="note"
 		>
 			<div className={styles.header}>
-				<span className={styles.tier}>{REVIEW_TIER_LABEL[comment.tier]}</span>
+				<span className={styles.tier}>{commentTierLabel(comment)}</span>
 				{comment.lane === "pre-existing" && (
 					<span className={styles.lane}>Pre-existing</span>
 				)}

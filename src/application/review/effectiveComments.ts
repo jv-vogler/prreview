@@ -4,7 +4,7 @@ import { placeComment } from "../../domain/review/placeComment";
 import { reviewCommentId } from "../../domain/review/reviewCommentId";
 import type { StoredReview } from "../ports/SessionStore";
 import { effectiveBody, isDeleted } from "./commentEdits";
-import type { ReviewLane, ReviewTier } from "./reviewSchema";
+import type { ReviewFindingKind, ReviewLane, ReviewTier } from "./reviewSchema";
 
 /**
  * One finding as curation and placement have left it: the engine's own
@@ -19,7 +19,9 @@ export interface EffectiveComment {
 	path: string;
 	startLine: number;
 	endLine: number;
-	tier: ReviewTier;
+	kind: ReviewFindingKind;
+	/** absent exactly when this is a question */
+	tier?: ReviewTier;
 	title: string;
 	body: string;
 	evidence?: string;
@@ -56,7 +58,8 @@ function toEffectiveComment(
 		path: finding.path,
 		startLine: finding.startLine,
 		endLine: finding.endLine,
-		tier: finding.tier,
+		kind: finding.kind,
+		...(finding.tier === undefined ? {} : { tier: finding.tier }),
 		title: finding.title,
 		body: effectiveBody(finding, edit),
 		...(finding.evidence === undefined ? {} : { evidence: finding.evidence }),

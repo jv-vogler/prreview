@@ -26,3 +26,16 @@ export const REVIEW_TIER_ALERT_LABEL: Record<ReviewTierDto, string> = {
 	suggestion: "TIP",
 	nitpick: "NOTE",
 };
+
+/**
+ * What a question shows where a tier chip would go. It carries no tier
+ * because the ladder measures how bad something is, so it is labelled for
+ * what it is instead of ranked.
+ */
+export const REVIEW_QUESTION_LABEL = "Question";
+
+export function commentTierLabel(comment: { tier?: ReviewTierDto }): string {
+	return comment.tier === undefined
+		? REVIEW_QUESTION_LABEL
+		: REVIEW_TIER_LABEL[comment.tier];
+}

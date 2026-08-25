@@ -107,6 +107,14 @@
 	--marker-halo: var(--fgColor-success);
 }
 
+/* asked, not ranked: its own colour rather than the mildest tier's */
+.marker[data-tier="question"] {
+	border-color: var(--borderColor-accent-muted);
+	background: var(--bgColor-accent-muted);
+	color: var(--fgColor-accent);
+	--marker-halo: var(--fgColor-accent);
+}
+
 .count {
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-semibold);

@@ -218,6 +218,7 @@ describe("buildReviewJob", () => {
 						path: "src/greeting.ts",
 						startLine: 2,
 						endLine: 2,
+						kind: "defect",
 						tier: "should-fix",
 						title: "Greeting drops the name",
 						body: "engine wording",

@@ -36,6 +36,12 @@
 	color: var(--fgColor-success);
 }
 
+/* a question is asked, not ranked: its own colour, off the tier ladder */
+.count[data-kind="question"] {
+	background: var(--bgColor-accent-muted);
+	color: var(--fgColor-accent);
+}
+
 .section {
 	margin-bottom: var(--base-size-16);
 }
@@ -140,6 +146,10 @@
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-semibold);
 	color: var(--fgColor-muted);
+}
+
+.row[data-kind="question"] .rowTier {
+	color: var(--fgColor-accent);
 }
 
 .rowTitle {

@@ -165,7 +165,7 @@ function buildReworkPrompt(input: ReworkPromptInput): string {
 		"## The comment as it stands",
 		"",
 		`Path: ${input.finding.path}, lines ${input.finding.startLine}-${input.finding.endLine}`,
-		`Tier: ${input.finding.tier}`,
+		`Tier: ${input.finding.tier ?? "none (this comment is a question, not a defect)"}`,
 		`Title: ${input.finding.title}`,
 		`Current body: ${input.currentBody}`,
 		...(input.finding.evidence === undefined
@@ -180,6 +180,6 @@ function buildReworkPrompt(input: ReworkPromptInput): string {
 		"",
 		REWORK_INSTRUCTION_PROMPT[input.instruction],
 		"",
-		"Re-check the finding is still accurate against the code above before rewriting; if it no longer holds, say so plainly in the reworded body rather than silently softening it. Keep the same pasteable discipline as the original review: the alert block plus at most two sentences, ≤500 characters, never hard-wrapped. Return only the reworded `body`.",
+		"Re-check the finding is still accurate against the code above before rewriting; if it no longer holds, say so plainly in the reworded body rather than silently softening it. Keep the same pasteable discipline as the original review: a defect keeps its alert block plus at most two sentences, a question keeps the question itself and no alert block, and either way it stays ≤500 characters and is never hard-wrapped. Return only the reworded `body`.",
 	].join("\n");
 }

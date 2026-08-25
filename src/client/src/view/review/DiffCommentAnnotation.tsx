@@ -1,5 +1,9 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
-import { AlertFillIcon, CommentIcon } from "@primer/octicons-react";
+import type { ReviewCommentDto, ReviewTierDto } from "@dto/ReviewDto";
+import {
+	AlertFillIcon,
+	CommentIcon,
+	QuestionIcon,
+} from "@primer/octicons-react";
 import { useState } from "react";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
@@ -53,11 +57,7 @@ export function DiffCommentAnnotation({
 						}
 					}}
 				>
-					{collapsed.length === 1 ? (
-						<CommentIcon size={14} />
-					) : (
-						<AlertFillIcon size={14} />
-					)}
+					<MarkerIcon comments={collapsed} />
 					{collapsed.length > 1 && (
 						<span className={styles.count}>{collapsed.length}</span>
 					)}
@@ -73,6 +73,17 @@ export function DiffCommentAnnotation({
 			))}
 		</div>
 	);
+}
+
+/** A lone question shows a question mark; anything else keeps the comment marks. */
+function MarkerIcon({ comments }: { comments: readonly ReviewCommentDto[] }) {
+	if (comments.length > 1) {
+		return <AlertFillIcon size={14} />;
+	}
+	if (comments[0]?.kind === "question") {
+		return <QuestionIcon size={14} />;
+	}
+	return <CommentIcon size={14} />;
 }
 
 /**
@@ -118,17 +129,29 @@ function ExpandingBalloon({
 	);
 }
 
-const TIER_SEVERITY: Record<string, number> = {
+const TIER_SEVERITY: Record<ReviewTierDto, number> = {
 	blocker: 0,
 	"should-fix": 1,
 	suggestion: 2,
 	nitpick: 3,
 };
 
+/**
+ * The marker's colour. Questions carry no tier, so a marker holding only
+ * questions says so instead of borrowing the mildest tier's colour.
+ */
 function worstTier(comments: readonly ReviewCommentDto[]): string {
-	return comments.reduce(
-		(worst, comment) =>
-			TIER_SEVERITY[comment.tier] < TIER_SEVERITY[worst] ? comment.tier : worst,
-		comments[0]?.tier ?? "nitpick",
-	);
+	let worst: ReviewTierDto | undefined;
+	for (const comment of comments) {
+		if (comment.tier === undefined) {
+			continue;
+		}
+		if (
+			worst === undefined ||
+			TIER_SEVERITY[comment.tier] < TIER_SEVERITY[worst]
+		) {
+			worst = comment.tier;
+		}
+	}
+	return worst ?? "question";
 }

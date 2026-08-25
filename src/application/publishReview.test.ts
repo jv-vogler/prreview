@@ -16,6 +16,7 @@ function finding(overrides: Partial<ReviewFinding> = {}): ReviewFinding {
 		path: "src/a.ts",
 		startLine: 1,
 		endLine: 1,
+		kind: "defect",
 		tier: "nitpick",
 		title: "t",
 		body: "a finding",
@@ -80,6 +81,7 @@ function effective(
 		path: "src/a.ts",
 		startLine: 1,
 		endLine: 1,
+		kind: "defect",
 		tier: "nitpick",
 		title: "t",
 		body: "a finding",
@@ -126,6 +128,21 @@ describe("buildPublishPayload", () => {
 		]);
 		expect(included[0].wire.body).toBe(
 			"a finding\n\n```diff\n-  old\n+  new\n```",
+		);
+	});
+
+	// a question is asked the way a human asks it: the body is the question,
+	// with no tier to announce and so no alert block to carry
+	it("publishes a question as its body alone, no alert block added", () => {
+		const { included } = buildPublishPayload([
+			effective({
+				kind: "question",
+				tier: undefined,
+				body: "Why the second lookup here instead of reusing the cached row?",
+			}),
+		]);
+		expect(included[0].wire.body).toBe(
+			"Why the second lookup here instead of reusing the cached row?",
 		);
 	});
 
@@ -308,6 +325,7 @@ describe("publishReview", () => {
 							startLine: 1,
 							endLine: 1,
 							says: ["An account of the change, not a comment."],
+							grounding: "inferred",
 							topic: "a topic",
 						},
 					],

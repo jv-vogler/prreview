@@ -15,6 +15,15 @@ const reviewTierDtoSchema = z.enum([
 
 export type ReviewTierDto = z.infer<typeof reviewTierDtoSchema>;
 
+/**
+ * A comment either claims something is wrong or asks the author why. A
+ * question carries no `tier`: the ladder measures how bad something is, and
+ * a question has no badness.
+ */
+const reviewFindingKindDtoSchema = z.enum(["defect", "question"]);
+
+export type ReviewFindingKindDto = z.infer<typeof reviewFindingKindDtoSchema>;
+
 const reviewLaneDtoSchema = z.enum(["review", "pre-existing"]);
 
 export type ReviewLaneDto = z.infer<typeof reviewLaneDtoSchema>;
@@ -55,7 +64,9 @@ export const reviewCommentDtoSchema = z.object({
 	path: z.string(),
 	startLine: z.int().min(1),
 	endLine: z.int().min(1),
-	tier: reviewTierDtoSchema,
+	kind: reviewFindingKindDtoSchema,
+	/** absent exactly when `kind` is `question` */
+	tier: reviewTierDtoSchema.optional(),
 	title: z.string(),
 	body: z.string(),
 	evidence: z.string().optional(),

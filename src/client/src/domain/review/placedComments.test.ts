@@ -8,6 +8,7 @@ function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
 		path: "src/greeting.ts",
 		startLine: 1,
 		endLine: 1,
+		kind: "defect",
 		tier: "nitpick",
 		title: "x",
 		body: "x",

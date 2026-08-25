@@ -8,6 +8,7 @@ function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
 		path: "src/greeting.ts",
 		startLine: 1,
 		endLine: 1,
+		kind: "defect",
 		tier: "nitpick",
 		title: "x",
 		body: "x",
@@ -62,5 +63,18 @@ describe("summarizePublish", () => {
 		expect(summary.excluded).toEqual([
 			{ comment: unplaceable, reason: "unplaceable" },
 		]);
+	});
+});
+
+describe("summarizePublish with questions", () => {
+	it("counts a question as publishable, exactly like any other comment", () => {
+		const question = comment({
+			id: "finding-3",
+			kind: "question",
+			tier: undefined,
+		});
+		const summary = summarizePublish([question]);
+		expect(summary.publishable).toEqual([question]);
+		expect(summary.excluded).toEqual([]);
 	});
 });

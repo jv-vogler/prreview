@@ -9,6 +9,7 @@ const COMMENT: ReviewCommentDto = {
 	path: "src/greeting.ts",
 	startLine: 1,
 	endLine: 1,
+	kind: "defect",
 	tier: "nitpick",
 	title: "a nit",
 	body: "original body",
@@ -96,6 +97,18 @@ describe("CommentBalloon", () => {
 		).toBeNull();
 		fireEvent.click(screen.getByRole("button", { name: /restore comment/i }));
 		expect(onRestore).toHaveBeenCalledWith("finding-0");
+	});
+
+	it("labels a question as one, where a defect shows its tier", () => {
+		render(
+			<CommentBalloon
+				comment={{ ...COMMENT, kind: "question", tier: undefined }}
+				onCollapse={() => {}}
+				actions={actions()}
+			/>,
+		);
+		expect(screen.getByText("Question")).toBeTruthy();
+		expect(screen.queryByText("Nitpick")).toBeNull();
 	});
 
 	it("hides the rework control entirely when no agent is available (REQ-009)", () => {

@@ -84,6 +84,16 @@ test.describe("review pass", () => {
 		// otherwise also match and trip strict mode
 		await expect(page.getByText("1 Blocker", { exact: true })).toBeVisible();
 
+		// a question is counted apart from the tiers, and its row says
+		// "Question" where a defect's says its tier
+		await expect(page.getByText("1 Question", { exact: true })).toBeVisible();
+		const questionRow = page.locator(
+			"[data-comment-row][data-kind='question']",
+		);
+		await expect(questionRow).toHaveCount(1);
+		await expect(questionRow).toContainText("Question");
+		await expect(questionRow).toContainText("Mock question about a choice");
+
 		// change explanations start unfolded at the right edge, costing no
 		// diff rows; the chip folds each line's cards away and back
 		const chip = page.locator("[data-explanation-chip]").first();
