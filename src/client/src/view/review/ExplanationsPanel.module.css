@@ -1,0 +1,77 @@
+/*
+ * The same author's voice as the balloons, condensed to a table of
+ * contents: topics carry their shared color, entries lead with the place
+ * they anchor to, and the prose stays secondary. Reading top to bottom is
+ * reading the PR's story; clicking any place is opening the book there.
+ */
+.panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--base-size-16);
+}
+
+.empty {
+	margin: 0;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+}
+
+.topic {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--base-size-8);
+}
+
+.entries {
+	display: flex;
+	flex-direction: column;
+	gap: var(--base-size-8);
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+.entry {
+	display: flex;
+	flex-direction: column;
+	gap: var(--base-size-2);
+}
+
+.jump {
+	align-self: flex-start;
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--fgColor-link);
+	cursor: pointer;
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-body-size-small);
+	text-align: left;
+	overflow-wrap: anywhere;
+}
+
+.jump:hover {
+	text-decoration: underline;
+}
+
+.unplaced {
+	margin: 0;
+	color: var(--fgColor-muted);
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-body-size-small);
+	overflow-wrap: anywhere;
+}
+
+.unplacedNote {
+	font-family: var(--fontStack-sansSerif);
+	font-style: italic;
+}
+
+.says {
+	margin: 0;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	line-height: var(--text-body-lineHeight-small);
+}

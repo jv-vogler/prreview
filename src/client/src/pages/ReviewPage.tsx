@@ -5,6 +5,7 @@ import type {
 	ReworkInstructionDto,
 } from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Topic } from "../domain/review/topics";
 import { getChangeset } from "../infrastructure/endpoints/getChangeset";
 import { getSession } from "../infrastructure/endpoints/getSession";
 import { publishReview } from "../infrastructure/endpoints/publishReview";
@@ -27,16 +28,19 @@ import type {
 	CommentActions,
 	ReworkProposal,
 } from "../view/review/CommentActions";
-import { CommentWorklist } from "../view/review/CommentWorklist";
 import type { ExplanationsMode } from "../view/review/DiffExplanationAnnotation";
+import { HighlightedExplanationsContext } from "../view/review/highlightedExplanations";
 import { OverviewPanel } from "../view/review/OverviewPanel";
 import { PublishControl } from "../view/review/PublishControl";
+import { ReviewSidebar } from "../view/review/ReviewSidebar";
 import { RunStatusBar } from "../view/review/RunStatusBar";
 import { REVIEW_FAILURE_COPY } from "../view/review/reviewFailureCopy";
 import { useReviewRun } from "../view/review/useReviewRun";
 import styles from "./ReviewPage.module.css";
 
 const api = createApiClient();
+
+const NO_HIGHLIGHT: ReadonlySet<string> = new Set();
 
 /**
  * Two candidate presentations for change explanations, side by side while
@@ -160,13 +164,12 @@ function ResolvedReview({
 		() => comments.filter((comment) => !comment.deleted),
 		[comments],
 	);
-	const unplacedExplanations = useMemo(
-		() =>
-			explanations.filter(
-				(explanation) => explanation.placement.kind === "unplaceable",
-			),
-		[explanations],
-	);
+	// what the sidebar's jumps and topic chips light up on the diff; never
+	// part of the renderer's version, so highlighting folds nothing
+	const [highlighted, setHighlighted] = useState<{
+		key: string;
+		ids: ReadonlySet<string>;
+	} | null>(null);
 
 	const onToggleComment = useCallback((commentId: string) => {
 		setExpandedCommentIds((current) => {
@@ -183,6 +186,22 @@ function ResolvedReview({
 	const onJumpToComment = useCallback((comment: ReviewCommentDto) => {
 		setExpandedCommentIds((current) => new Set(current).add(comment.id));
 		handleRef.current?.scrollToComment(comment);
+	}, []);
+
+	const onJumpToExplanation = useCallback((explanation: ExplanationDto) => {
+		setHighlighted({ key: explanation.id, ids: new Set([explanation.id]) });
+		handleRef.current?.scrollToExplanation(explanation);
+	}, []);
+
+	const onToggleTopic = useCallback((topic: Topic) => {
+		setHighlighted((current) =>
+			current?.key === topic.label
+				? null
+				: {
+						key: topic.label,
+						ids: new Set(topic.explanations.map((entry) => entry.id)),
+					},
+		);
 	}, []);
 
 	const onEditComment = useCallback(
@@ -356,115 +375,123 @@ function ResolvedReview({
 	}, []);
 
 	return (
-		<div className={styles.layout}>
-			<div style={{ width }}>
-				<FileTreePanel
-					files={changeset.files}
-					currentFileIndex={cursorFileIndex}
-					onJumpToFile={onJumpToFile}
-				/>
-			</div>
-			<SidebarResizer width={width} onWidth={setWidth} />
-			<div className={styles.main}>
-				{aiAvailable && <RunStatusBar review={review} />}
-				<div className={styles.overview}>
-					<div className={styles.headerRow}>
-						<div className={styles.headerSubject}>
-							<ChangesetHeading
-								source={changeset.ref.source}
-								resolved={changeset.announce.resolved}
-								overrideHint={changeset.announce.overrideHint}
-								prUrl={changeset.ref.prUrl}
+		<HighlightedExplanationsContext.Provider
+			value={highlighted?.ids ?? NO_HIGHLIGHT}
+		>
+			<div className={styles.layout}>
+				<div style={{ width }}>
+					<FileTreePanel
+						files={changeset.files}
+						currentFileIndex={cursorFileIndex}
+						onJumpToFile={onJumpToFile}
+					/>
+				</div>
+				<SidebarResizer width={width} onWidth={setWidth} />
+				<div className={styles.main}>
+					{aiAvailable && <RunStatusBar review={review} />}
+					<div className={styles.overview}>
+						<div className={styles.headerRow}>
+							<div className={styles.headerSubject}>
+								<ChangesetHeading
+									source={changeset.ref.source}
+									resolved={changeset.announce.resolved}
+									overrideHint={changeset.announce.overrideHint}
+									prUrl={changeset.ref.prUrl}
+								/>
+							</div>
+							<div className={styles.controls}>
+								{explanations.length > 0 && (
+									<button
+										type="button"
+										className={styles.explanationsToggle}
+										aria-pressed={showExplanations}
+										onClick={() => setShowExplanations((current) => !current)}
+									>
+										{showExplanations
+											? "Hide explanations"
+											: "Show explanations"}
+									</button>
+								)}
+								{aiAvailable && (
+									<button
+										type="button"
+										className={styles.reviewButton}
+										disabled={
+											review.starting ||
+											review.run?.status === "queued" ||
+											review.run?.status === "running"
+										}
+										onClick={review.start}
+									>
+										Review
+									</button>
+								)}
+							</div>
+						</div>
+						{review.startError !== null && (
+							<p className={styles.startError}>{review.startError}</p>
+						)}
+						{curationError !== null && (
+							<p className={styles.startError} role="alert">
+								{curationError}
+							</p>
+						)}
+						{review.pass !== null && (
+							<OverviewPanel
+								pass={review.pass}
+								folded={overviewFolded}
+								onToggleFold={() => setOverviewFolded((current) => !current)}
+							/>
+						)}
+					</div>
+					{renderedFiles.length === 0 ? (
+						<div className={styles.centered}>Nothing to review.</div>
+					) : (
+						<div className={styles.diff}>
+							<DiffWorkspace
+								api={api}
+								changeset={changeset}
+								renderedFiles={renderedFiles}
+								foldedFileIds={foldedFileIds}
+								onToggleFold={onToggleFold}
+								handleRef={handleRef}
+								comments={activeComments}
+								expandedCommentIds={expandedCommentIds}
+								onToggleComment={onToggleComment}
+								actions={actions}
+								explanations={explanations}
+								showExplanations={showExplanations}
+								explanationsMode={EXPLANATIONS_MODE}
 							/>
 						</div>
-						<div className={styles.controls}>
-							{explanations.length > 0 && (
-								<button
-									type="button"
-									className={styles.explanationsToggle}
-									aria-pressed={showExplanations}
-									onClick={() => setShowExplanations((current) => !current)}
-								>
-									{showExplanations ? "Hide explanations" : "Show explanations"}
-								</button>
-							)}
-							{aiAvailable && (
-								<button
-									type="button"
-									className={styles.reviewButton}
-									disabled={
-										review.starting ||
-										review.run?.status === "queued" ||
-										review.run?.status === "running"
-									}
-									onClick={review.start}
-								>
-									Review
-								</button>
-							)}
-						</div>
-					</div>
-					{review.startError !== null && (
-						<p className={styles.startError}>{review.startError}</p>
-					)}
-					{curationError !== null && (
-						<p className={styles.startError} role="alert">
-							{curationError}
-						</p>
-					)}
-					{review.pass !== null && (
-						<OverviewPanel
-							pass={review.pass}
-							folded={overviewFolded}
-							onToggleFold={() => setOverviewFolded((current) => !current)}
-						/>
 					)}
 				</div>
-				{renderedFiles.length === 0 ? (
-					<div className={styles.centered}>Nothing to review.</div>
-				) : (
-					<div className={styles.diff}>
-						<DiffWorkspace
-							api={api}
-							changeset={changeset}
-							renderedFiles={renderedFiles}
-							foldedFileIds={foldedFileIds}
-							onToggleFold={onToggleFold}
-							handleRef={handleRef}
-							comments={activeComments}
-							expandedCommentIds={expandedCommentIds}
-							onToggleComment={onToggleComment}
-							actions={actions}
+				{review.pass !== null &&
+					(comments.length > 0 || explanations.length > 0) && (
+						<ReviewSidebar
+							comments={comments}
 							explanations={explanations}
-							showExplanations={showExplanations}
-							explanationsMode={EXPLANATIONS_MODE}
+							expandedCommentIds={expandedCommentIds}
+							onJumpToComment={onJumpToComment}
+							onCollapseComment={onToggleComment}
+							actions={actions}
+							onJumpToExplanation={onJumpToExplanation}
+							onToggleTopic={onToggleTopic}
+							publishControl={
+								canPublish && review.pass !== null ? (
+									<PublishControl
+										comments={activeComments}
+										published={review.pass.published}
+										publishing={publishing}
+										error={publishError}
+										onPublish={onPublish}
+									/>
+								) : undefined
+							}
 						/>
-					</div>
-				)}
+					)}
 			</div>
-			{review.pass !== null &&
-				(comments.length > 0 || unplacedExplanations.length > 0) && (
-					<CommentWorklist
-						comments={comments}
-						unplacedExplanations={unplacedExplanations}
-						expandedCommentIds={expandedCommentIds}
-						onJumpTo={onJumpToComment}
-						onCollapse={onToggleComment}
-						actions={actions}
-						publishControl={
-							canPublish && review.pass !== null ? (
-								<PublishControl
-									comments={activeComments}
-									published={review.pass.published}
-									publishing={publishing}
-									error={publishError}
-									onPublish={onPublish}
-								/>
-							) : undefined
-						}
-					/>
-				)}
-		</div>
+		</HighlightedExplanationsContext.Provider>
 	);
 }
 

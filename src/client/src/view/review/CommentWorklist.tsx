@@ -1,41 +1,33 @@
-import type { ExplanationDto, ReviewCommentDto } from "@dto/ReviewDto";
-import { BookIcon } from "@primer/octicons-react";
-import type { ReactNode } from "react";
+import type { ReviewCommentDto } from "@dto/ReviewDto";
 import { countByTier } from "../../domain/review/countByTier";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./CommentWorklist.module.css";
-import { BacktickText } from "./ExplanationBalloon";
 import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "./reviewTier";
 
 export interface CommentWorklistProps {
 	comments: readonly ReviewCommentDto[];
-	/** explanations the diff cannot anchor; listed here so they never vanish */
-	unplacedExplanations: readonly ExplanationDto[];
 	expandedCommentIds: ReadonlySet<string>;
 	/** row clicked: expand it and, if it has a place on the diff, scroll there */
 	onJumpTo(comment: ReviewCommentDto): void;
 	/** the balloon's own collapse control: just closes it, no scrolling */
 	onCollapse(commentId: string): void;
 	actions: CommentActions;
-	/** the publish control docks at the panel's foot, under the worklist */
-	publishControl?: ReactNode;
 }
 
 /**
- * The comment sidebar worklist (TASK-044, REQ-005): per-tier counts, then
- * three sections so nothing is ever silently missing — the on-diff review
- * comments, anything `clamped`/`unplaceable` that the diff cannot show
- * (REQ-010), and pre-existing findings in their own lane (REQ-011).
+ * The Comments tab of the review sidebar (TASK-044, REQ-005): per-tier
+ * counts, then three sections so nothing is ever silently missing — the
+ * on-diff review comments, anything `clamped`/`unplaceable` that the diff
+ * cannot show (REQ-010), and pre-existing findings in their own lane
+ * (REQ-011).
  */
 export function CommentWorklist({
 	comments,
-	unplacedExplanations,
 	expandedCommentIds,
 	onJumpTo,
 	onCollapse,
 	actions,
-	publishControl,
 }: CommentWorklistProps) {
 	const active = comments.filter((comment) => !comment.deleted);
 	const dismissed = comments.filter((comment) => comment.deleted);
@@ -52,8 +44,7 @@ export function CommentWorklist({
 	const counts = countByTier(reviewComments);
 
 	return (
-		<aside className={styles.panel} aria-label="Review comments">
-			<h2 className={styles.heading}>Comments</h2>
+		<div>
 			{comments.length === 0 ? (
 				<p className={styles.empty}>No comments.</p>
 			) : (
@@ -104,37 +95,7 @@ export function CommentWorklist({
 					actions={actions}
 				/>
 			)}
-			{unplacedExplanations.length > 0 && (
-				<section className={styles.section}>
-					<h3 className={styles.sectionTitle}>
-						Explanations not shown in the diff
-					</h3>
-					<ul className={styles.list}>
-						{unplacedExplanations.map((explanation) => (
-							<li
-								key={explanation.id}
-								className={styles.explanationEntry}
-								data-unplaced-explanation={explanation.id}
-							>
-								<p className={styles.explanationPlace}>
-									<BookIcon size={14} />
-									{explanation.path}:{explanation.startLine}
-								</p>
-								{explanation.says.map((sentence, index) => (
-									// biome-ignore lint/suspicious/noArrayIndexKey: says never reorders
-									<p key={index} className={styles.explanationSays}>
-										<BacktickText text={sentence} />
-									</p>
-								))}
-							</li>
-						))}
-					</ul>
-				</section>
-			)}
-			{publishControl !== undefined && (
-				<div className={styles.publishDock}>{publishControl}</div>
-			)}
-		</aside>
+		</div>
 	);
 }
 

@@ -106,16 +106,26 @@ test.describe("review pass", () => {
 		// hiding explanations never touched the comments
 		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
 
-		// an explanation the diff cannot anchor is never silently lost: it
-		// gets the sidebar's own section, next to REQ-010's comment lane
+		// the sidebar's second tab retells the pass as explanations: topics
+		// first with one jump per anchored change, and an explanation the
+		// diff cannot anchor listed and marked instead of vanishing
+		await page.getByRole("tab", { name: /Explanations/ }).click();
 		await expect(
-			page.getByRole("heading", {
-				name: "Explanations not shown in the diff",
-			}),
+			page.getByRole("button", { name: "Mock shared intent" }),
 		).toBeVisible();
 		await expect(
 			page.getByText("Mock explanation the diff cannot anchor."),
 		).toBeVisible();
+		await expect(page.getByText(/· not in the diff/)).toBeVisible();
+
+		// jumping from an entry lights that balloon on the diff
+		await page.locator("[data-explanation-entry] button").first().click();
+		await expect(
+			page.locator("[data-explanation-id][data-highlighted]").first(),
+		).toBeVisible();
+
+		// back to the worklist for everything below
+		await page.getByRole("tab", { name: /Comments/ }).click();
 
 		// the overview unfolded itself when the run finished; folding it gives
 		// the height back to the diff and keeps the verdict on the fold line

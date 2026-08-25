@@ -209,7 +209,9 @@ function buildExplanations(files) {
 				`Mock account of what ${file.path} now does.`,
 				"It exists so the balloon has more than one sentence to lay out.",
 			],
-			...(index < 2 ? { topic: "Mock shared intent" } : {}),
+			...(index < 2
+				? { topic: "Mock shared intent" }
+				: { topic: "Mock second theme" }),
 		};
 	});
 	// one with no line in the diff, so the sidebar's explanation section

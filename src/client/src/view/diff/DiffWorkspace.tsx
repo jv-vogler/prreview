@@ -25,6 +25,7 @@ import {
 	groupPlacedExplanations,
 	placedExplanations,
 } from "../../domain/review/placedExplanations";
+import { topicColorsFor } from "../../domain/review/topicColors";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
 import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
@@ -52,6 +53,7 @@ interface DiffAnnotationMeta {
 export interface DiffWorkspaceHandle {
 	scrollToFile(fileId: string): void;
 	scrollToComment(comment: ReviewCommentDto): void;
+	scrollToExplanation(explanation: ExplanationDto): void;
 }
 
 export interface DiffWorkspaceProps {
@@ -261,6 +263,10 @@ export function DiffWorkspace({
 	// every open card stack positions through one shared layout, so stacks
 	// on nearby lines can see each other (explanationCardLayout.ts)
 	const cardLayout = useMemo(() => createExplanationCardLayout(), []);
+	const topicColors = useMemo(
+		() => topicColorsFor(explanations),
+		[explanations],
+	);
 
 	handleRef.current = {
 		scrollToFile: (fileId) => {
@@ -280,6 +286,19 @@ export function DiffWorkspace({
 				id: comment.placement.fileId,
 				lineNumber: comment.placement.line,
 				side: ANNOTATION_SIDE[comment.placement.side],
+				align: "center",
+				behavior: "smooth",
+			});
+		},
+		scrollToExplanation: (explanation) => {
+			if (explanation.placement.kind === "unplaceable") {
+				return;
+			}
+			codeViewRef.current?.scrollTo({
+				type: "line",
+				id: explanation.placement.fileId,
+				lineNumber: explanation.placement.line,
+				side: ANNOTATION_SIDE[explanation.placement.side],
 				align: "center",
 				behavior: "smooth",
 			});
@@ -312,6 +331,7 @@ export function DiffWorkspace({
 					<>
 						<DiffExplanationAnnotation
 							mode={explanationsMode}
+							topicColors={topicColors}
 							explanations={annotation.metadata.explanationIds
 								.map((id) => explanationsById.get(id))
 								.filter(
