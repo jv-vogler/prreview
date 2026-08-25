@@ -106,6 +106,16 @@ test.describe("review pass", () => {
 		// hiding explanations never touched the comments
 		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
 
+		// the topics view: one row per shared topic label above the diff,
+		// whose jump link highlights that topic's balloons
+		await expect(
+			page.getByRole("button", { name: "Mock shared intent" }),
+		).toBeVisible();
+		await page.locator("[data-topic-jump]").first().click();
+		await expect(
+			page.locator("[data-explanation-id][data-highlighted]").first(),
+		).toBeVisible();
+
 		// ?explanations=margin: the comparison mode keeps every card open,
 		// pinned right, with no chips (the pass is stored, so no second run)
 		await page.goto(`${server.url}?explanations=margin`);

@@ -2,6 +2,7 @@ import type { ExplanationDto } from "@dto/ReviewDto";
 import { BookIcon } from "@primer/octicons-react";
 import { Fragment } from "react";
 import styles from "./ExplanationBalloon.module.css";
+import { useHighlightedTopic } from "./highlightedTopic";
 
 /**
  * One change explanation on the diff: the author's account of what a change
@@ -14,10 +15,14 @@ export function ExplanationBalloon({
 }: {
 	explanation: ExplanationDto;
 }) {
+	const highlightedTopic = useHighlightedTopic();
+	const highlighted =
+		explanation.topic !== undefined && explanation.topic === highlightedTopic;
 	return (
 		<aside
 			className={styles.balloon}
 			data-explanation-id={explanation.id}
+			data-highlighted={highlighted || undefined}
 			aria-label="Change explanation"
 		>
 			<div className={styles.header}>
@@ -40,8 +45,9 @@ export function ExplanationBalloon({
 /**
  * `says` sentences are plain prose that may carry inline code in backticks;
  * that is the whole grammar, so a split beats a markdown renderer here.
+ * Shared with the topics panel, which renders the same sentences.
  */
-function BacktickText({ text }: { text: string }) {
+export function BacktickText({ text }: { text: string }) {
 	const parts = text.split("`");
 	return (
 		<>

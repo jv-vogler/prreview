@@ -1,0 +1,82 @@
+/*
+ * Same visual family as the explanation balloons — the recessed tone,
+ * hairline borders, square corners, a book to mark the voice — so the
+ * panel reads as the same author speaking, summarized. It sits inside the
+ * diff's scroll content above the first file and scrolls away with it:
+ * context to pass through on the way in, never chrome that follows you.
+ */
+.panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--base-size-12);
+	padding: var(--base-size-12) var(--base-size-16);
+	margin-bottom: var(--base-size-16);
+	border-bottom: var(--borderWidth-thin) solid var(--borderColor-muted);
+	background: var(--bgColor-muted);
+}
+
+.topic {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: var(--base-size-8) var(--base-size-16);
+}
+
+.label {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-6);
+	padding: 0 var(--base-size-8);
+	height: var(--base-size-24);
+	border: var(--borderWidth-thin) solid var(--borderColor-muted);
+	border-radius: var(--borderRadius-full);
+	background: var(--bgColor-default);
+	color: var(--fgColor-default);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-medium);
+	transition: border-color var(--motion-transition-hover);
+}
+
+.label:hover,
+.topic[data-highlighted] .label {
+	border-color: var(--borderColor-accent-emphasis);
+	color: var(--fgColor-accent);
+}
+
+.entries {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--base-size-4);
+}
+
+.entry {
+	display: flex;
+	align-items: baseline;
+	gap: var(--base-size-8);
+}
+
+.jump {
+	flex: none;
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--fgColor-link);
+	cursor: pointer;
+	font-family: var(--fontStack-monospace);
+	font-size: var(--text-body-size-small);
+}
+
+.jump:hover {
+	text-decoration: underline;
+}
+
+.says {
+	min-width: 0;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	line-height: var(--text-body-lineHeight-small);
+}

@@ -14,7 +14,7 @@ import type {
 import { parsePatchFiles } from "@pierre/diffs";
 import type { CodeViewHandle } from "@pierre/diffs/react";
 import { CodeView } from "@pierre/diffs/react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { blobSidesFor } from "../../domain/changeset/blobSidesFor";
 import { buildPatchText } from "../../domain/changeset/buildPatchText";
 import {
@@ -25,6 +25,7 @@ import {
 	groupPlacedExplanations,
 	placedExplanations,
 } from "../../domain/review/placedExplanations";
+import { topicsFor } from "../../domain/review/topics";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
 import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
@@ -34,6 +35,8 @@ import {
 	DiffExplanationAnnotation,
 	type ExplanationsMode,
 } from "../review/DiffExplanationAnnotation";
+import { HighlightedTopicContext } from "../review/highlightedTopic";
+import { TopicsPanel } from "../review/TopicsPanel";
 import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";
@@ -48,6 +51,7 @@ interface DiffAnnotationMeta {
 export interface DiffWorkspaceHandle {
 	scrollToFile(fileId: string): void;
 	scrollToComment(comment: ReviewCommentDto): void;
+	scrollToExplanation(explanation: ExplanationDto): void;
 }
 
 export interface DiffWorkspaceProps {
@@ -254,6 +258,25 @@ export function DiffWorkspace({
 
 	useHeaderFoldClicks(containerRef, onToggleFold);
 
+	// the topics view is a projection of the same explanations; a transient
+	// highlight follows the reader's clicks in it (REQ: Phase 3)
+	const [highlightedTopic, setHighlightedTopic] = useState<string | null>(null);
+	const topics = useMemo(() => topicsFor(explanations), [explanations]);
+
+	const scrollToExplanation = useCallback((explanation: ExplanationDto) => {
+		if (explanation.placement.kind === "unplaceable") {
+			return;
+		}
+		codeViewRef.current?.scrollTo({
+			type: "line",
+			id: explanation.placement.fileId,
+			lineNumber: explanation.placement.line,
+			side: ANNOTATION_SIDE[explanation.placement.side],
+			align: "center",
+			behavior: "smooth",
+		});
+	}, []);
+
 	handleRef.current = {
 		scrollToFile: (fileId) => {
 			codeViewRef.current?.scrollTo({
@@ -276,59 +299,80 @@ export function DiffWorkspace({
 				behavior: "smooth",
 			});
 		},
+		scrollToExplanation,
 	};
 
 	return (
-		<CodeView<DiffAnnotationMeta>
-			ref={codeViewRef}
-			containerRef={containerRef}
-			items={items}
-			className={styles.codeView}
-			// the far-left slot, immediately before the change-type icon
-			renderHeaderPrefix={(item) => {
-				const file = filesById.get(item.id);
-				if (file === undefined) {
-					return null;
+		<HighlightedTopicContext.Provider value={highlightedTopic}>
+			<CodeView<DiffAnnotationMeta>
+				ref={codeViewRef}
+				containerRef={containerRef}
+				items={items}
+				className={styles.codeView}
+				// the whole-PR topics view, above the first file, scrolling with
+				// the content — a projection of the explanations, never a tab
+				renderCodeViewHeader={() =>
+					showExplanations && topics.length > 0 ? (
+						<TopicsPanel
+							topics={topics}
+							onJump={(explanation) => {
+								setHighlightedTopic(explanation.topic ?? null);
+								scrollToExplanation(explanation);
+							}}
+							onToggleHighlight={(label) => {
+								setHighlightedTopic((current) =>
+									current === label ? null : label,
+								);
+							}}
+						/>
+					) : null
 				}
-				return (
-					<FileFoldChevron
-						fileId={file.id}
-						path={file.path}
-						folded={foldedFileIds.has(file.id)}
-						onToggle={onToggleFold}
-					/>
-				);
-			}}
-			renderAnnotation={(annotation) => (
-				<>
-					<DiffExplanationAnnotation
-						mode={explanationsMode}
-						explanations={annotation.metadata.explanationIds
-							.map((id) => explanationsById.get(id))
-							.filter(
-								(explanation): explanation is ExplanationDto =>
-									explanation !== undefined,
-							)}
-					/>
-					<DiffCommentAnnotation
-						commentIds={annotation.metadata.commentIds}
-						commentsById={commentsById}
-						expandedCommentIds={expandedCommentIds}
-						onToggle={onToggleComment}
-						actions={actions}
-					/>
-				</>
-			)}
-			options={{
-				theme: PIERRE_THEME_NAME,
-				diffStyle: "unified",
-				diffIndicators: "classic",
-				loadDiffFiles,
-				hunkSeparators: "line-info",
-				stickyHeaders: true,
-				unsafeCSS: PIERRE_DIFF_CHROME_CSS,
-				preferredHighlighter: HIGHLIGHTER.preferredHighlighter,
-			}}
-		/>
+				// the far-left slot, immediately before the change-type icon
+				renderHeaderPrefix={(item) => {
+					const file = filesById.get(item.id);
+					if (file === undefined) {
+						return null;
+					}
+					return (
+						<FileFoldChevron
+							fileId={file.id}
+							path={file.path}
+							folded={foldedFileIds.has(file.id)}
+							onToggle={onToggleFold}
+						/>
+					);
+				}}
+				renderAnnotation={(annotation) => (
+					<>
+						<DiffExplanationAnnotation
+							mode={explanationsMode}
+							explanations={annotation.metadata.explanationIds
+								.map((id) => explanationsById.get(id))
+								.filter(
+									(explanation): explanation is ExplanationDto =>
+										explanation !== undefined,
+								)}
+						/>
+						<DiffCommentAnnotation
+							commentIds={annotation.metadata.commentIds}
+							commentsById={commentsById}
+							expandedCommentIds={expandedCommentIds}
+							onToggle={onToggleComment}
+							actions={actions}
+						/>
+					</>
+				)}
+				options={{
+					theme: PIERRE_THEME_NAME,
+					diffStyle: "unified",
+					diffIndicators: "classic",
+					loadDiffFiles,
+					hunkSeparators: "line-info",
+					stickyHeaders: true,
+					unsafeCSS: PIERRE_DIFF_CHROME_CSS,
+					preferredHighlighter: HIGHLIGHTER.preferredHighlighter,
+				}}
+			/>
+		</HighlightedTopicContext.Provider>
 	);
 }
