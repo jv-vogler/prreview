@@ -18,6 +18,18 @@ const TIER = ["blocker", "should-fix", "suggestion", "nitpick"] as const;
  */
 const LANE = ["review", "pre-existing"] as const;
 
+/**
+ * The scope check's outcome as a machine-readable signal: the verdict prose
+ * carries the nuance, this carries the color. `no-ticket` doubles as "no
+ * spec to judge against"; absent (older passes) reads as neutral.
+ */
+const SCOPE = [
+	"matches",
+	"misses-pieces",
+	"unrelated-extras",
+	"no-ticket",
+] as const;
+
 const TITLE_MAX = 80;
 /**
  * Generous headroom over the pasteable ≤500-character budget, which is
@@ -97,8 +109,10 @@ function buildPassSchema(enforce: boolean) {
 	return z.object({
 		/** business-level description, two or three short markdown paragraphs */
 		overview: bounded(OVERVIEW_MAX, enforce),
-		/** one italic line: matches the ticket, misses a piece, or does unrelated extras */
+		/** one line: matches the ticket, misses a piece, or does unrelated extras */
 		verdict: bounded(VERDICT_MAX, enforce),
+		/** optional so passes written before the field existed still parse */
+		scope: z.enum(SCOPE).optional(),
 		/** null when no ticket reference was found anywhere */
 		ticket: bounded(TICKET_MAX, enforce).nullable(),
 		/** no minimum: a clean PR is a valid, complete review with no findings */
@@ -121,6 +135,7 @@ export type ReviewExplanation = z.infer<
 	ReturnType<typeof buildExplanationSchema>
 >;
 export type ReviewPass = z.infer<typeof reviewPassSchema>;
+export type ReviewScope = (typeof SCOPE)[number];
 export type ReviewTier = (typeof TIER)[number];
 export type ReviewLane = (typeof LANE)[number];
 

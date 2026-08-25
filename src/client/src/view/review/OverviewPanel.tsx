@@ -4,10 +4,10 @@ import remarkGfm from "remark-gfm";
 import styles from "./OverviewPanel.module.css";
 
 /**
- * The pass's lede, above the diff (TASK-042, REQ-003). The verdict leads
- * because it is the one line a reviewer opens the page for; the business-level
- * prose and the ticket note follow it. Read once, then scrolled past — this
- * does not get a sidebar of its own.
+ * The pass's lede, above the diff (TASK-042, REQ-003): the business-level
+ * prose first, then the verdict as the closing line under it, colored by
+ * the scope check's outcome so the conclusion reads at a glance. Read once,
+ * then scrolled past — this does not get a sidebar of its own.
  *
  * The overview is markdown, not text. The agent writes paragraphs separated
  * by blank lines and backticks around names worth going to look for, and
@@ -16,10 +16,6 @@ import styles from "./OverviewPanel.module.css";
 export function OverviewPanel({ pass }: { pass: ReviewPassDto }) {
 	return (
 		<div className={styles.panel}>
-			<div className={styles.lede}>
-				<h2 className={styles.label}>Verdict</h2>
-				<p className={styles.verdict}>{pass.verdict}</p>
-			</div>
 			<div className={styles.body}>
 				<div className={styles.prose}>
 					<Markdown remarkPlugins={[remarkGfm]}>{pass.overview}</Markdown>
@@ -30,6 +26,12 @@ export function OverviewPanel({ pass }: { pass: ReviewPassDto }) {
 						<p className={styles.ticketText}>{pass.ticket}</p>
 					</aside>
 				)}
+			</div>
+			<div className={styles.verdictRow}>
+				<h2 className={styles.verdictLabel}>Verdict</h2>
+				<p className={styles.verdict} data-scope={pass.scope ?? "neutral"}>
+					{pass.verdict}
+				</p>
 			</div>
 		</div>
 	);

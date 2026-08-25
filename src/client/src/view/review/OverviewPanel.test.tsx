@@ -58,6 +58,23 @@ describe("OverviewPanel", () => {
 		expect(screen.getByText("PROJ-1")).toBeTruthy();
 	});
 
+	it("sets the verdict under the overview, colored by the scope outcome", () => {
+		const { container, rerender } = render(
+			<OverviewPanel pass={pass({ scope: "matches" })} />,
+		);
+		const verdict = () =>
+			container.querySelector("[data-scope]") as HTMLElement;
+		expect(verdict().dataset.scope).toBe("matches");
+		// below the overview: the verdict row is the panel's last block
+		expect(verdict().closest("div")?.previousElementSibling).not.toBeNull();
+
+		rerender(<OverviewPanel pass={pass({ scope: "misses-pieces" })} />);
+		expect(verdict().dataset.scope).toBe("misses-pieces");
+
+		rerender(<OverviewPanel pass={pass()} />);
+		expect(verdict().dataset.scope).toBe("neutral");
+	});
+
 	it("escapes HTML in the overview rather than rendering it", () => {
 		const { container } = render(
 			<OverviewPanel

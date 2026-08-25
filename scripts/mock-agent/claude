@@ -100,7 +100,7 @@ async function main() {
 
 	const pass = process.env.MOCK_AGENT_EMPTY === undefined
 		? buildPass(files)
-		: { overview: "A clean pass: nothing worth flagging.", verdict: "matches the ticket", ticket: null, findings: [] };
+		: { overview: "A clean pass: nothing worth flagging.", verdict: "no ticket was found (mock)", scope: "no-ticket", ticket: null, findings: [] };
 
 	await emitTaskUpdate(4, "completed");
 	await emitLine({
@@ -186,6 +186,7 @@ function buildPass(files) {
 	return {
 		overview: `Reviewed ${files.length} file(s) with the mock agent (no real analysis happened).`,
 		verdict: "matches the ticket (mock)",
+		scope: "matches",
 		ticket: null,
 		findings,
 		explanations: buildExplanations(files),

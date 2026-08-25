@@ -22,6 +22,7 @@ export function toReviewPassDto(
 	return {
 		overview: stored.pass.overview,
 		verdict: stored.pass.verdict,
+		...(stored.pass.scope === undefined ? {} : { scope: stored.pass.scope }),
 		ticket: stored.pass.ticket,
 		residue: stored.residue,
 		published: stored.published,

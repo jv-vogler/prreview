@@ -99,10 +99,24 @@ export const publishedRecordDtoSchema = z.object({
 
 export type PublishedRecordDto = z.infer<typeof publishedRecordDtoSchema>;
 
+/**
+ * The scope check's outcome: how the verdict line should be read (and
+ * colored). Absent on passes written before the field existed — neutral.
+ */
+export const reviewScopeDtoSchema = z.enum([
+	"matches",
+	"misses-pieces",
+	"unrelated-extras",
+	"no-ticket",
+]);
+
+export type ReviewScopeDto = z.infer<typeof reviewScopeDtoSchema>;
+
 /** `GET /api/review`'s `pass` field once a review has completed at least once. */
 export const reviewPassDtoSchema = z.object({
 	overview: z.string(),
 	verdict: z.string(),
+	scope: reviewScopeDtoSchema.optional(),
 	ticket: z.string().nullable(),
 	comments: z.array(reviewCommentDtoSchema),
 	/** the pass's change explanations, placed or not (unplaceable ones carry it in `placement`) */

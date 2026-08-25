@@ -75,6 +75,8 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"Compare the ticket (or your inferred intent) against the changes: matches, misses pieces, or does unrelated extras. A fundamental mismatch — the change solves a different problem than the ticket asks for — still gets reviewed; record the mismatch honestly in the verdict line rather than stopping.",
 		"",
+		'Record the outcome in `scope` as well: `"matches"`, `"misses-pieces"`, `"unrelated-extras"`, or `"no-ticket"` when there was no ticket or spec to judge against. The verdict line carries the nuance; `scope` is the one-word signal.',
+		"",
 		"## Find problems",
 		"",
 		"Look for correctness (edge cases, wrong data, unhandled errors, races) and design (should this exist in this shape, consistency with sibling code, silent breaking changes). Ground every candidate in code you actually read: open the definitions the diff calls, check the data model, compare with siblings.",

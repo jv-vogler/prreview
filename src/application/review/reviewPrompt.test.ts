@@ -105,6 +105,18 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("Evidence used to be reviewer-only scratch.");
 	});
 
+	it("asks for the scope outcome as a machine-readable field", () => {
+		expect(prompt).toContain("Record the outcome in `scope`");
+		for (const value of [
+			'"matches"',
+			'"misses-pieces"',
+			'"unrelated-extras"',
+			'"no-ticket"',
+		]) {
+			expect(prompt).toContain(value);
+		}
+	});
+
 	it("grounds explanations in the code, not the PR description", () => {
 		expect(prompt).toContain(
 			"the description is the author's claim about their own work",
