@@ -37,7 +37,7 @@ export function ExplanationBalloon({
 					<BookIcon size={14} />
 				</span>
 				{explanation.topic !== undefined && (
-					<TopicChip label={explanation.topic} color={topicColor} />
+					<TopicChip label={explanation.topic} color={topicColor} wrap />
 				)}
 			</div>
 			{explanation.says.map((sentence, index) => (

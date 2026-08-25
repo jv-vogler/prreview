@@ -26,7 +26,7 @@
 /* the chevron, the chip and the reach of the topic, on one line */
 .topicHead {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: var(--base-size-8);
 }
 
@@ -48,6 +48,8 @@
 .fileCount {
 	flex: none;
 	margin-left: auto;
+	padding-top: var(--base-size-2);
+	white-space: nowrap;
 	color: var(--fgColor-muted);
 	font-size: var(--text-body-size-small);
 }

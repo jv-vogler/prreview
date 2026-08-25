@@ -6,6 +6,7 @@ import {
 	type Topic,
 	topicPaths,
 	topicSummary,
+	topicSummaryLeads,
 	topicsFor,
 } from "../../domain/review/topics";
 import { Collapsible } from "../layout/Collapsible";
@@ -87,6 +88,8 @@ function TopicSection({
 	const [open, setOpen] = useState(true);
 	const highlighted = useHighlightedExplanations();
 	const paths = topicPaths(topic);
+	// the account above already says these; an entry adds what it does not
+	const said = new Set(topicSummaryLeads(topic));
 	return (
 		<section className={styles.topic} data-topic-section={topic.label}>
 			<div className={styles.topicHead}>
@@ -106,6 +109,7 @@ function TopicSection({
 				<TopicChip
 					label={topic.label}
 					color={color}
+					wrap
 					pressed={topic.explanations.every((explanation) =>
 						highlighted.has(explanation.id),
 					)}
@@ -125,6 +129,7 @@ function TopicSection({
 							<Entry
 								key={explanation.id}
 								explanation={explanation}
+								skipSaid={said}
 								onJumpTo={onJumpTo}
 							/>
 						))}
@@ -137,12 +142,18 @@ function TopicSection({
 
 function Entry({
 	explanation,
+	skipSaid,
 	onJumpTo,
 }: {
 	explanation: ExplanationDto;
+	/** sentences the topic's account above already carries */
+	skipSaid?: ReadonlySet<string>;
 	onJumpTo(explanation: ExplanationDto): void;
 }) {
 	const place = `${explanation.path}:${explanation.startLine}`;
+	const says = explanation.says.filter(
+		(sentence) => skipSaid?.has(sentence) !== true,
+	);
 	return (
 		<li className={styles.entry} data-explanation-entry={explanation.id}>
 			{explanation.placement.kind === "unplaceable" ? (
@@ -159,9 +170,11 @@ function Entry({
 					{place}
 				</button>
 			)}
-			<p className={styles.says}>
-				<BacktickText text={explanation.says.join(" ")} />
-			</p>
+			{says.length > 0 && (
+				<p className={styles.says}>
+					<BacktickText text={says.join(" ")} />
+				</p>
+			)}
 		</li>
 	);
 }

@@ -16,8 +16,12 @@ export interface Topic {
  * lead sentence of each explanation under it, in order, up to three. The
  * agent is not asked for a second summary of a thing it has already
  * described, and a folded topic still says what it is about.
+ *
+ * Returned as the sentences rather than one string so a caller can render
+ * the account and then leave those sentences out of the per-file entries
+ * below it, instead of printing each one twice.
  */
-export function topicSummary(topic: Topic): string {
+export function topicSummaryLeads(topic: Topic): string[] {
 	const leads: string[] = [];
 	for (const explanation of topic.explanations) {
 		const lead = explanation.says[0];
@@ -28,7 +32,11 @@ export function topicSummary(topic: Topic): string {
 			break;
 		}
 	}
-	return leads.join(" ");
+	return leads;
+}
+
+export function topicSummary(topic: Topic): string {
+	return topicSummaryLeads(topic).join(" ");
 }
 
 /** the files a topic reaches across, in the order its explanations do */
