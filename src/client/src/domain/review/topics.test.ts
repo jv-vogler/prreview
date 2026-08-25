@@ -1,6 +1,6 @@
 import type { ExplanationDto } from "@dto/ReviewDto";
 import { describe, expect, it } from "vitest";
-import { topicsFor } from "./topics";
+import { topicPaths, topicSummary, topicsFor } from "./topics";
 
 function explanation(id: string, topic: string | undefined): ExplanationDto {
 	return {
@@ -33,5 +33,42 @@ describe("topicsFor", () => {
 
 	it("projects unlabeled explanations into no topic", () => {
 		expect(topicsFor([explanation("explanation-0", undefined)])).toEqual([]);
+	});
+});
+
+describe("topicSummary", () => {
+	it("reads the lead sentence of each explanation, at most three", () => {
+		const [topic] = topicsFor([
+			explanation("explanation-0", "cache TTL"),
+			explanation("explanation-1", "cache TTL"),
+			explanation("explanation-2", "cache TTL"),
+			explanation("explanation-3", "cache TTL"),
+		]);
+		expect(topicSummary(topic)).toBe(
+			"Behind explanation-0. Behind explanation-1. Behind explanation-2.",
+		);
+	});
+
+	it("says a repeated lead once", () => {
+		const repeated = {
+			...explanation("explanation-1", "cache TTL"),
+			says: ["Behind explanation-0."],
+		};
+		const [topic] = topicsFor([
+			explanation("explanation-0", "cache TTL"),
+			repeated,
+		]);
+		expect(topicSummary(topic)).toBe("Behind explanation-0.");
+	});
+});
+
+describe("topicPaths", () => {
+	it("lists each file the topic reaches, once", () => {
+		const [topic] = topicsFor([
+			explanation("explanation-0", "cache TTL"),
+			{ ...explanation("explanation-1", "cache TTL"), path: "src/b.ts" },
+			explanation("explanation-2", "cache TTL"),
+		]);
+		expect(topicPaths(topic)).toEqual(["src/a.ts", "src/b.ts"]);
 	});
 });

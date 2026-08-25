@@ -88,3 +88,31 @@ describe("ExplanationsPanel", () => {
 		expect(screen.queryByRole("button")).toBeNull();
 	});
 });
+
+describe("ExplanationsPanel topic sections", () => {
+	it("heads a topic with its reach and its own account, and folds it away", () => {
+		render(
+			<ExplanationsPanel
+				explanations={[
+					explanation("explanation-0"),
+					explanation("explanation-1", {
+						path: "src/other.ts",
+						startLine: 40,
+						says: ["Drops the second lookup."],
+					}),
+				]}
+				onJumpTo={() => {}}
+				onToggleTopic={() => {}}
+			/>,
+		);
+		expect(screen.getByText("2 files")).toBeDefined();
+		expect(
+			screen.getByText(/Reduces the TTL to 60s\. Drops the second lookup\./),
+		).toBeDefined();
+
+		fireEvent.click(screen.getByRole("button", { name: "Fold cache TTL" }));
+		expect(
+			screen.getByRole("button", { name: "Unfold cache TTL" }),
+		).toBeDefined();
+	});
+});

@@ -11,6 +11,34 @@ export interface Topic {
 	explanations: ExplanationDto[];
 }
 
+/**
+ * The topic's own account, built from the sentences it already carries: the
+ * lead sentence of each explanation under it, in order, up to three. The
+ * agent is not asked for a second summary of a thing it has already
+ * described, and a folded topic still says what it is about.
+ */
+export function topicSummary(topic: Topic): string {
+	const leads: string[] = [];
+	for (const explanation of topic.explanations) {
+		const lead = explanation.says[0];
+		if (lead !== undefined && !leads.includes(lead)) {
+			leads.push(lead);
+		}
+		if (leads.length === SUMMARY_SENTENCES_MAX) {
+			break;
+		}
+	}
+	return leads.join(" ");
+}
+
+/** the files a topic reaches across, in the order its explanations do */
+export function topicPaths(topic: Topic): string[] {
+	return [...new Set(topic.explanations.map((entry) => entry.path))];
+}
+
+/** three sentences is a paragraph; a fourth is a wall in a sidebar column */
+const SUMMARY_SENTENCES_MAX = 3;
+
 export function topicsFor(explanations: readonly ExplanationDto[]): Topic[] {
 	const byLabel = new Map<string, Topic>();
 	for (const explanation of explanations) {

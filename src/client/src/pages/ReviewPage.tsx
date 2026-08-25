@@ -5,6 +5,7 @@ import type {
 	ReworkInstructionDto,
 } from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { sortExplanationsByDiff } from "../domain/review/explanationOrder";
 import { topicColorsFor } from "../domain/review/topicColors";
 import { type Topic, topicsFor } from "../domain/review/topics";
 import { getChangeset } from "../infrastructure/endpoints/getChangeset";
@@ -146,9 +147,16 @@ function ResolvedReview({
 		() => review.pass?.comments ?? [],
 		[review.pass],
 	);
+	// in the diff's own order, not the order the agent thought of them: the
+	// sidebar's read-through, the topic colors and the scroll all follow one
+	// sequence (explanationOrder.ts)
 	const explanations = useMemo<readonly ExplanationDto[]>(
-		() => review.pass?.explanations ?? [],
-		[review.pass],
+		() =>
+			sortExplanationsByDiff(
+				review.pass?.explanations ?? [],
+				changeset.files.map((file) => file.path),
+			),
+		[review.pass, changeset.files],
 	);
 	// shown by default; one toggle drops or restores all of them
 	const [showExplanations, setShowExplanations] = useState(true);
