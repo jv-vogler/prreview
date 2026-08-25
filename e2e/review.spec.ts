@@ -106,12 +106,22 @@ test.describe("review pass", () => {
 		// hiding explanations never touched the comments
 		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
 
+		// the overview mentions each topic label verbatim, and the mention
+		// renders as that topic's colored chip, inline in the prose
+		await expect(
+			page
+				.locator("[class*='overview']")
+				.getByRole("button", { name: "Mock shared intent" }),
+		).toBeVisible();
+
 		// the sidebar's second tab retells the pass as explanations: topics
 		// first with one jump per anchored change, and an explanation the
 		// diff cannot anchor listed and marked instead of vanishing
 		await page.getByRole("tab", { name: /Explanations/ }).click();
 		await expect(
-			page.getByRole("button", { name: "Mock shared intent" }),
+			page
+				.getByRole("tabpanel")
+				.getByRole("button", { name: "Mock shared intent" }),
 		).toBeVisible();
 		await expect(
 			page.getByText("Mock explanation the diff cannot anchor."),

@@ -92,10 +92,12 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("renders as markdown");
 	});
 
-	it("asks for change explanations that say what the diff cannot", () => {
+	it("asks for mid-level change explanations covering every file", () => {
 		expect(prompt).toContain("## Explain the change");
-		expect(prompt).toContain("says something the diff does not");
-		expect(prompt).toContain("Never restate the code in words");
+		expect(prompt).toContain("Pitch each explanation mid-level");
+		expect(prompt).toContain("what the diff cannot show");
+		expect(prompt).toContain("Never narrate syntax");
+		expect(prompt).toContain("never float so high the mechanism disappears");
 		expect(prompt).toContain("Skip only purely mechanical changes");
 		expect(prompt).toContain("Cover the whole change");
 		expect(prompt).toContain(
@@ -105,9 +107,16 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("never review feedback and never report problems");
 	});
 
-	it("worked explanation example contrasts restating the diff with the why", () => {
+	it("worked explanation example contrasts narrating the diff with the what-then-why", () => {
 		expect(prompt).toContain("conditionally concatenate the evidence field");
-		expect(prompt).toContain("Evidence used to be reviewer-only scratch.");
+		expect(prompt).toContain(
+			"The evidence block now ships inside the body GitHub receives.",
+		);
+	});
+
+	it("asks for the topic labels to be mentioned in the overview, verbatim", () => {
+		expect(prompt).toContain("Mention each `topic` label in the overview");
+		expect(prompt).toContain("colored chip");
 	});
 
 	it("asks for the scope outcome as a machine-readable field", () => {

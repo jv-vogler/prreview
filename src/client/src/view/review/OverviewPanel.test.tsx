@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { OverviewPanel } from "./OverviewPanel";
 
+const NO_TOPICS: ReadonlyMap<string, number> = new Map();
+
 function pass(overrides: Partial<ReviewPassDto> = {}): ReviewPassDto {
 	return {
 		overview: "One short overview.",
@@ -22,6 +24,8 @@ describe("OverviewPanel", () => {
 			<OverviewPanel
 				folded={false}
 				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
 				pass={pass({ overview: "First paragraph.\n\nSecond paragraph." })}
 			/>,
 		);
@@ -37,6 +41,8 @@ describe("OverviewPanel", () => {
 			<OverviewPanel
 				folded={false}
 				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
 				pass={pass({ overview: "It now tracks `.impeccable/config.json`." })}
 			/>,
 		);
@@ -51,6 +57,8 @@ describe("OverviewPanel", () => {
 			<OverviewPanel
 				folded={false}
 				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
 				pass={pass({ overview: "All one line, no breaks." })}
 			/>,
 		);
@@ -59,7 +67,13 @@ describe("OverviewPanel", () => {
 
 	it("shows the verdict, and the ticket line only when there is one", () => {
 		const { rerender } = render(
-			<OverviewPanel folded={false} onToggleFold={() => {}} pass={pass()} />,
+			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
+				pass={pass()}
+			/>,
 		);
 		expect(screen.getByText("Matches the ticket.")).toBeTruthy();
 		expect(screen.queryByText("PROJ-1")).toBeNull();
@@ -68,6 +82,8 @@ describe("OverviewPanel", () => {
 			<OverviewPanel
 				folded={false}
 				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
 				pass={pass({ ticket: "PROJ-1" })}
 			/>,
 		);
@@ -79,6 +95,8 @@ describe("OverviewPanel", () => {
 			<OverviewPanel
 				folded={false}
 				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
 				pass={pass({ scope: "matches" })}
 			/>,
 		);
@@ -92,13 +110,21 @@ describe("OverviewPanel", () => {
 			<OverviewPanel
 				folded={false}
 				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
 				pass={pass({ scope: "misses-pieces" })}
 			/>,
 		);
 		expect(verdict().dataset.scope).toBe("misses-pieces");
 
 		rerender(
-			<OverviewPanel folded={false} onToggleFold={() => {}} pass={pass()} />,
+			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
+				pass={pass()}
+			/>,
 		);
 		expect(verdict().dataset.scope).toBe("neutral");
 	});
@@ -109,6 +135,8 @@ describe("OverviewPanel", () => {
 			<OverviewPanel
 				folded={true}
 				onToggleFold={onToggleFold}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
 				pass={pass({ overview: "The long account.", scope: "matches" })}
 			/>,
 		);
@@ -120,11 +148,36 @@ describe("OverviewPanel", () => {
 		expect(onToggleFold).toHaveBeenCalledTimes(1);
 	});
 
+	it("renders a topic mention as its clickable colored chip, but never inside code", () => {
+		const onToggleTopic = vi.fn();
+		render(
+			<OverviewPanel
+				folded={false}
+				onToggleFold={() => {}}
+				topicColors={new Map([["renderer cache", 2]])}
+				onToggleTopic={onToggleTopic}
+				pass={pass({
+					overview:
+						"The renderer cache moves once. The `renderer cache` token stays code.",
+				})}
+			/>,
+		);
+		const chip = screen.getByRole("button", { name: "renderer cache" });
+		expect(chip.getAttribute("data-topic-color")).toBe("2");
+		fireEvent.click(chip);
+		expect(onToggleTopic).toHaveBeenCalledWith("renderer cache");
+		expect(
+			screen.getByText("renderer cache", { selector: "code" }),
+		).toBeDefined();
+	});
+
 	it("escapes HTML in the overview rather than rendering it", () => {
 		const { container } = render(
 			<OverviewPanel
 				folded={false}
 				onToggleFold={() => {}}
+				topicColors={NO_TOPICS}
+				onToggleTopic={() => {}}
 				pass={pass({ overview: "<img src=x onerror=alert(1)>" })}
 			/>,
 		);

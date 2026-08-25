@@ -20,6 +20,7 @@
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-medium);
 	text-overflow: ellipsis;
+	vertical-align: text-bottom;
 	white-space: nowrap;
 }
 

@@ -5,7 +5,8 @@ import type {
 	ReworkInstructionDto,
 } from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Topic } from "../domain/review/topics";
+import { topicColorsFor } from "../domain/review/topicColors";
+import { type Topic, topicsFor } from "../domain/review/topics";
 import { getChangeset } from "../infrastructure/endpoints/getChangeset";
 import { getSession } from "../infrastructure/endpoints/getSession";
 import { publishReview } from "../infrastructure/endpoints/publishReview";
@@ -203,6 +204,21 @@ function ResolvedReview({
 					},
 		);
 	}, []);
+
+	const topics = useMemo(() => topicsFor(explanations), [explanations]);
+	const topicColors = useMemo(
+		() => topicColorsFor(explanations),
+		[explanations],
+	);
+	const onToggleTopicLabel = useCallback(
+		(label: string) => {
+			const topic = topics.find((entry) => entry.label === label);
+			if (topic !== undefined) {
+				onToggleTopic(topic);
+			}
+		},
+		[topics, onToggleTopic],
+	);
 
 	const onEditComment = useCallback(
 		(commentId: string, body: string) => {
@@ -439,6 +455,8 @@ function ResolvedReview({
 						{review.pass !== null && (
 							<OverviewPanel
 								pass={review.pass}
+								topicColors={topicColors}
+								onToggleTopic={onToggleTopicLabel}
 								folded={overviewFolded}
 								onToggleFold={() => setOverviewFolded((current) => !current)}
 							/>

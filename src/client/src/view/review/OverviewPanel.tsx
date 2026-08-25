@@ -1,8 +1,11 @@
 import type { ReviewPassDto } from "@dto/ReviewDto";
 import { ChevronDownIcon, ChevronRightIcon } from "@primer/octicons-react";
+import { useMemo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import styles from "./OverviewPanel.module.css";
+import { linkTopicMentions, topicFromHref } from "./overviewTopicMentions";
+import { TopicChip } from "./TopicChip";
 
 /**
  * The pass's lede, above the diff (TASK-042, REQ-003): the business-level
@@ -17,13 +20,26 @@ import styles from "./OverviewPanel.module.css";
  */
 export function OverviewPanel({
 	pass,
+	topicColors,
+	onToggleTopic,
 	folded,
 	onToggleFold,
 }: {
 	pass: ReviewPassDto;
+	/** each topic label's palette slot (topicColors.ts) */
+	topicColors: ReadonlyMap<string, number>;
+	/** an inline topic chip toggles the highlight on its balloons */
+	onToggleTopic(label: string): void;
 	folded: boolean;
 	onToggleFold(): void;
 }) {
+	// the prompt asks the agent to mention each topic label verbatim; the
+	// mention renders as that topic's colored chip, tying the summary to
+	// the balloons wearing the same color on the diff
+	const overview = useMemo(
+		() => linkTopicMentions(pass.overview, [...topicColors.keys()]),
+		[pass.overview, topicColors],
+	);
 	return (
 		<section className={styles.panel}>
 			<button
@@ -53,7 +69,27 @@ export function OverviewPanel({
 				<>
 					<div className={styles.body}>
 						<div className={styles.prose}>
-							<Markdown remarkPlugins={[remarkGfm]}>{pass.overview}</Markdown>
+							<Markdown
+								remarkPlugins={[remarkGfm]}
+								components={{
+									a: ({ href, children }) => {
+										const topic =
+											href === undefined ? null : topicFromHref(href);
+										if (topic === null) {
+											return <a href={href}>{children}</a>;
+										}
+										return (
+											<TopicChip
+												label={topic}
+												color={topicColors.get(topic)}
+												onToggle={() => onToggleTopic(topic)}
+											/>
+										);
+									},
+								}}
+							>
+								{overview}
+							</Markdown>
 						</div>
 						{pass.ticket !== null && (
 							<aside className={styles.ticket}>

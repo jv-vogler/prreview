@@ -183,13 +183,21 @@ function buildPass(files) {
 			lane: "review",
 		});
 	}
+	const explanations = buildExplanations(files);
+	const labels = [
+		...new Set(explanations.map((entry) => entry.topic).filter(Boolean)),
+	];
+	const topicsLine =
+		labels.length === 0
+			? ""
+			: `\n\nThe change groups under ${labels.join(" and ")}.`;
 	return {
-		overview: `Reviewed ${files.length} file(s) with the mock agent (no real analysis happened).`,
+		overview: `Reviewed ${files.length} file(s) with the mock agent (no real analysis happened).${topicsLine}`,
 		verdict: "matches the ticket (mock)",
 		scope: "matches",
 		ticket: null,
 		findings,
-		explanations: buildExplanations(files),
+		explanations,
 	};
 }
 
