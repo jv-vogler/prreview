@@ -5,7 +5,7 @@ import {
 	describeToolActivity,
 	type RunProgressUpdate,
 } from "../../domain/review/RunProgress";
-import { findingIndexForCommentId } from "../../domain/review/reviewCommentId";
+import { findingIndexForComment } from "../../domain/review/reviewCommentId";
 import type { Engine, EngineResultEvent } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { RunContext, RunJob, RunOutcome } from "../ports/RunManager";
@@ -69,7 +69,7 @@ export function buildReworkJob(
 		if (stored === null) {
 			throw new Error("no review pass exists for this changeset yet");
 		}
-		const index = findingIndexForCommentId(input.commentId);
+		const index = findingIndexForComment(stored, input.commentId);
 		const finding: ReviewFinding | undefined =
 			index === null ? undefined : stored.pass.findings[index];
 		if (finding === undefined) {

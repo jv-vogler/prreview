@@ -6,7 +6,10 @@ import {
 	describeToolActivity,
 	type RunProgressUpdate,
 } from "../../domain/review/RunProgress";
-import { reviewCommentId } from "../../domain/review/reviewCommentId";
+import {
+	commentIdAt,
+	reviewCommentId,
+} from "../../domain/review/reviewCommentId";
 import type { Engine, EngineResultEvent } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { GithubService } from "../ports/GithubService";
@@ -112,19 +115,26 @@ export function buildReviewJob(
 			}
 
 			const after = await deps.git.statusPorcelain();
+			const pass = reviewPassSchema.parse(terminal.structuredOutput);
+			const nextFindingId = stored?.nextFindingId ?? 0;
 			await deps.sessionStore.saveReview({
 				changesetId: input.changesetId,
 				createdAt: new Date().toISOString(),
 				headSha: input.headSha,
-				pass: reviewPassSchema.parse(terminal.structuredOutput),
+				pass,
 				residue: diffStatusResidue(before, after),
-				// a fresh pass replaces the curation (ASSUMPTION-003): comment ids
-				// are positional, so edits keyed on the old pass cannot apply
+				findingIds: pass.findings.map((_, index) =>
+					reviewCommentId(nextFindingId + index),
+				),
+				nextFindingId: nextFindingId + pass.findings.length,
+				// a fresh pass replaces the curation (ASSUMPTION-003): every
+				// finding here was minted with an id no earlier one carried, so
+				// nothing the reader edited or dismissed is about any of them
 				commentEdits: {},
 				// but a pending review the old pass left on GitHub is still out
 				// there — its id must survive so the next publish replaces it
-				// instead of 422ing. commentIds is emptied for the same
-				// positional-id reason: nothing in THIS pass has been published.
+				// instead of 422ing. commentIds is emptied for the same reason
+				// as the edits: nothing in THIS pass has been published.
 				published: carriedPublished(stored?.published ?? null),
 			});
 			return { ok: true };
@@ -149,7 +159,7 @@ async function previousReviewInput(
 		overview: stored.pass.overview,
 		verdict: stored.pass.verdict,
 		comments: stored.pass.findings.map((finding, index) => {
-			const edit = stored.commentEdits[reviewCommentId(index)];
+			const edit = stored.commentEdits[commentIdAt(stored, index)];
 			return {
 				tier: finding.kind === "question" ? "question" : finding.tier,
 				title: finding.title,

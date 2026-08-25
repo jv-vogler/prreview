@@ -191,4 +191,40 @@ describe("buildReworkJob", () => {
 		await job(context(controller.signal));
 		expect(engine.stopped).toBe(true);
 	});
+
+	it("reworks the finding a stored id names, not the one at that position", async () => {
+		const engine = new FakeEngine();
+		engine.events = [
+			{
+				type: "result",
+				ok: true,
+				structuredOutput: { body: "shorter body" },
+				text: null,
+				sessionId: "s1",
+				model: "m",
+				numTurns: 1,
+				costUsd: 0,
+			},
+		];
+		const sessionStore = new FakeSessionStore();
+		const stored = storedReview();
+		const carried = { ...stored.pass.findings[0], title: "the carried one" };
+		await sessionStore.saveReview({
+			...stored,
+			pass: { ...stored.pass, findings: [stored.pass.findings[0], carried] },
+			findingIds: ["finding-3", "finding-0"],
+		});
+
+		const job = buildReworkJob(
+			{ engine, git: new FakeGit(), sessionStore, report: () => {} },
+			{
+				changesetId: "worktree",
+				commentId: "finding-0",
+				instruction: "concise",
+				files: FILES,
+			},
+		);
+		expect(await job(context())).toEqual({ ok: true, result: "shorter body" });
+		expect(engine.lastInput?.prompt).toContain("the carried one");
+	});
 });

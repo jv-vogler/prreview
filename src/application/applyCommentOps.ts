@@ -1,6 +1,6 @@
 import type { ChangesetId } from "../domain/changeset/ChangesetId";
 import { ReviewCommentError } from "../domain/errors/ReviewCommentError";
-import { findingIndexForCommentId } from "../domain/review/reviewCommentId";
+import { findingIndexForComment } from "../domain/review/reviewCommentId";
 import type {
 	CommentEdit,
 	SessionStore,
@@ -41,7 +41,7 @@ export async function applyCommentOps(
 			"No review pass exists for this changeset yet.",
 		);
 	}
-	const index = findingIndexForCommentId(op.commentId);
+	const index = findingIndexForComment(stored, op.commentId);
 	if (index === null || stored.pass.findings[index] === undefined) {
 		throw new ReviewCommentError(
 			"comment-not-found",

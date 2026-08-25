@@ -1,7 +1,7 @@
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { CommentPlacement } from "../../domain/review/placeComment";
 import { placeComment } from "../../domain/review/placeComment";
-import { reviewCommentId } from "../../domain/review/reviewCommentId";
+import { commentIdAt } from "../../domain/review/reviewCommentId";
 import type { StoredReview } from "../ports/SessionStore";
 import { effectiveBody, isDeleted } from "./commentEdits";
 import type { ReviewFindingKind, ReviewLane, ReviewTier } from "./reviewSchema";
@@ -51,7 +51,7 @@ function toEffectiveComment(
 	stored: StoredReview,
 	files: readonly FileDiff[],
 ): EffectiveComment {
-	const id = reviewCommentId(index);
+	const id = commentIdAt(stored, index);
 	const edit = stored.commentEdits[id];
 	return {
 		id,

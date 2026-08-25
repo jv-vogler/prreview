@@ -33,6 +33,50 @@ function context(signal = new AbortController().signal) {
 	return { runId: "run-1", signal };
 }
 
+function passWith(...titles: string[]) {
+	return {
+		...PASS,
+		findings: titles.map((title) => ({
+			path: "src/a.ts",
+			startLine: 1,
+			endLine: 1,
+			kind: "defect",
+			tier: "nitpick",
+			title,
+			body: "x",
+			proof: "Inferred: x",
+			verified: false,
+			lane: "review",
+		})),
+	};
+}
+
+/** One completed pass over the same changeset, into the same store. */
+async function runPassProducing(
+	pass: unknown,
+	sessionStore: FakeSessionStore,
+): Promise<void> {
+	const engine = new FakeEngine();
+	engine.events = [{ ...okResult(), structuredOutput: pass }];
+	const job = buildReviewJob(
+		{
+			engine,
+			git: new FakeGit({ statusPorcelain: "" }),
+			sessionStore,
+			githubService: null,
+			report: () => {},
+		},
+		{
+			changesetId: "worktree",
+			announce: "reviewing",
+			files: FILES,
+			headSha: null,
+			source: { kind: "worktree" },
+		},
+	);
+	expect(await job(context())).toEqual({ ok: true });
+}
+
 describe("buildReviewJob", () => {
 	it("saves the pass and reports every tool call", async () => {
 		const engine = new FakeEngine();
@@ -449,5 +493,26 @@ describe("buildReviewJob", () => {
 		controller.abort();
 		await job(context(controller.signal));
 		expect(engine.stopped).toBe(true);
+	});
+
+	it("names the first pass's findings exactly as their positions did", async () => {
+		const sessionStore = new FakeSessionStore();
+		await runPassProducing(passWith("first", "second"), sessionStore);
+
+		expect(sessionStore.saved[0]).toMatchObject({
+			findingIds: ["finding-0", "finding-1"],
+			nextFindingId: 2,
+		});
+	});
+
+	it("never hands a later finding a number an earlier one already had", async () => {
+		const sessionStore = new FakeSessionStore();
+		await runPassProducing(passWith("first", "second"), sessionStore);
+		await runPassProducing(passWith("third"), sessionStore);
+
+		expect(sessionStore.saved[1]).toMatchObject({
+			findingIds: ["finding-2"],
+			nextFindingId: 3,
+		});
 	});
 });

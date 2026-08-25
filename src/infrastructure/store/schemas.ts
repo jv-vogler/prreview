@@ -27,6 +27,10 @@ export const storedReviewSchema = z.object({
 	residue: z.array(z.string()),
 	// defaulted so a review.json written before TASK-046 still loads
 	commentEdits: z.record(z.string(), commentEditSchema).default({}),
+	// both absent on a pass written before ids became data: its findings are
+	// named by position, which is exactly the ids the first pass minted
+	findingIds: z.array(z.string()).optional(),
+	nextFindingId: z.int().min(0).optional(),
 	// defaulted so a review.json written before TASK-050 still loads
 	published: publishedRecordSchema.nullable().default(null),
 });
