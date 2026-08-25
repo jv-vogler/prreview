@@ -19,12 +19,17 @@ export function ExplanationBalloon({
 	/** the topic's palette slot (topicColors.ts); same label, same color */
 	topicColor?: number;
 }) {
-	const highlighted = useHighlightedExplanations().has(explanation.id);
+	const selection = useHighlightedExplanations();
+	const highlighted = selection.has(explanation.id);
+	// while a topic is selected, everything outside it steps back rather than
+	// competing: still readable, visibly not the thing being followed
+	const dimmed = selection.size > 0 && !highlighted;
 	return (
 		<aside
 			className={styles.balloon}
 			data-explanation-id={explanation.id}
 			data-highlighted={highlighted || undefined}
+			data-dimmed={dimmed || undefined}
 			aria-label="Change explanation"
 		>
 			<div className={styles.header}>

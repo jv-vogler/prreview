@@ -28,8 +28,15 @@ button.chip {
 	cursor: pointer;
 }
 
+/*
+ * Selected is not a color change: the chip's color is its topic's identity,
+ * and changing it would say "different topic". A heavier edge and the same
+ * settle the selected cards make is what says "this one".
+ */
 button.chip[aria-pressed="true"] {
+	border-width: var(--borderWidth-thick);
 	border-color: var(--borderColor-emphasis);
+	font-weight: var(--base-text-weight-semibold);
 }
 
 .chip[data-topic-color="0"] {
