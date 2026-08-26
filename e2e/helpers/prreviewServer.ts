@@ -2,7 +2,6 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
 import { devNull } from "node:os";
 import { fileURLToPath } from "node:url";
-import { expect } from "@playwright/test";
 import getPort from "get-port";
 
 const CLI_PATH = fileURLToPath(new URL("../../dist/cli.js", import.meta.url));
@@ -98,10 +97,4 @@ export async function stopServer(server: RunningServer): Promise<void> {
 		server.child.kill("SIGKILL");
 	}
 	await server.exited;
-}
-
-export async function fetchApi<T>(baseUrl: string, path: string): Promise<T> {
-	const response = await fetch(new URL(path, baseUrl));
-	expect(response.status).toBe(200);
-	return (await response.json()) as T;
 }
