@@ -1,5 +1,5 @@
-import type { Run, RunFailure } from "../../domain/review/Run";
-import type { RunProgressUpdate } from "../../domain/review/RunProgress";
+import type { Run, RunFailure } from "../../domain/run/Run";
+import type { RunProgressUpdate } from "../../domain/run/RunProgress";
 
 /**
  * At most one review run at a time (TASK-033): one runId, one cancel, one

@@ -3,10 +3,11 @@ import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import { PublishError } from "../domain/errors/PublishError";
 import { ReviewCommentError } from "../domain/errors/ReviewCommentError";
+import type { EffectiveComment } from "../domain/finding/effectiveComments";
+import { effectiveComments } from "../domain/finding/effectiveComments";
+import type { StoredReview } from "../domain/pass/StoredReview";
 import type { GithubService, ReviewComment } from "./ports/GithubService";
-import type { SessionStore, StoredReview } from "./ports/SessionStore";
-import type { EffectiveComment } from "./review/effectiveComments";
-import { effectiveComments } from "./review/effectiveComments";
+import type { SessionStore } from "./ports/SessionStore";
 
 export interface PublishReviewDeps {
 	/** null = no GitHub backend at all (REQ-009's treatment, mirrored for publish) */

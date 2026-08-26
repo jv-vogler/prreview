@@ -11,7 +11,7 @@ import type { EngineErrorReason } from "../../domain/errors/EngineError";
 import {
 	applyTaskCall,
 	type ItineraryStep,
-} from "../../domain/review/RunProgress";
+} from "../../domain/run/RunProgress";
 import { exec } from "../git/exec";
 import { parseAgentVersion } from "../toolchain/agentVersion";
 import { buildTaskArgv, buildVersionArgv } from "./argv";

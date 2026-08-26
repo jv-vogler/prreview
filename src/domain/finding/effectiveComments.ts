@@ -1,10 +1,14 @@
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { CommentPlacement } from "../../domain/review/placeComment";
-import { placeComment } from "../../domain/review/placeComment";
-import { commentIdAt } from "../../domain/review/reviewCommentId";
-import type { StoredReview } from "../ports/SessionStore";
+import type { CommentPlacement } from "../changeset/placeComment";
+import { placeComment } from "../changeset/placeComment";
+import type {
+	ReviewFindingKind,
+	ReviewLane,
+	ReviewTier,
+} from "../pass/reviewSchema";
+import type { StoredReview } from "../pass/StoredReview";
 import { effectiveBody, isDeleted } from "./commentEdits";
-import type { ReviewFindingKind, ReviewLane, ReviewTier } from "./reviewSchema";
+import { commentIdAt } from "./reviewCommentId";
 
 /**
  * One finding as curation and placement have left it: the engine's own

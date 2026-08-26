@@ -1,7 +1,5 @@
-import type {
-	SessionStore,
-	StoredReview,
-} from "../../src/application/ports/SessionStore";
+import type { SessionStore } from "../../src/application/ports/SessionStore";
+import type { StoredReview } from "../../src/domain/pass/StoredReview";
 
 export class FakeSessionStore implements SessionStore {
 	saved: StoredReview[] = [];

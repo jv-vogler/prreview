@@ -1,11 +1,9 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type {
-	SessionStore as SessionStorePort,
-	StoredReview,
-} from "../../application/ports/SessionStore";
+import type { SessionStore as SessionStorePort } from "../../application/ports/SessionStore";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import { StoreError } from "../../domain/errors/StoreError";
+import type { StoredReview } from "../../domain/pass/StoredReview";
 import { storedReviewSchema } from "./schemas";
 import { sessionKeyFor } from "./sessionKey";
 

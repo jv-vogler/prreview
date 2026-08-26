@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { StoredReview } from "../ports/SessionStore";
+import type { ReviewExplanation } from "../pass/reviewSchema";
+import type { StoredReview } from "../pass/StoredReview";
 import { effectiveExplanations } from "./effectiveExplanations";
-import type { ReviewExplanation } from "./reviewSchema";
 
 function storedReview(explanations: ReviewExplanation[]): StoredReview {
 	return {

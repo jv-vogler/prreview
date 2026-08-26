@@ -1,9 +1,9 @@
-import type { StoredReview } from "../../application/ports/SessionStore";
-import type { EffectiveComment } from "../../application/review/effectiveComments";
-import { effectiveComments } from "../../application/review/effectiveComments";
-import type { EffectiveExplanation } from "../../application/review/effectiveExplanations";
-import { effectiveExplanations } from "../../application/review/effectiveExplanations";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
+import type { EffectiveExplanation } from "../../domain/explanation/effectiveExplanations";
+import { effectiveExplanations } from "../../domain/explanation/effectiveExplanations";
+import type { EffectiveComment } from "../../domain/finding/effectiveComments";
+import { effectiveComments } from "../../domain/finding/effectiveComments";
+import type { StoredReview } from "../../domain/pass/StoredReview";
 import type {
 	ExplanationDto,
 	ReviewCommentDto,

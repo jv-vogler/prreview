@@ -3,7 +3,7 @@ import { FakeEngine } from "../../../test/helpers/FakeEngine";
 import { FakeGit } from "../../../test/helpers/FakeGit";
 import { FakeSessionStore } from "../../../test/helpers/FakeSessionStore";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { StoredReview } from "../ports/SessionStore";
+import type { StoredReview } from "../../domain/pass/StoredReview";
 import { buildReworkJob } from "./reworkComment";
 
 const FILES: FileDiff[] = [];

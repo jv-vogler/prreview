@@ -1,5 +1,5 @@
 import type { EngineErrorReason } from "../../domain/errors/EngineError";
-import type { ItineraryStep } from "../../domain/review/RunProgress";
+import type { ItineraryStep } from "../../domain/run/RunProgress";
 
 /**
  * The application's view of the user's agent CLI, implemented for claude by

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { StoredReview } from "../../application/ports/SessionStore";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
+import type { StoredReview } from "../../domain/pass/StoredReview";
 import { reviewPassDtoSchema } from "./dto/ReviewDto";
 import { toReviewPassDto } from "./toReviewPassDto";
 

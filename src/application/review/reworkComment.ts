@@ -1,21 +1,27 @@
 import { z } from "zod";
+import {
+	REWORK_IDLE_TIMEOUT_MS,
+	REWORK_MAX_TURNS,
+} from "../../domain/agentTask/limits";
+import { reworkContract } from "../../domain/agentTask/reviewContract";
+import { renderNumberedDiff } from "../../domain/agentTask/reviewPrompt";
+import {
+	assertSchemaFitsArgv,
+	toJsonSchema,
+} from "../../domain/agentTask/toJsonSchema";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
+import { effectiveBody, isDeleted } from "../../domain/finding/commentEdits";
+import { findingIndexForComment } from "../../domain/finding/reviewCommentId";
+import { BODY_MAX, type ReviewFinding } from "../../domain/pass/reviewSchema";
 import {
 	describeToolActivity,
 	type RunProgressUpdate,
-} from "../../domain/review/RunProgress";
-import { findingIndexForComment } from "../../domain/review/reviewCommentId";
+} from "../../domain/run/RunProgress";
 import type { Engine, EngineResultEvent } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { RunContext, RunJob, RunOutcome } from "../ports/RunManager";
 import type { SessionStore } from "../ports/SessionStore";
-import { effectiveBody, isDeleted } from "./commentEdits";
-import { REWORK_IDLE_TIMEOUT_MS, REWORK_MAX_TURNS } from "./limits";
-import { reworkContract } from "./reviewContract";
-import { renderNumberedDiff } from "./reviewPrompt";
-import { BODY_MAX, type ReviewFinding } from "./reviewSchema";
-import { assertSchemaFitsArgv, toJsonSchema } from "./toJsonSchema";
 
 /**
  * What the reader can ask for on one comment (TASK-048, REQ-006). All three

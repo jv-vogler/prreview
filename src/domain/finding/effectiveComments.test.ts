@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { StoredReview } from "../ports/SessionStore";
+import type { StoredReview } from "../pass/StoredReview";
 import { effectiveComments } from "./effectiveComments";
 
 function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {

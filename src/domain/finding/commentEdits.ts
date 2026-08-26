@@ -1,5 +1,5 @@
-import type { CommentEdit } from "../ports/SessionStore";
-import type { ReviewFinding } from "./reviewSchema";
+import type { ReviewFinding } from "../pass/reviewSchema";
+import type { CommentEdit } from "../pass/StoredReview";
 
 /**
  * The two questions curation state answers about one finding, pulled out

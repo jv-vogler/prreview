@@ -1,5 +1,5 @@
-import type { Run } from "../../domain/review/Run";
-import type { RunProgress } from "../../domain/review/RunProgress";
+import type { Run } from "../../domain/run/Run";
+import type { RunProgress } from "../../domain/run/RunProgress";
 import type { RunDto, RunProgressDto } from "./dto/RunDto";
 
 /** A run as the wire describes it — everything passes straight through. */

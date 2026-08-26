@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeSessionStore } from "../../test/helpers/FakeSessionStore";
+import type { StoredReview } from "../domain/pass/StoredReview";
 import { applyCommentOps } from "./applyCommentOps";
-import type { StoredReview } from "./ports/SessionStore";
 
 const CHANGESET_ID = "worktree";
 

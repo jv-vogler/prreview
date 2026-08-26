@@ -1,11 +1,8 @@
 import type { ChangesetId } from "../domain/changeset/ChangesetId";
 import { ReviewCommentError } from "../domain/errors/ReviewCommentError";
-import { findingIndexForComment } from "../domain/review/reviewCommentId";
-import type {
-	CommentEdit,
-	SessionStore,
-	StoredReview,
-} from "./ports/SessionStore";
+import { findingIndexForComment } from "../domain/finding/reviewCommentId";
+import type { CommentEdit, StoredReview } from "../domain/pass/StoredReview";
+import type { SessionStore } from "./ports/SessionStore";
 
 /**
  * The reader's three moves on one comment (REQ-006): overwrite its body,

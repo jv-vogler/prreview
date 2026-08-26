@@ -1,9 +1,9 @@
 import type { BlobRef } from "../../domain/changeset/BlobRef";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import { commentIdAt } from "../../domain/review/reviewCommentId";
-import type { ReviewCheckpoint, StoredReview } from "../ports/SessionStore";
-import { isDeleted } from "./commentEdits";
+import { isDeleted } from "../finding/commentEdits";
+import { commentIdAt } from "../finding/reviewCommentId";
 import type { ReviewFinding } from "./reviewSchema";
+import type { ReviewCheckpoint, StoredReview } from "./StoredReview";
 
 /**
  * What a re-review may take from the pass before it instead of paying for it

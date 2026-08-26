@@ -1,4 +1,4 @@
-import { reviewPassSchema } from "./reviewSchema";
+import { reviewPassSchema } from "../pass/reviewSchema";
 
 /**
  * Every schema this codebase ever hands to `--json-schema`, in one place.

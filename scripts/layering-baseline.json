@@ -1,9 +1,1 @@
-[
-	"placement src/application/review/limits.ts",
-	"placement src/application/review/reviewContract.ts",
-	"placement src/application/review/reviewPrompt.ts",
-	"placement src/application/review/reviewSchema.ts",
-	"placement src/application/review/taskSchemas.ts",
-	"placement src/application/review/toJsonSchema.ts",
-	"folder-size src/client/src/view/review"
-]
+["folder-size src/client/src/view/review"]

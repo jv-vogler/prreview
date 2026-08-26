@@ -1,39 +1,45 @@
-import type { ChangesetId } from "../../domain/changeset/ChangesetId";
-import type { ChangesetSource } from "../../domain/changeset/ChangesetSource";
-import type { FileDiff } from "../../domain/changeset/FileDiff";
-import { diffStatusResidue } from "../../domain/review/diffStatusResidue";
 import {
-	describeToolActivity,
-	type RunProgressUpdate,
-} from "../../domain/review/RunProgress";
-import {
-	commentIdAt,
-	reviewCommentId,
-} from "../../domain/review/reviewCommentId";
-import type { Engine, EngineResultEvent } from "../ports/Engine";
-import type { Git } from "../ports/Git";
-import type { GithubService } from "../ports/GithubService";
-import type { RunContext, RunOutcome } from "../ports/RunManager";
-import type {
-	CommentEdit,
-	PublishedRecord,
-	SessionStore,
-	StoredReview,
-} from "../ports/SessionStore";
-import { effectiveBody, isDeleted } from "./commentEdits";
-import { REVIEW_IDLE_TIMEOUT_MS, REVIEW_MAX_TURNS } from "./limits";
-import type { ReusePlan } from "./reusePlan";
-import { checkpointOf, planReuse } from "./reusePlan";
-import { reviewContract } from "./reviewContract";
+	REVIEW_IDLE_TIMEOUT_MS,
+	REVIEW_MAX_TURNS,
+} from "../../domain/agentTask/limits";
+import { reviewContract } from "../../domain/agentTask/reviewContract";
 import type {
 	PreviousReviewInput,
 	ReusePromptInput,
 	UnchangedExplanationInput,
-} from "./reviewPrompt";
-import { buildReviewPrompt } from "./reviewPrompt";
-import type { ReviewPass } from "./reviewSchema";
-import { reviewPassSchema } from "./reviewSchema";
-import { assertSchemaFitsArgv, toJsonSchema } from "./toJsonSchema";
+} from "../../domain/agentTask/reviewPrompt";
+import { buildReviewPrompt } from "../../domain/agentTask/reviewPrompt";
+import {
+	assertSchemaFitsArgv,
+	toJsonSchema,
+} from "../../domain/agentTask/toJsonSchema";
+import type { ChangesetId } from "../../domain/changeset/ChangesetId";
+import type { ChangesetSource } from "../../domain/changeset/ChangesetSource";
+import type { FileDiff } from "../../domain/changeset/FileDiff";
+import { effectiveBody, isDeleted } from "../../domain/finding/commentEdits";
+import {
+	commentIdAt,
+	reviewCommentId,
+} from "../../domain/finding/reviewCommentId";
+import type { ReusePlan } from "../../domain/pass/reusePlan";
+import { checkpointOf, planReuse } from "../../domain/pass/reusePlan";
+import type { ReviewPass } from "../../domain/pass/reviewSchema";
+import { reviewPassSchema } from "../../domain/pass/reviewSchema";
+import type {
+	CommentEdit,
+	PublishedRecord,
+	StoredReview,
+} from "../../domain/pass/StoredReview";
+import { diffStatusResidue } from "../../domain/run/diffStatusResidue";
+import {
+	describeToolActivity,
+	type RunProgressUpdate,
+} from "../../domain/run/RunProgress";
+import type { Engine, EngineResultEvent } from "../ports/Engine";
+import type { Git } from "../ports/Git";
+import type { GithubService } from "../ports/GithubService";
+import type { RunContext, RunOutcome } from "../ports/RunManager";
+import type { SessionStore } from "../ports/SessionStore";
 
 export interface RunReviewInput {
 	changesetId: ChangesetId;

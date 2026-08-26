@@ -3,10 +3,10 @@ import { FakeGithubService } from "../../test/helpers/FakeGithubService";
 import { FakeSessionStore } from "../../test/helpers/FakeSessionStore";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
-import type { StoredReview } from "./ports/SessionStore";
+import type { EffectiveComment } from "../domain/finding/effectiveComments";
+import type { ReviewFinding } from "../domain/pass/reviewSchema";
+import type { StoredReview } from "../domain/pass/StoredReview";
 import { buildPublishPayload, publishReview } from "./publishReview";
-import type { EffectiveComment } from "./review/effectiveComments";
-import type { ReviewFinding } from "./review/reviewSchema";
 
 const CHANGESET_ID = "pr:acme/api#42";
 const PR_SOURCE: ChangesetSource = { kind: "pr", repo: "acme/api", number: 42 };

@@ -1,7 +1,7 @@
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { CommentPlacement } from "../../domain/review/placeComment";
-import { placeComment } from "../../domain/review/placeComment";
-import type { StoredReview } from "../ports/SessionStore";
+import type { CommentPlacement } from "../changeset/placeComment";
+import { placeComment } from "../changeset/placeComment";
+import type { StoredReview } from "../pass/StoredReview";
 
 /**
  * One explanation with its spot on the rendered diff resolved, through the

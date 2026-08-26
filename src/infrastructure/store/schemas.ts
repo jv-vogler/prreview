@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { storedReviewPassSchema } from "../../application/review/reviewSchema";
+import { storedReviewPassSchema } from "../../domain/pass/reviewSchema";
 
 const commentEditSchema = z.object({
 	body: z.string().optional(),

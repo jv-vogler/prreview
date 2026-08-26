@@ -1,4 +1,4 @@
-import type { RunEvent } from "../../domain/review/Run";
+import type { RunEvent } from "../../domain/run/Run";
 
 /**
  * What the run manager pushes out while a review runs. The application

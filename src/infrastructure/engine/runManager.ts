@@ -7,12 +7,12 @@ import type {
 	RunOutcome,
 	StartResult,
 } from "../../application/ports/RunManager";
-import type { Run, RunEventType, RunStatus } from "../../domain/review/Run";
+import type { Run, RunEventType, RunStatus } from "../../domain/run/Run";
 import {
 	applyRunProgress,
 	EMPTY_RUN_PROGRESS,
 	type RunProgressUpdate,
-} from "../../domain/review/RunProgress";
+} from "../../domain/run/RunProgress";
 
 /**
  * The old implementation's two-lane policy and fan-out semaphore are gone
