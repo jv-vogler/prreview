@@ -35,6 +35,7 @@ const STACKS = [
 
 const SHARED = "src/interface/http/dto";
 const PORTS = "src/application/ports";
+const CLIENT = "src/client/";
 
 const violations = [];
 
@@ -57,6 +58,13 @@ function sourceFiles(dir) {
 
 function repoPath(absolute) {
 	return relative(ROOT, absolute).split(sep).join("/");
+}
+
+function stackOf(path) {
+	if (path.startsWith(CLIENT)) {
+		return "client";
+	}
+	return path.startsWith("src/") ? "server" : null;
 }
 
 function layerOf(path) {
@@ -83,7 +91,28 @@ function importsOf(absolute) {
 const files = sourceFiles(SRC).map((absolute) => ({
 	absolute,
 	path: repoPath(absolute),
+	targets: importsOf(absolute),
 }));
+
+for (const file of files) {
+	if (TEST_FILE.test(file.path)) {
+		continue;
+	}
+	const fromStack = stackOf(file.path);
+	for (const target of file.targets) {
+		if (target === SHARED || target.startsWith(`${SHARED}/`)) {
+			continue;
+		}
+		const toStack = stackOf(target);
+		if (toStack !== null && toStack !== fromStack) {
+			report(
+				"boundary",
+				file.path,
+				`imports ${target} across the server/client boundary — ${SHARED} is the only code they share`,
+			);
+		}
+	}
+}
 
 for (const file of files) {
 	if (TEST_FILE.test(file.path)) {
@@ -93,7 +122,7 @@ for (const file of files) {
 	if (from === null) {
 		continue;
 	}
-	const targets = importsOf(file.absolute);
+	const targets = file.targets;
 
 	for (const target of targets) {
 		if (target.startsWith(`${SHARED}/`) || target === SHARED) {
