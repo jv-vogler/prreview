@@ -35,6 +35,7 @@ export function effectiveExplanations(
 				endLine: explanation.endLine,
 			},
 			files,
+			"middle",
 		),
 	}));
 }

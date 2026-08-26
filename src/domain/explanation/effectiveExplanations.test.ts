@@ -88,4 +88,61 @@ describe("effectiveExplanations", () => {
 		expect(explanations[0].placement).toEqual({ kind: "unplaceable" });
 		expect(explanations[0].topic).toBeUndefined();
 	});
+
+	it("anchors a whole-file explanation near the middle of the file, not the last line", () => {
+		const spread: FileDiff = {
+			...FILE,
+			hunks: [
+				{
+					id: "hunk-1",
+					header: "",
+					oldStart: 1,
+					oldLines: 0,
+					newStart: 1,
+					newLines: 1,
+					lines: [{ type: "add", content: "top", newLine: 2 }],
+				},
+				{
+					id: "hunk-2",
+					header: "",
+					oldStart: 1,
+					oldLines: 0,
+					newStart: 1,
+					newLines: 1,
+					lines: [{ type: "add", content: "middle", newLine: 199 }],
+				},
+				{
+					id: "hunk-3",
+					header: "",
+					oldStart: 1,
+					oldLines: 0,
+					newStart: 1,
+					newLines: 1,
+					lines: [{ type: "add", content: "bottom", newLine: 400 }],
+				},
+			],
+		};
+
+		const [explanation] = effectiveExplanations(
+			storedReview([
+				{
+					path: "src/a.ts",
+					startLine: 2,
+					endLine: 400,
+					says: ["Rewires the whole file."],
+					grounding: "inferred",
+				},
+			]),
+			[spread],
+		);
+
+		expect(explanation.placement).toEqual({
+			kind: "clamped",
+			fileId: "file-1",
+			side: "new",
+			line: 199,
+			requestedStartLine: 2,
+			requestedEndLine: 400,
+		});
+	});
 });

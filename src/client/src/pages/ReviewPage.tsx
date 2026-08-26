@@ -26,6 +26,7 @@ import {
 	type DiffWorkspaceHandle,
 } from "../view/diff/DiffWorkspace";
 import { FileTreePanel } from "../view/diff/FileTreePanel";
+import { useFileFolding } from "../view/diff/useFileFolding";
 import { PanelResizer } from "../view/layout/PanelResizer";
 import {
 	FILE_PANEL,
@@ -121,9 +122,7 @@ function ResolvedReview({
 	const filePanel = usePanelWidth(FILE_PANEL);
 	const reviewPanel = usePanelWidth(REVIEW_PANEL);
 	const [cursorFileIndex, setCursorFileIndex] = useState(0);
-	const [foldedFileIds, setFoldedFileIds] = useState<ReadonlySet<string>>(
-		() => new Set(),
-	);
+	const folding = useFileFolding();
 	const handleRef = useRef<DiffWorkspaceHandle>(null);
 	const review = useReviewRun(api);
 	const [expandedFindingIds, setExpandedFindingIds] = useState<
@@ -203,24 +202,32 @@ function ResolvedReview({
 	const onToggleFinding = useCallback((findingId: string) => {
 		setExpandedFindingIds((current) => {
 			const next = new Set(current);
-			if (next.has(findingId)) {
-				next.delete(findingId);
-			} else {
+			if (!next.delete(findingId)) {
 				next.add(findingId);
 			}
 			return next;
 		});
 	}, []);
 
-	const onJumpToFinding = useCallback((finding: ReviewFindingDto) => {
-		setExpandedFindingIds((current) => new Set(current).add(finding.id));
-		handleRef.current?.scrollToFinding(finding);
-	}, []);
+	const onJumpToFinding = useCallback(
+		(finding: ReviewFindingDto) => {
+			setExpandedFindingIds((current) => new Set(current).add(finding.id));
+			folding.revealPlacement(finding.placement, () =>
+				handleRef.current?.scrollToFinding(finding),
+			);
+		},
+		[folding.revealPlacement],
+	);
 
-	const onJumpToExplanation = useCallback((explanation: ExplanationDto) => {
-		setHighlighted({ key: explanation.id, ids: new Set([explanation.id]) });
-		handleRef.current?.scrollToExplanation(explanation);
-	}, []);
+	const onJumpToExplanation = useCallback(
+		(explanation: ExplanationDto) => {
+			setHighlighted({ key: explanation.id, ids: new Set([explanation.id]) });
+			folding.revealPlacement(explanation.placement, () =>
+				handleRef.current?.scrollToExplanation(explanation),
+			);
+		},
+		[folding.revealPlacement],
+	);
 
 	const onToggleTopic = useCallback((topic: Topic) => {
 		setHighlighted((current) =>
@@ -364,18 +371,6 @@ function ResolvedReview({
 		[changeset.files],
 	);
 
-	const onToggleFold = useCallback((fileId: string) => {
-		setFoldedFileIds((current) => {
-			const next = new Set(current);
-			if (next.has(fileId)) {
-				next.delete(fileId);
-			} else {
-				next.add(fileId);
-			}
-			return next;
-		});
-	}, []);
-
 	return (
 		<HighlightedExplanationsContext.Provider
 			value={highlighted?.ids ?? NO_HIGHLIGHTED_EXPLANATIONS}
@@ -413,6 +408,8 @@ function ResolvedReview({
 						<ReviewHeader
 							changeset={changeset}
 							aiAvailable={aiAvailable}
+							viewedCount={folding.viewedFileIds.size}
+							fileCount={renderedFiles.length}
 							explanationCount={explanations.length}
 							showExplanations={showExplanations}
 							onToggleExplanations={() =>
@@ -440,8 +437,10 @@ function ResolvedReview({
 								api={api}
 								changeset={changeset}
 								renderedFiles={renderedFiles}
-								foldedFileIds={foldedFileIds}
-								onToggleFold={onToggleFold}
+								foldedFileIds={folding.foldedFileIds}
+								onToggleFold={folding.toggleFold}
+								viewedFileIds={folding.viewedFileIds}
+								onToggleViewed={folding.toggleViewed}
 								handleRef={handleRef}
 								findings={activeFindings}
 								expandedFindingIds={expandedFindingIds}

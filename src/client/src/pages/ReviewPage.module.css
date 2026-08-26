@@ -91,3 +91,10 @@
 	height: 100%;
 	color: var(--fgColor-muted);
 }
+
+.viewedCount {
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
