@@ -1,4 +1,4 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
+import type { ReviewFindingDto } from "@dto/ReviewDto";
 import {
 	CheckCircleIcon,
 	PencilIcon,
@@ -8,16 +8,16 @@ import {
 	XIcon,
 } from "@primer/octicons-react";
 import { useState } from "react";
-import type { CommentActions } from "./CommentActions";
-import styles from "./CommentBalloon.module.css";
-import { CommentMarkdown } from "./CommentMarkdown";
+import type { FindingActions } from "./FindingActions";
+import styles from "./FindingBalloon.module.css";
+import { FindingMarkdown } from "./FindingMarkdown";
 import { ReworkControl } from "./ReworkControl";
-import { commentTierLabel } from "./reviewTier";
+import { findingTierLabel } from "./reviewTier";
 
-export interface CommentBalloonProps {
-	comment: ReviewCommentDto;
+export interface FindingBalloonProps {
+	finding: ReviewFindingDto;
 	onCollapse(): void;
-	actions: CommentActions;
+	actions: FindingActions;
 }
 
 /**
@@ -27,38 +27,38 @@ export interface CommentBalloonProps {
  * The reader can also edit the body in place, delete the comment, and ask
  * for a rework (TASK-046, TASK-047, TASK-049).
  */
-export function CommentBalloon({
-	comment,
+export function FindingBalloon({
+	finding,
 	onCollapse,
 	actions,
-}: CommentBalloonProps) {
+}: FindingBalloonProps) {
 	const [editing, setEditing] = useState(false);
-	const dismissed = comment.deleted;
+	const dismissed = finding.deleted;
 
 	return (
 		<div
 			className={styles.balloon}
-			data-comment-id={comment.id}
-			data-tier={comment.tier}
-			data-kind={comment.kind}
+			data-finding-id={finding.id}
+			data-tier={finding.tier}
+			data-kind={finding.kind}
 			data-dismissed={dismissed}
 			role="note"
 		>
 			<div className={styles.header}>
-				<span className={styles.tier}>{commentTierLabel(comment)}</span>
-				{comment.lane === "pre-existing" && (
+				<span className={styles.tier}>{findingTierLabel(finding)}</span>
+				{finding.lane === "pre-existing" && (
 					<span className={styles.lane}>Pre-existing</span>
 				)}
-				{comment.published && <span className={styles.lane}>Published</span>}
-				{comment.edited && <span className={styles.lane}>Edited</span>}
+				{finding.published && <span className={styles.lane}>Published</span>}
+				{finding.edited && <span className={styles.lane}>Edited</span>}
 				{dismissed && <span className={styles.lane}>Dismissed</span>}
-				<span className={styles.title}>{comment.title}</span>
+				<span className={styles.title}>{finding.title}</span>
 				{dismissed ? (
 					<button
 						type="button"
 						className={styles.iconButton}
 						aria-label="Restore comment"
-						onClick={() => actions.onRestore(comment.id)}
+						onClick={() => actions.onRestore(finding.id)}
 					>
 						<UndoIcon size={14} />
 					</button>
@@ -77,7 +77,7 @@ export function CommentBalloon({
 							type="button"
 							className={styles.iconButton}
 							aria-label="Delete comment"
-							onClick={() => actions.onDelete(comment.id)}
+							onClick={() => actions.onDelete(finding.id)}
 						>
 							<TrashIcon size={14} />
 						</button>
@@ -94,35 +94,35 @@ export function CommentBalloon({
 			</div>
 			{editing && !dismissed ? (
 				<EditBody
-					initialBody={comment.body}
+					initialBody={finding.body}
 					onDone={(body) => {
 						setEditing(false);
-						if (body !== comment.body) {
-							actions.onEdit(comment.id, body);
+						if (body !== finding.body) {
+							actions.onEdit(finding.id, body);
 						}
 					}}
 				/>
 			) : (
-				<CommentMarkdown body={comment.body} />
+				<FindingMarkdown body={finding.body} />
 			)}
-			{comment.evidence !== undefined && (
-				<CommentMarkdown body={comment.evidence} />
+			{finding.evidence !== undefined && (
+				<FindingMarkdown body={finding.evidence} />
 			)}
 			<p className={styles.proof}>
-				{comment.verified ? (
+				{finding.verified ? (
 					<CheckCircleIcon size={12} />
 				) : (
 					<UnverifiedIcon size={12} />
 				)}
-				{comment.proof}
+				{finding.proof}
 			</p>
-			{comment.carried && (
+			{finding.carried && (
 				<p className={styles.carried}>
 					Carried from the earlier pass. This run did not look at it again.
 				</p>
 			)}
 			{!dismissed && actions.onRework !== undefined && (
-				<ReworkControl comment={comment} actions={actions} />
+				<ReworkControl finding={finding} actions={actions} />
 			)}
 		</div>
 	);

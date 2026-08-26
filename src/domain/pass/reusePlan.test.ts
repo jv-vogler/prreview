@@ -61,7 +61,7 @@ function stored(
 			findings,
 		},
 		residue: [],
-		commentEdits: {},
+		findingEdits: {},
 		published: null,
 		...overrides,
 	};
@@ -129,7 +129,7 @@ describe("planReuse", () => {
 			CHECKPOINT,
 			{ baseSha: BASE_SHA, files: CURRENT },
 			stored([finding("src/kept.ts", { dependsOn: [] })], {
-				commentEdits: { "finding-0": { deleted: true } },
+				findingEdits: { "finding-0": { deleted: true } },
 			}),
 		);
 

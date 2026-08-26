@@ -1,8 +1,8 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
+import type { ReviewFindingDto } from "@dto/ReviewDto";
 import { describe, expect, it } from "vitest";
 import { summarizePublish } from "./publishSummary";
 
-function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
+function finding(overrides: Partial<ReviewFindingDto>): ReviewFindingDto {
 	return {
 		id: "finding-0",
 		path: "src/greeting.ts",
@@ -26,13 +26,13 @@ function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
 
 describe("summarizePublish", () => {
 	it("counts an exact, review-lane comment as publishable", () => {
-		const summary = summarizePublish([comment({})]);
-		expect(summary.publishable).toEqual([comment({})]);
+		const summary = summarizePublish([finding({})]);
+		expect(summary.publishable).toEqual([finding({})]);
 		expect(summary.excluded).toEqual([]);
 	});
 
 	it("counts a clamped, review-lane comment as publishable", () => {
-		const clamped = comment({
+		const clamped = finding({
 			placement: {
 				kind: "clamped",
 				fileId: "file-1",
@@ -46,30 +46,30 @@ describe("summarizePublish", () => {
 	});
 
 	it("excludes a pre-existing-lane comment, reporting why", () => {
-		const preExisting = comment({ id: "finding-1", lane: "pre-existing" });
+		const preExisting = finding({ id: "finding-1", lane: "pre-existing" });
 		const summary = summarizePublish([preExisting]);
 		expect(summary.publishable).toEqual([]);
 		expect(summary.excluded).toEqual([
-			{ comment: preExisting, reason: "pre-existing" },
+			{ finding: preExisting, reason: "pre-existing" },
 		]);
 	});
 
 	it("excludes an unplaceable comment, reporting why", () => {
-		const unplaceable = comment({
+		const unplaceable = finding({
 			id: "finding-2",
 			placement: { kind: "unplaceable" },
 		});
 		const summary = summarizePublish([unplaceable]);
 		expect(summary.publishable).toEqual([]);
 		expect(summary.excluded).toEqual([
-			{ comment: unplaceable, reason: "unplaceable" },
+			{ finding: unplaceable, reason: "unplaceable" },
 		]);
 	});
 });
 
 describe("summarizePublish with questions", () => {
 	it("counts a question as publishable, exactly like any other comment", () => {
-		const question = comment({
+		const question = finding({
 			id: "finding-3",
 			kind: "question",
 			tier: undefined,

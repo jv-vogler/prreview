@@ -295,7 +295,7 @@ describe("buildReviewPrompt with a previous pass", () => {
 			createdAt: "2026-08-20T00:00:00.000Z",
 			overview: "adds the greeting",
 			verdict: "matches the ticket",
-			comments: [
+			findings: [
 				{
 					id: "finding-0",
 					tier: "should-fix",
@@ -368,7 +368,7 @@ describe("buildReviewPrompt with a previous pass", () => {
 				createdAt: "2026-08-20T00:00:00.000Z",
 				overview: "o",
 				verdict: "v",
-				comments: [],
+				findings: [],
 				conversation: null,
 			},
 		});
@@ -402,7 +402,7 @@ describe("buildReviewPrompt with a reuse plan", () => {
 			createdAt: "2026-08-20T00:00:00.000Z",
 			overview: "adds the greeting",
 			verdict: "matches the ticket",
-			comments: [
+			findings: [
 				{
 					id: "finding-0",
 					tier: "should-fix",
@@ -497,7 +497,7 @@ describe("buildReviewPrompt with a previous pass but no reuse plan", () => {
 				createdAt: "2026-08-20T00:00:00.000Z",
 				overview: "adds the greeting",
 				verdict: "matches the ticket",
-				comments: [],
+				findings: [],
 				conversation: null,
 			},
 		});

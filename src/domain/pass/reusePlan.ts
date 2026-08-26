@@ -1,7 +1,7 @@
 import type { BlobRef } from "../../domain/changeset/BlobRef";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import { isDeleted } from "../finding/commentEdits";
-import { commentIdAt } from "../finding/reviewCommentId";
+import { isDeleted } from "../finding/curation";
+import { findingIdAt } from "../finding/findingId";
 import type { ReviewFinding } from "./reviewSchema";
 import type { ReviewCheckpoint, StoredReview } from "./StoredReview";
 
@@ -127,8 +127,8 @@ function toCarried(
 	stored: StoredReview,
 	moved: ReadonlySet<string>,
 ): CarriedFinding | null {
-	const id = commentIdAt(stored, index);
-	if (isDeleted(stored.commentEdits[id])) {
+	const id = findingIdAt(stored, index);
+	if (isDeleted(stored.findingEdits[id])) {
 		// the reader removed it on purpose; carrying it would put it back
 		return null;
 	}

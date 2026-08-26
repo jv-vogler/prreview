@@ -1,8 +1,8 @@
-import type { ExplanationDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type { ExplanationDto, ReviewFindingDto } from "@dto/ReviewDto";
 import { type ReactNode, useState } from "react";
 import type { Topic } from "../../domain/explanation/topics";
-import type { CommentActions } from "./comments/CommentActions";
-import { CommentWorklist } from "./comments/CommentWorklist";
+import type { FindingActions } from "./comments/FindingActions";
+import { FindingWorklist } from "./comments/FindingWorklist";
 import { ExplanationsPanel } from "./explanations/ExplanationsPanel";
 import styles from "./ReviewSidebar.module.css";
 
@@ -11,12 +11,12 @@ type SidebarTab = "comments" | "explanations";
 export interface ReviewSidebarProps {
 	/** the reader's own width for this panel, dragged on the seam beside it */
 	width: number;
-	comments: readonly ReviewCommentDto[];
+	findings: readonly ReviewFindingDto[];
 	explanations: readonly ExplanationDto[];
-	expandedCommentIds: ReadonlySet<string>;
-	onJumpToComment(comment: ReviewCommentDto): void;
-	onCollapseComment(commentId: string): void;
-	actions: CommentActions;
+	expandedFindingIds: ReadonlySet<string>;
+	onJumpToFinding(finding: ReviewFindingDto): void;
+	onCollapseFinding(findingId: string): void;
+	actions: FindingActions;
 	onJumpToExplanation(explanation: ExplanationDto): void;
 	onToggleTopic(topic: Topic): void;
 	/** the publish control docks at the panel's foot, under either tab */
@@ -31,11 +31,11 @@ export interface ReviewSidebarProps {
  */
 export function ReviewSidebar({
 	width,
-	comments,
+	findings,
 	explanations,
-	expandedCommentIds,
-	onJumpToComment,
-	onCollapseComment,
+	expandedFindingIds,
+	onJumpToFinding,
+	onCollapseFinding,
 	actions,
 	onJumpToExplanation,
 	onToggleTopic,
@@ -53,7 +53,7 @@ export function ReviewSidebar({
 				<div className={styles.tabs} role="tablist">
 					<Tab
 						label="Comments"
-						count={comments.length}
+						count={findings.length}
 						selected={active === "comments"}
 						onSelect={() => setTab("comments")}
 					/>
@@ -69,11 +69,11 @@ export function ReviewSidebar({
 			)}
 			<div className={styles.content} role="tabpanel">
 				{active === "comments" ? (
-					<CommentWorklist
-						comments={comments}
-						expandedCommentIds={expandedCommentIds}
-						onJumpTo={onJumpToComment}
-						onCollapse={onCollapseComment}
+					<FindingWorklist
+						findings={findings}
+						expandedFindingIds={expandedFindingIds}
+						onJumpTo={onJumpToFinding}
+						onCollapse={onCollapseFinding}
 						actions={actions}
 					/>
 				) : (

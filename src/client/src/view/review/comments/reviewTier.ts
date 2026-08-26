@@ -42,14 +42,14 @@ export const REVIEW_UNTIERED_LABEL = "Finding";
  * on a missing `tier`: reading absence as "question" would label a defect
  * that arrived without one as something it is not.
  */
-export function commentTierLabel(comment: {
+export function findingTierLabel(finding: {
 	kind: ReviewFindingKindDto;
 	tier?: ReviewTierDto;
 }): string {
-	if (comment.kind === "question") {
+	if (finding.kind === "question") {
 		return REVIEW_QUESTION_LABEL;
 	}
-	return comment.tier === undefined
+	return finding.tier === undefined
 		? REVIEW_UNTIERED_LABEL
-		: REVIEW_TIER_LABEL[comment.tier];
+		: REVIEW_TIER_LABEL[finding.tier];
 }

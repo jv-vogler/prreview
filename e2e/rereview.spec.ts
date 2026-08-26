@@ -62,11 +62,11 @@ test.describe("re-review", () => {
 
 		// the reader rewrites the comment anchored in the file that will not
 		// move, which is what the delta pass has to hand back untouched
-		const row = page.locator("[data-comment-row]", {
+		const row = page.locator("[data-finding-row]", {
 			hasText: "Mock finding on src/alpha.ts",
 		});
 		await row.click();
-		const balloon = page.locator("[data-comment-id='finding-0']").first();
+		const balloon = page.locator("[data-finding-id='finding-0']").first();
 		await expect(balloon).toBeVisible();
 		await balloon.getByRole("button", { name: "Edit comment" }).click();
 		const editor = balloon.locator("textarea");
@@ -88,16 +88,16 @@ test.describe("re-review", () => {
 		).toBeVisible({ timeout: RUN_SETTLE_TIMEOUT_MS });
 
 		// the untouched file's comment kept its id and the reader's wording
-		const carriedRow = page.locator("[data-comment-row='finding-0']");
+		const carriedRow = page.locator("[data-finding-row='finding-0']");
 		await expect(carriedRow).toBeVisible();
 		await carriedRow.click();
-		const carried = page.locator("[data-comment-id='finding-0']").first();
+		const carried = page.locator("[data-finding-id='finding-0']").first();
 		await expect(carried).toContainText(EDITED_BODY);
 		await expect(carried).toContainText("This run did not look at it again.");
 
 		// and the file that moved got a comment this run actually wrote
 		await expect(
-			page.locator("[data-comment-row]", {
+			page.locator("[data-finding-row]", {
 				hasText: "Mock delta finding on src/beta.ts",
 			}),
 		).toBeVisible();

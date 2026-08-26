@@ -1,8 +1,8 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
+import type { ReviewFindingDto } from "@dto/ReviewDto";
 import { describe, expect, it } from "vitest";
 import { countByTier, countQuestions } from "./countByTier";
 
-function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
+function finding(overrides: Partial<ReviewFindingDto>): ReviewFindingDto {
 	return {
 		id: "finding-0",
 		path: "src/greeting.ts",
@@ -24,7 +24,7 @@ function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
 	};
 }
 
-const QUESTION = comment({
+const QUESTION = finding({
 	id: "finding-1",
 	kind: "question",
 	tier: undefined,
@@ -32,7 +32,7 @@ const QUESTION = comment({
 
 describe("countByTier", () => {
 	it("counts each tier that is present", () => {
-		const counts = countByTier([comment({}), comment({ tier: "blocker" })]);
+		const counts = countByTier([finding({}), finding({ tier: "blocker" })]);
 		expect(counts).toEqual({
 			blocker: 1,
 			"should-fix": 0,
@@ -53,6 +53,6 @@ describe("countByTier", () => {
 
 describe("countQuestions", () => {
 	it("counts the questions apart from the ladder", () => {
-		expect(countQuestions([comment({}), QUESTION])).toBe(1);
+		expect(countQuestions([finding({}), QUESTION])).toBe(1);
 	});
 });

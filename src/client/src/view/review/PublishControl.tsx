@@ -1,4 +1,4 @@
-import type { PublishedRecordDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type { PublishedRecordDto, ReviewFindingDto } from "@dto/ReviewDto";
 import { useMemo } from "react";
 import type { PublishExclusionReason } from "../../domain/finding/publishSummary";
 import { summarizePublish } from "../../domain/finding/publishSummary";
@@ -10,7 +10,7 @@ const EXCLUSION_COPY: Record<PublishExclusionReason, string> = {
 };
 
 export interface PublishControlProps {
-	comments: readonly ReviewCommentDto[];
+	findings: readonly ReviewFindingDto[];
 	published: PublishedRecordDto | null;
 	publishing: boolean;
 	error: string | null;
@@ -25,15 +25,15 @@ export interface PublishControlProps {
  * the summary below is always on screen, never hidden until asked for.
  */
 export function PublishControl({
-	comments,
+	findings,
 	published,
 	publishing,
 	error,
 	onPublish,
 }: PublishControlProps) {
 	const { publishable, excluded } = useMemo(
-		() => summarizePublish(comments),
-		[comments],
+		() => summarizePublish(findings),
+		[findings],
 	);
 	return (
 		<div className={styles.panel}>
@@ -46,9 +46,9 @@ export function PublishControl({
 			</p>
 			{excluded.length > 0 && (
 				<ul className={styles.excludedList}>
-					{excluded.map(({ comment, reason }) => (
-						<li key={comment.id}>
-							{comment.title} — {EXCLUSION_COPY[reason]}
+					{excluded.map(({ finding, reason }) => (
+						<li key={finding.id}>
+							{finding.title} — {EXCLUSION_COPY[reason]}
 						</li>
 					))}
 				</ul>

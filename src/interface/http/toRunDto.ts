@@ -16,7 +16,7 @@ export function toRunDto(run: Run): RunDto {
 		...(run.startedAt === undefined ? {} : { startedAt: run.startedAt }),
 		...(run.endedAt === undefined ? {} : { endedAt: run.endedAt }),
 		...(run.error === undefined ? {} : { error: run.error }),
-		...(run.commentId === undefined ? {} : { commentId: run.commentId }),
+		...(run.findingId === undefined ? {} : { findingId: run.findingId }),
 		...(run.result === undefined ? {} : { result: run.result }),
 	};
 }

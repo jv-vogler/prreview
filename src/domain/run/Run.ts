@@ -37,7 +37,7 @@ export interface Run {
 	 */
 	idleTimeoutMs: number;
 	/** only set on a `kind: "rework"` run — which comment it targets */
-	commentId?: string;
+	findingId?: string;
 	/**
 	 * Only set on a `kind: "rework"` run once it succeeds: the proposed
 	 * reworded body. Never written to the store on its own — the reader

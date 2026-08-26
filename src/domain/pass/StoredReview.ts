@@ -9,12 +9,12 @@ import type { ReviewPass } from "./reviewSchema";
  * domain code.
  */
 /**
- * One finding's curation state (TASK-046), keyed by its id (`commentIdAt`).
+ * One finding's curation state (TASK-046), keyed by its id (`findingIdAt`).
  * Both fields are optional and additive: an absent entry means "as the
  * engine wrote it" — there is no separate "clean" representation to keep in
  * sync.
  */
-export interface CommentEdit {
+export interface FindingEdit {
 	/** overridden body text, replacing the engine's own wording */
 	body?: string;
 	/** true once the reader has removed this comment; kept so it can be restored */
@@ -30,7 +30,7 @@ export interface PublishedRecord {
 	reviewId: number;
 	htmlUrl: string;
 	publishedAt: string;
-	commentIds: string[];
+	findingIds: string[];
 }
 
 /**
@@ -73,12 +73,12 @@ export interface StoredReview {
 	/** files SEC-003's residue check found left behind by the run, if any */
 	residue: string[];
 	/** per-finding curation state; keyed by the ids in `findingIds` */
-	commentEdits: Record<string, CommentEdit>;
+	findingEdits: Record<string, FindingEdit>;
 	/**
 	 * One id per finding, in `pass.findings` order — the name a curation
 	 * entry, a publish record and the wire all key on. Absent on a pass
 	 * written before ids became data, where a finding is named by its
-	 * position instead (see `commentIdAt`).
+	 * position instead (see `findingIdAt`).
 	 */
 	findingIds?: string[];
 	/**

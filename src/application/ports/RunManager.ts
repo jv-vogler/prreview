@@ -44,7 +44,7 @@ export type RunOutcome =
 
 export type RunMeta =
 	| { kind: "review" }
-	| { kind: "rework"; commentId: string };
+	| { kind: "rework"; findingId: string };
 
 export type StartResult =
 	| { kind: "started"; runId: string }

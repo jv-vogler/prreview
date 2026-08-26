@@ -1,5 +1,5 @@
-import type { ReviewCommentDto, ReworkInstructionDto } from "@dto/ReviewDto";
-import type { CommentActions } from "./CommentActions";
+import type { ReviewFindingDto, ReworkInstructionDto } from "@dto/ReviewDto";
+import type { FindingActions } from "./FindingActions";
 import styles from "./ReworkControl.module.css";
 
 const INSTRUCTIONS: { instruction: ReworkInstructionDto; label: string }[] = [
@@ -15,19 +15,19 @@ const INSTRUCTIONS: { instruction: ReworkInstructionDto; label: string }[] = [
  * of the proposal — it never overwrites the comment on its own.
  */
 export function ReworkControl({
-	comment,
+	finding,
 	actions,
 }: {
-	comment: ReviewCommentDto;
-	actions: CommentActions;
+	finding: ReviewFindingDto;
+	actions: FindingActions;
 }) {
 	const proposal =
-		actions.reworkProposal?.commentId === comment.id
+		actions.reworkProposal?.findingId === finding.id
 			? actions.reworkProposal
 			: null;
 
 	if (proposal?.status === "running") {
-		return <p className={styles.status}>Reworking this comment…</p>;
+		return <p className={styles.status}>Reworking this finding…</p>;
 	}
 	if (proposal?.status === "failed") {
 		return (
@@ -48,7 +48,7 @@ export function ReworkControl({
 					<button
 						type="button"
 						onClick={() =>
-							actions.onAcceptRework(comment.id, proposal.proposedBody ?? "")
+							actions.onAcceptRework(finding.id, proposal.proposedBody ?? "")
 						}
 					>
 						Use this
@@ -68,7 +68,7 @@ export function ReworkControl({
 					key={instruction}
 					type="button"
 					className={styles.instruction}
-					onClick={() => actions.onRework?.(comment.id, instruction)}
+					onClick={() => actions.onRework?.(finding.id, instruction)}
 				>
 					{label}
 				</button>

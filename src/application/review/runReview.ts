@@ -16,17 +16,14 @@ import {
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { ChangesetSource } from "../../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import { effectiveBody, isDeleted } from "../../domain/finding/commentEdits";
-import {
-	commentIdAt,
-	reviewCommentId,
-} from "../../domain/finding/reviewCommentId";
+import { effectiveBody, isDeleted } from "../../domain/finding/curation";
+import { findingId, findingIdAt } from "../../domain/finding/findingId";
 import type { ReusePlan } from "../../domain/pass/reusePlan";
 import { checkpointOf, planReuse } from "../../domain/pass/reusePlan";
 import type { ReviewPass } from "../../domain/pass/reviewSchema";
 import { reviewPassSchema } from "../../domain/pass/reviewSchema";
 import type {
-	CommentEdit,
+	FindingEdit,
 	PublishedRecord,
 	StoredReview,
 } from "../../domain/pass/StoredReview";
@@ -200,7 +197,7 @@ interface ReviewArtifact {
 	findingIds: string[];
 	nextFindingId: number;
 	carriedFindingIds: string[];
-	commentEdits: Record<string, CommentEdit>;
+	findingEdits: Record<string, FindingEdit>;
 	published: PublishedRecord | null;
 }
 
@@ -217,12 +214,12 @@ function freshArtifact(
 		// a fresh pass replaces the curation (ASSUMPTION-003): every finding
 		// here was minted with an id no earlier one carried, so nothing the
 		// reader edited or dismissed is about any of them
-		commentEdits: {},
+		findingEdits: {},
 		// but a pending review the old pass left on GitHub is still out there
 		// — its id must survive so the next publish replaces it instead of
-		// 422ing. commentIds is emptied for the same reason as the edits:
+		// 422ing. findingIds is emptied for the same reason as the edits:
 		// nothing in THIS pass has been published.
-		published: withCommentIds(stored?.published ?? null, []),
+		published: withFindingIds(stored?.published ?? null, []),
 	};
 }
 
@@ -277,12 +274,12 @@ function mergedArtifact(
 		carriedFindingIds: survivors
 			.filter((carried) => !verdicts.has(carried.id))
 			.map((carried) => carried.id),
-		commentEdits: Object.fromEntries(
-			Object.entries(stored.commentEdits).filter(([id]) => kept.has(id)),
+		findingEdits: Object.fromEntries(
+			Object.entries(stored.findingEdits).filter(([id]) => kept.has(id)),
 		),
-		published: withCommentIds(
+		published: withFindingIds(
 			stored.published,
-			(stored.published?.commentIds ?? []).filter((id) => kept.has(id)),
+			(stored.published?.findingIds ?? []).filter((id) => kept.has(id)),
 		),
 	};
 }
@@ -306,15 +303,15 @@ function reportUnknownVerdicts(
 
 function mintIds(firstId: number, count: number): string[] {
 	return Array.from({ length: count }, (_unused, offset) =>
-		reviewCommentId(firstId + offset),
+		findingId(firstId + offset),
 	);
 }
 
-function withCommentIds(
+function withFindingIds(
 	published: PublishedRecord | null,
-	commentIds: string[],
+	findingIds: string[],
 ): PublishedRecord | null {
-	return published === null ? null : { ...published, commentIds };
+	return published === null ? null : { ...published, findingIds };
 }
 
 /**
@@ -335,9 +332,9 @@ async function previousReviewInput(
 		createdAt: stored.createdAt,
 		overview: stored.pass.overview,
 		verdict: stored.pass.verdict,
-		comments: stored.pass.findings.map((finding, index) => {
-			const id = commentIdAt(stored, index);
-			const edit = stored.commentEdits[id];
+		findings: stored.pass.findings.map((finding, index) => {
+			const id = findingIdAt(stored, index);
+			const edit = stored.findingEdits[id];
 			const carried = carriedById.get(id);
 			return {
 				id,
@@ -423,13 +420,13 @@ async function prConversation(
 		return null;
 	}
 	try {
-		const comments = await githubService.listPrReviewComments(source.number);
-		return comments.map((comment) => ({
-			author: comment.author,
-			path: comment.path,
-			line: comment.line,
-			body: comment.body,
-			isReply: comment.inReplyToId !== null,
+		const findings = await githubService.listPrReviewComments(source.number);
+		return findings.map((finding) => ({
+			author: finding.author,
+			path: finding.path,
+			line: finding.line,
+			body: finding.body,
+			isReply: finding.inReplyToId !== null,
 		}));
 	} catch {
 		return null;

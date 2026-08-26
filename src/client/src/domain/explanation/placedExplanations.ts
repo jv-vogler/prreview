@@ -1,4 +1,4 @@
-import type { CommentAnchorSideDto, ExplanationDto } from "@dto/ReviewDto";
+import type { AnchorSideDto, ExplanationDto } from "@dto/ReviewDto";
 
 /**
  * Where one explanation's balloon goes on the rendered diff. Unplaceable
@@ -8,7 +8,7 @@ import type { CommentAnchorSideDto, ExplanationDto } from "@dto/ReviewDto";
  */
 export interface PlacedExplanation {
 	fileId: string;
-	side: CommentAnchorSideDto;
+	side: AnchorSideDto;
 	line: number;
 	explanationId: string;
 }
@@ -34,7 +34,7 @@ export function placedExplanations(
 /** One rendered diff line can carry several explanations; they share a slot. */
 export interface ExplanationGroup {
 	fileId: string;
-	side: CommentAnchorSideDto;
+	side: AnchorSideDto;
 	line: number;
 	explanationIds: string[];
 }

@@ -65,8 +65,8 @@ test.describe("commit range", () => {
 		await expect(
 			page.getByText("Reviewed 1 file(s) with the mock agent"),
 		).toBeVisible({ timeout: RUN_SETTLE_TIMEOUT_MS });
-		await expect(page.locator("[data-comment-marker]").first()).toBeVisible();
-		await expect(page.locator("[data-comment-row]").first()).toBeVisible();
+		await expect(page.locator("[data-finding-marker]").first()).toBeVisible();
+		await expect(page.locator("[data-finding-row]").first()).toBeVisible();
 
 		// no pull request, so no publish control at all
 		await expect(page.getByRole("button", { name: /Send review/ })).toHaveCount(

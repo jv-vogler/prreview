@@ -30,7 +30,7 @@ const REVIEW_COMMENTS_ENDPOINT = (pr: number) =>
 
 const PENDING_STATE = "PENDING";
 
-interface RawReviewComment {
+interface RawGithubComment {
 	id: number;
 	in_reply_to_id?: number;
 	path: string;
@@ -107,14 +107,14 @@ export class GhCliGithubService implements GithubService {
 			"--slurp",
 			REVIEW_COMMENTS_ENDPOINT(pr),
 		]);
-		const pages = JSON.parse(json) as RawReviewComment[][];
-		return pages.flat().map((comment) => ({
-			id: comment.id,
-			inReplyToId: comment.in_reply_to_id ?? null,
-			path: comment.path,
-			line: comment.line,
-			author: comment.user?.login ?? "unknown",
-			body: comment.body,
+		const pages = JSON.parse(json) as RawGithubComment[][];
+		return pages.flat().map((finding) => ({
+			id: finding.id,
+			inReplyToId: finding.in_reply_to_id ?? null,
+			path: finding.path,
+			line: finding.line,
+			author: finding.user?.login ?? "unknown",
+			body: finding.body,
 		}));
 	}
 
@@ -173,7 +173,7 @@ function toPendingReview(review: RawReview): PendingReview {
 /** camelCase port shape → the snake_case body GitHub's REST API expects. */
 function toWirePayload(input: ReviewInput): {
 	body?: string;
-	comments?: {
+	findings?: {
 		path: string;
 		line: number;
 		side: "LEFT" | "RIGHT";
@@ -184,20 +184,20 @@ function toWirePayload(input: ReviewInput): {
 } {
 	return {
 		...(input.body === undefined ? {} : { body: input.body }),
-		...(input.comments === undefined
+		...(input.findings === undefined
 			? {}
 			: {
-					comments: input.comments.map((comment) => ({
-						path: comment.path,
-						line: comment.line,
-						side: comment.side,
-						...(comment.startLine === undefined
+					findings: input.findings.map((finding) => ({
+						path: finding.path,
+						line: finding.line,
+						side: finding.side,
+						...(finding.startLine === undefined
 							? {}
-							: { start_line: comment.startLine }),
-						...(comment.startSide === undefined
+							: { start_line: finding.startLine }),
+						...(finding.startSide === undefined
 							? {}
-							: { start_side: comment.startSide }),
-						body: comment.body,
+							: { start_side: finding.startSide }),
+						body: finding.body,
 					})),
 				}),
 	};

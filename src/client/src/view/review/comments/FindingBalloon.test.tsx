@@ -1,10 +1,10 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
+import type { ReviewFindingDto } from "@dto/ReviewDto";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { CommentActions } from "./CommentActions";
-import { CommentBalloon } from "./CommentBalloon";
+import type { FindingActions } from "./FindingActions";
+import { FindingBalloon } from "./FindingBalloon";
 
-const COMMENT: ReviewCommentDto = {
+const COMMENT: ReviewFindingDto = {
 	id: "finding-0",
 	path: "src/greeting.ts",
 	startLine: 1,
@@ -23,7 +23,7 @@ const COMMENT: ReviewCommentDto = {
 	carried: false,
 };
 
-function actions(overrides: Partial<CommentActions> = {}): CommentActions {
+function actions(overrides: Partial<FindingActions> = {}): FindingActions {
 	return {
 		onEdit: vi.fn(),
 		onDelete: vi.fn(),
@@ -35,12 +35,12 @@ function actions(overrides: Partial<CommentActions> = {}): CommentActions {
 	};
 }
 
-describe("CommentBalloon", () => {
+describe("FindingBalloon", () => {
 	it("commits an edit on blur (TASK-047)", () => {
 		const onEdit = vi.fn();
 		render(
-			<CommentBalloon
-				comment={COMMENT}
+			<FindingBalloon
+				finding={COMMENT}
 				onCollapse={() => {}}
 				actions={actions({ onEdit })}
 			/>,
@@ -57,8 +57,8 @@ describe("CommentBalloon", () => {
 	it("does not call onEdit when the body did not change", () => {
 		const onEdit = vi.fn();
 		render(
-			<CommentBalloon
-				comment={COMMENT}
+			<FindingBalloon
+				finding={COMMENT}
 				onCollapse={() => {}}
 				actions={actions({ onEdit })}
 			/>,
@@ -73,8 +73,8 @@ describe("CommentBalloon", () => {
 	it("calls onDelete when the delete button is clicked", () => {
 		const onDelete = vi.fn();
 		render(
-			<CommentBalloon
-				comment={COMMENT}
+			<FindingBalloon
+				finding={COMMENT}
 				onCollapse={() => {}}
 				actions={actions({ onDelete })}
 			/>,
@@ -86,8 +86,8 @@ describe("CommentBalloon", () => {
 	it("shows a restore button instead of edit/delete once dismissed", () => {
 		const onRestore = vi.fn();
 		render(
-			<CommentBalloon
-				comment={{ ...COMMENT, deleted: true }}
+			<FindingBalloon
+				finding={{ ...COMMENT, deleted: true }}
 				onCollapse={() => {}}
 				actions={actions({ onRestore })}
 			/>,
@@ -102,8 +102,8 @@ describe("CommentBalloon", () => {
 
 	it("labels a question as one, where a defect shows its tier", () => {
 		render(
-			<CommentBalloon
-				comment={{ ...COMMENT, kind: "question", tier: undefined }}
+			<FindingBalloon
+				finding={{ ...COMMENT, kind: "question", tier: undefined }}
 				onCollapse={() => {}}
 				actions={actions()}
 			/>,
@@ -114,8 +114,8 @@ describe("CommentBalloon", () => {
 
 	it("hides the rework control entirely when no agent is available (REQ-009)", () => {
 		render(
-			<CommentBalloon
-				comment={COMMENT}
+			<FindingBalloon
+				finding={COMMENT}
 				onCollapse={() => {}}
 				actions={actions()}
 			/>,
@@ -126,8 +126,8 @@ describe("CommentBalloon", () => {
 	it("starts a rework with the clicked instruction", () => {
 		const onRework = vi.fn();
 		render(
-			<CommentBalloon
-				comment={COMMENT}
+			<FindingBalloon
+				finding={COMMENT}
 				onCollapse={() => {}}
 				actions={actions({ onRework })}
 			/>,
@@ -139,14 +139,14 @@ describe("CommentBalloon", () => {
 	it("shows a proposal and forwards accept with its body", () => {
 		const onAcceptRework = vi.fn();
 		render(
-			<CommentBalloon
-				comment={COMMENT}
+			<FindingBalloon
+				finding={COMMENT}
 				onCollapse={() => {}}
 				actions={actions({
 					onRework: vi.fn(),
 					onAcceptRework,
 					reworkProposal: {
-						commentId: "finding-0",
+						findingId: "finding-0",
 						status: "succeeded",
 						proposedBody: "shorter body",
 					},

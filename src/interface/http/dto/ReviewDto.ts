@@ -28,9 +28,9 @@ const reviewLaneDtoSchema = z.enum(["review", "pre-existing"]);
 
 export type ReviewLaneDto = z.infer<typeof reviewLaneDtoSchema>;
 
-const commentAnchorSideDtoSchema = z.enum(["old", "new"]);
+const anchorSideDtoSchema = z.enum(["old", "new"]);
 
-export type CommentAnchorSideDto = z.infer<typeof commentAnchorSideDtoSchema>;
+export type AnchorSideDto = z.infer<typeof anchorSideDtoSchema>;
 
 /**
  * Where a comment lands on the rendered diff (REQ-010): `exact` anchors the
@@ -39,17 +39,17 @@ export type CommentAnchorSideDto = z.infer<typeof commentAnchorSideDtoSchema>;
  * finding cannot be shown on the diff at all — but it must still reach the
  * reader, never be silently dropped.
  */
-export const commentPlacementDtoSchema = z.discriminatedUnion("kind", [
+export const findingPlacementDtoSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("exact"),
 		fileId: z.string(),
-		side: commentAnchorSideDtoSchema,
+		side: anchorSideDtoSchema,
 		line: z.int().min(1),
 	}),
 	z.object({
 		kind: z.literal("clamped"),
 		fileId: z.string(),
-		side: commentAnchorSideDtoSchema,
+		side: anchorSideDtoSchema,
 		line: z.int().min(1),
 		requestedStartLine: z.int().min(1),
 		requestedEndLine: z.int().min(1),
@@ -57,9 +57,9 @@ export const commentPlacementDtoSchema = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("unplaceable") }),
 ]);
 
-export type CommentPlacementDto = z.infer<typeof commentPlacementDtoSchema>;
+export type FindingPlacementDto = z.infer<typeof findingPlacementDtoSchema>;
 
-export const reviewCommentDtoSchema = z.object({
+export const reviewFindingDtoSchema = z.object({
 	id: z.string(),
 	path: z.string(),
 	startLine: z.int().min(1),
@@ -73,7 +73,7 @@ export const reviewCommentDtoSchema = z.object({
 	proof: z.string(),
 	verified: z.boolean(),
 	lane: reviewLaneDtoSchema,
-	placement: commentPlacementDtoSchema,
+	placement: findingPlacementDtoSchema,
 	/** true once the reader has overwritten `body` (TASK-046) */
 	edited: z.boolean(),
 	/** dismissed, not published — but still shown, so a restore is possible */
@@ -88,7 +88,7 @@ export const reviewCommentDtoSchema = z.object({
 	carried: z.boolean(),
 });
 
-export type ReviewCommentDto = z.infer<typeof reviewCommentDtoSchema>;
+export type ReviewFindingDto = z.infer<typeof reviewFindingDtoSchema>;
 
 /**
  * One authored account of a change, anchored like a comment but never one:
@@ -103,7 +103,7 @@ export const explanationDtoSchema = z.object({
 	/** one sentence per entry */
 	says: z.array(z.string()),
 	topic: z.string().optional(),
-	placement: commentPlacementDtoSchema,
+	placement: findingPlacementDtoSchema,
 });
 
 export type ExplanationDto = z.infer<typeof explanationDtoSchema>;
@@ -113,7 +113,7 @@ export const publishedRecordDtoSchema = z.object({
 	reviewId: z.number(),
 	htmlUrl: z.string(),
 	publishedAt: z.string(),
-	commentIds: z.array(z.string()),
+	findingIds: z.array(z.string()),
 });
 
 export type PublishedRecordDto = z.infer<typeof publishedRecordDtoSchema>;
@@ -137,7 +137,7 @@ export const reviewPassDtoSchema = z.object({
 	verdict: z.string(),
 	scope: reviewScopeDtoSchema.optional(),
 	ticket: z.string().nullable(),
-	comments: z.array(reviewCommentDtoSchema),
+	findings: z.array(reviewFindingDtoSchema),
 	/** the pass's change explanations, placed or not (unplaceable ones carry it in `placement`) */
 	explanations: z.array(explanationDtoSchema),
 	/** SEC-003/TASK-030's honesty measure: files this pass left on the tree */
@@ -174,13 +174,13 @@ export const reviewRunRequestDtoSchema = z.object({
 export type ReviewRunRequestDto = z.infer<typeof reviewRunRequestDtoSchema>;
 
 /** `PATCH /api/review/comments/:id`'s request body (TASK-046, TASK-047). */
-export const editCommentRequestDtoSchema = z.object({
+export const editFindingRequestDtoSchema = z.object({
 	body: z.string().min(1),
 });
 
-export type EditCommentRequestDto = z.infer<typeof editCommentRequestDtoSchema>;
+export type EditFindingRequestDto = z.infer<typeof editFindingRequestDtoSchema>;
 
-/** What the reader can ask a rework for (TASK-048) — see `reworkComment.ts`. */
+/** What the reader can ask a rework for (TASK-048) — see `reworkFinding.ts`. */
 export const reworkInstructionDtoSchema = z.enum([
 	"concise",
 	"expand",

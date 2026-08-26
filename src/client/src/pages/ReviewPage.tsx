@@ -1,7 +1,7 @@
 import type { ChangesetDto } from "@dto/ChangesetDto";
 import type {
 	ExplanationDto,
-	ReviewCommentDto,
+	ReviewFindingDto,
 	ReworkInstructionDto,
 } from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -15,11 +15,11 @@ import {
 import { getSession } from "../infrastructure/endpoints/getSession";
 import { publishReview } from "../infrastructure/endpoints/publishReview";
 import {
-	deleteComment,
-	editComment,
-	restoreComment,
-	reworkComment,
-} from "../infrastructure/endpoints/reviewComments";
+	deleteFinding,
+	editFinding,
+	restoreFinding,
+	reworkFinding,
+} from "../infrastructure/endpoints/reviewFindings";
 import { createApiClient } from "../infrastructure/httpClients/apiClient";
 import { ChangesetHeading } from "../view/diff/ChangesetHeading";
 import {
@@ -34,9 +34,9 @@ import {
 	usePanelWidth,
 } from "../view/layout/usePanelWidth";
 import type {
-	CommentActions,
+	FindingActions,
 	ReworkProposal,
-} from "../view/review/comments/CommentActions";
+} from "../view/review/comments/FindingActions";
 import type { ExplanationsMode } from "../view/review/explanations/DiffExplanationAnnotation";
 import { HighlightedExplanationsContext } from "../view/review/explanations/highlightedExplanations";
 import { OverviewPanel } from "../view/review/OverviewPanel";
@@ -141,7 +141,7 @@ function ResolvedReview({
 	);
 	const handleRef = useRef<DiffWorkspaceHandle>(null);
 	const review = useReviewRun(api);
-	const [expandedCommentIds, setExpandedCommentIds] = useState<
+	const [expandedFindingIds, setExpandedFindingIds] = useState<
 		ReadonlySet<string>
 	>(() => new Set());
 	const [curationError, setCurationError] = useState<string | null>(null);
@@ -150,8 +150,8 @@ function ResolvedReview({
 	// once accepted or discarded, a rework's proposal never reappears for its
 	// run, however long that run stays the "current" one on screen
 	const [dismissedRunId, setDismissedRunId] = useState<string | null>(null);
-	const comments = useMemo<readonly ReviewCommentDto[]>(
-		() => review.pass?.comments ?? [],
+	const findings = useMemo<readonly ReviewFindingDto[]>(
+		() => review.pass?.findings ?? [],
 		[review.pass],
 	);
 	// in the diff's own order, not the order the agent thought of them: the
@@ -218,9 +218,9 @@ function ResolvedReview({
 			},
 		);
 	}, [onChangeset, review.applyStatus, review.start]);
-	const activeComments = useMemo(
-		() => comments.filter((comment) => !comment.deleted),
-		[comments],
+	const activeFindings = useMemo(
+		() => findings.filter((finding) => !finding.deleted),
+		[findings],
 	);
 	// what the sidebar's jumps and topic chips light up on the diff; never
 	// part of the renderer's version, so highlighting folds nothing
@@ -229,21 +229,21 @@ function ResolvedReview({
 		ids: ReadonlySet<string>;
 	} | null>(null);
 
-	const onToggleComment = useCallback((commentId: string) => {
-		setExpandedCommentIds((current) => {
+	const onToggleFinding = useCallback((findingId: string) => {
+		setExpandedFindingIds((current) => {
 			const next = new Set(current);
-			if (next.has(commentId)) {
-				next.delete(commentId);
+			if (next.has(findingId)) {
+				next.delete(findingId);
 			} else {
-				next.add(commentId);
+				next.add(findingId);
 			}
 			return next;
 		});
 	}, []);
 
-	const onJumpToComment = useCallback((comment: ReviewCommentDto) => {
-		setExpandedCommentIds((current) => new Set(current).add(comment.id));
-		handleRef.current?.scrollToComment(comment);
+	const onJumpToFinding = useCallback((finding: ReviewFindingDto) => {
+		setExpandedFindingIds((current) => new Set(current).add(finding.id));
+		handleRef.current?.scrollToFinding(finding);
 	}, []);
 
 	const onJumpToExplanation = useCallback((explanation: ExplanationDto) => {
@@ -277,27 +277,27 @@ function ResolvedReview({
 		[topics, onToggleTopic],
 	);
 
-	const onEditComment = useCallback(
-		(commentId: string, body: string) => {
-			editComment(api, commentId, body).then(review.applyPass, (cause) => {
+	const onEditFinding = useCallback(
+		(findingId: string, body: string) => {
+			editFinding(api, findingId, body).then(review.applyPass, (cause) => {
 				setCurationError(describeError(cause));
 			});
 		},
 		[review.applyPass],
 	);
 
-	const onDeleteComment = useCallback(
-		(commentId: string) => {
-			deleteComment(api, commentId).then(review.applyPass, (cause) => {
+	const onDeleteFinding = useCallback(
+		(findingId: string) => {
+			deleteFinding(api, findingId).then(review.applyPass, (cause) => {
 				setCurationError(describeError(cause));
 			});
 		},
 		[review.applyPass],
 	);
 
-	const onRestoreComment = useCallback(
-		(commentId: string) => {
-			restoreComment(api, commentId).then(review.applyPass, (cause) => {
+	const onRestoreFinding = useCallback(
+		(findingId: string) => {
+			restoreFinding(api, findingId).then(review.applyPass, (cause) => {
 				setCurationError(describeError(cause));
 			});
 		},
@@ -324,9 +324,9 @@ function ResolvedReview({
 	const canPublish = githubAvailable && changeset.ref.source.kind === "pr";
 
 	const onRework = useCallback(
-		(commentId: string, instruction: ReworkInstructionDto) => {
+		(findingId: string, instruction: ReworkInstructionDto) => {
 			setDismissedRunId(null);
-			reworkComment(api, commentId, instruction).then(
+			reworkFinding(api, findingId, instruction).then(
 				(result) => {
 					if (result.kind === "conflict") {
 						setCurationError(result.message);
@@ -345,11 +345,11 @@ function ResolvedReview({
 	}, [review.run]);
 
 	const onAcceptRework = useCallback(
-		(commentId: string, body: string) => {
+		(findingId: string, body: string) => {
 			dismissRework();
-			onEditComment(commentId, body);
+			onEditFinding(findingId, body);
 		},
-		[dismissRework, onEditComment],
+		[dismissRework, onEditFinding],
 	);
 
 	// at most one rework in flight at a time (it shares the review's own
@@ -360,24 +360,24 @@ function ResolvedReview({
 		if (
 			run === null ||
 			run.kind !== "rework" ||
-			run.commentId === undefined ||
+			run.findingId === undefined ||
 			run.id === dismissedRunId
 		) {
 			return null;
 		}
 		if (run.status === "queued" || run.status === "running") {
-			return { commentId: run.commentId, status: "running" };
+			return { findingId: run.findingId, status: "running" };
 		}
 		if (run.status === "succeeded" && run.result !== undefined) {
 			return {
-				commentId: run.commentId,
+				findingId: run.findingId,
 				status: "succeeded",
 				proposedBody: run.result,
 			};
 		}
 		if (run.status === "failed" || run.status === "timed-out") {
 			return {
-				commentId: run.commentId,
+				findingId: run.findingId,
 				status: "failed",
 				errorMessage:
 					run.error !== undefined
@@ -387,7 +387,7 @@ function ResolvedReview({
 		}
 		if (run.status === "cancelled") {
 			return {
-				commentId: run.commentId,
+				findingId: run.findingId,
 				status: "failed",
 				errorMessage: "The rework was cancelled.",
 			};
@@ -395,20 +395,20 @@ function ResolvedReview({
 		return null;
 	}, [review.run, dismissedRunId]);
 
-	const actions = useMemo<CommentActions>(
+	const actions = useMemo<FindingActions>(
 		() => ({
-			onEdit: onEditComment,
-			onDelete: onDeleteComment,
-			onRestore: onRestoreComment,
+			onEdit: onEditFinding,
+			onDelete: onDeleteFinding,
+			onRestore: onRestoreFinding,
 			onRework: aiAvailable ? onRework : undefined,
 			reworkProposal,
 			onAcceptRework,
 			onDismissRework: dismissRework,
 		}),
 		[
-			onEditComment,
-			onDeleteComment,
-			onRestoreComment,
+			onEditFinding,
+			onDeleteFinding,
+			onRestoreFinding,
 			onRework,
 			reworkProposal,
 			onAcceptRework,
@@ -455,8 +455,8 @@ function ResolvedReview({
 				<ReReviewDialog
 					freshness={review.freshness}
 					worktree={changeset.ref.source.kind === "worktree"}
-					editedCount={activeComments.filter((c) => c.edited).length}
-					dismissedCount={comments.filter((c) => c.deleted).length}
+					editedCount={activeFindings.filter((c) => c.edited).length}
+					dismissedCount={findings.filter((c) => c.deleted).length}
 					pendingReviewUrl={review.pass?.published?.htmlUrl ?? null}
 					onConfirm={(options) => {
 						setConfirmingReReview(false);
@@ -553,9 +553,9 @@ function ResolvedReview({
 								foldedFileIds={foldedFileIds}
 								onToggleFold={onToggleFold}
 								handleRef={handleRef}
-								comments={activeComments}
-								expandedCommentIds={expandedCommentIds}
-								onToggleComment={onToggleComment}
+								findings={activeFindings}
+								expandedFindingIds={expandedFindingIds}
+								onToggleFinding={onToggleFinding}
 								actions={actions}
 								explanations={explanations}
 								showExplanations={showExplanations}
@@ -565,7 +565,7 @@ function ResolvedReview({
 					)}
 				</div>
 				{review.pass !== null &&
-					(comments.length > 0 || explanations.length > 0) && (
+					(findings.length > 0 || explanations.length > 0) && (
 						<>
 							<PanelResizer
 								spec={REVIEW_PANEL}
@@ -574,18 +574,18 @@ function ResolvedReview({
 							/>
 							<ReviewSidebar
 								width={reviewPanel.width}
-								comments={comments}
+								findings={findings}
 								explanations={explanations}
-								expandedCommentIds={expandedCommentIds}
-								onJumpToComment={onJumpToComment}
-								onCollapseComment={onToggleComment}
+								expandedFindingIds={expandedFindingIds}
+								onJumpToFinding={onJumpToFinding}
+								onCollapseFinding={onToggleFinding}
 								actions={actions}
 								onJumpToExplanation={onJumpToExplanation}
 								onToggleTopic={onToggleTopic}
 								publishControl={
 									canPublish && review.pass !== null ? (
 										<PublishControl
-											comments={activeComments}
+											findings={activeFindings}
 											published={review.pass.published}
 											publishing={publishing}
 											error={publishError}

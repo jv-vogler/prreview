@@ -1,12 +1,12 @@
 import type { ChangesetId } from "../domain/changeset/ChangesetId";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
+import { FindingError } from "../domain/errors/FindingError";
 import { PublishError } from "../domain/errors/PublishError";
-import { ReviewCommentError } from "../domain/errors/ReviewCommentError";
-import type { EffectiveComment } from "../domain/finding/effectiveComments";
-import { effectiveComments } from "../domain/finding/effectiveComments";
+import type { EffectiveFinding } from "../domain/finding/effectiveFindings";
+import { effectiveFindings } from "../domain/finding/effectiveFindings";
 import type { StoredReview } from "../domain/pass/StoredReview";
-import type { GithubService, ReviewComment } from "./ports/GithubService";
+import type { GithubComment, GithubService } from "./ports/GithubService";
 import type { SessionStore } from "./ports/SessionStore";
 
 export interface PublishReviewDeps {
@@ -52,14 +52,14 @@ export async function publishReview(
 
 	const stored = await deps.sessionStore.loadReview(changesetId);
 	if (stored === null) {
-		throw new ReviewCommentError(
+		throw new FindingError(
 			"no-review",
 			"No review pass exists for this changeset yet.",
 		);
 	}
 
 	const { included } = buildPublishPayload(
-		effectiveComments(stored, files).filter((comment) => !comment.deleted),
+		effectiveFindings(stored, files).filter((finding) => !finding.deleted),
 	);
 	if (included.length === 0) {
 		throw new PublishError(
@@ -71,7 +71,7 @@ export async function publishReview(
 	await discardStalePendingReview(deps.githubService, source.number, stored);
 
 	const review = await deps.githubService.createPendingReview(source.number, {
-		comments: included.map((comment) => comment.wire),
+		findings: included.map((finding) => finding.wire),
 	});
 
 	const updated: StoredReview = {
@@ -80,7 +80,7 @@ export async function publishReview(
 			reviewId: review.id,
 			htmlUrl: review.htmlUrl,
 			publishedAt: new Date().toISOString(),
-			commentIds: included.map((comment) => comment.id),
+			findingIds: included.map((finding) => finding.id),
 		},
 	};
 	await deps.sessionStore.saveReview(updated);
@@ -118,47 +118,47 @@ async function discardStalePendingReview(
  * the whole batch and creates nothing, including the good ones — so nothing
  * unresolvable may ever reach `included`.
  */
-export function buildPublishPayload(comments: readonly EffectiveComment[]): {
-	included: { id: string; wire: ReviewComment }[];
+export function buildPublishPayload(findings: readonly EffectiveFinding[]): {
+	included: { id: string; wire: GithubComment }[];
 	excluded: PublishExclusion[];
 } {
-	const included: { id: string; wire: ReviewComment }[] = [];
+	const included: { id: string; wire: GithubComment }[] = [];
 	const excluded: PublishExclusion[] = [];
-	for (const comment of comments) {
-		const classified = classify(comment);
+	for (const finding of findings) {
+		const classified = classify(finding);
 		if (classified.kind === "included") {
-			included.push({ id: comment.id, wire: classified.wire });
+			included.push({ id: finding.id, wire: classified.wire });
 		} else {
-			excluded.push({ id: comment.id, reason: classified.reason });
+			excluded.push({ id: finding.id, reason: classified.reason });
 		}
 	}
 	return { included, excluded };
 }
 
 function classify(
-	comment: EffectiveComment,
+	finding: EffectiveFinding,
 ):
-	| { kind: "included"; wire: ReviewComment }
+	| { kind: "included"; wire: GithubComment }
 	| { kind: "excluded"; reason: PublishExclusionReason } {
-	if (comment.lane === "pre-existing") {
+	if (finding.lane === "pre-existing") {
 		return { kind: "excluded", reason: "pre-existing" };
 	}
-	if (comment.placement.kind === "unplaceable") {
+	if (finding.placement.kind === "unplaceable") {
 		return { kind: "excluded", reason: "unplaceable" };
 	}
-	const side = comment.placement.side === "old" ? "LEFT" : "RIGHT";
+	const side = finding.placement.side === "old" ? "LEFT" : "RIGHT";
 	// only an `exact` placement ever carries a genuine range (TASK-040);
 	// `clamped` anchors a single nearest line, so only `line` is sent
 	const isRange =
-		comment.placement.kind === "exact" && comment.startLine !== comment.endLine;
+		finding.placement.kind === "exact" && finding.startLine !== finding.endLine;
 	return {
 		kind: "included",
 		wire: {
-			path: comment.path,
-			line: comment.placement.line,
+			path: finding.path,
+			line: finding.placement.line,
 			side,
-			body: pasteableBody(comment),
-			...(isRange ? { startLine: comment.startLine, startSide: side } : {}),
+			body: pasteableBody(finding),
+			...(isRange ? { startLine: finding.startLine, startSide: side } : {}),
 		},
 	};
 }
@@ -168,8 +168,8 @@ function classify(
  * visual aid under them. `title` and `proof` are the reviewer's own scan and
  * triage aids and are never published.
  */
-function pasteableBody(comment: EffectiveComment): string {
-	return comment.evidence === undefined
-		? comment.body
-		: `${comment.body}\n\n${comment.evidence}`;
+function pasteableBody(finding: EffectiveFinding): string {
+	return finding.evidence === undefined
+		? finding.body
+		: `${finding.body}\n\n${finding.evidence}`;
 }

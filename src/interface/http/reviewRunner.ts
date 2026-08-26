@@ -1,8 +1,8 @@
 import type { PublishEvent } from "../../application/ports/EventPublisher";
 import type { RunManager } from "../../application/ports/RunManager";
 import { assessPassFreshness } from "../../application/review/passFreshness";
-import type { ReworkInstruction } from "../../application/review/reworkComment";
-import { buildReworkJob } from "../../application/review/reworkComment";
+import type { ReworkInstruction } from "../../application/review/reworkFinding";
+import { buildReworkJob } from "../../application/review/reworkFinding";
 import { buildReviewJob } from "../../application/review/runReview";
 import type { Container } from "../../container";
 import {
@@ -41,7 +41,7 @@ export interface ReviewRunner {
 	 * exactly like `start()` does.
 	 */
 	startRework(
-		commentId: string,
+		findingId: string,
 		instruction: ReworkInstruction,
 	): StartReviewResult;
 	/** cancels the current run, if there is one; false when there is nothing to cancel */
@@ -105,7 +105,7 @@ export function createReviewRunner(
 				: { kind: "conflict", existingRunId: result.existingRunId };
 		},
 
-		startRework(commentId, instruction) {
+		startRework(findingId, instruction) {
 			if (container.engine === null) {
 				return { kind: "agent-missing" };
 			}
@@ -119,14 +119,14 @@ export function createReviewRunner(
 				},
 				{
 					changesetId: changesetIdFor(changeset.ref.source),
-					commentId,
+					findingId,
 					instruction,
 					files: changeset.files,
 				},
 			);
 			const result = runManager.start(job, REWORK_IDLE_TIMEOUT_MS, {
 				kind: "rework",
-				commentId,
+				findingId,
 			});
 			return result.kind === "started"
 				? { kind: "started", runId: result.runId }

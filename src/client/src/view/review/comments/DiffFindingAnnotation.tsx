@@ -1,5 +1,5 @@
 import type {
-	ReviewCommentDto,
+	ReviewFindingDto,
 	ReviewFindingKindDto,
 	ReviewTierDto,
 } from "@dto/ReviewDto";
@@ -10,16 +10,16 @@ import {
 } from "@primer/octicons-react";
 import { useState } from "react";
 import { Collapsible } from "../../layout/Collapsible";
-import type { CommentActions } from "./CommentActions";
-import { CommentBalloon } from "./CommentBalloon";
-import styles from "./DiffCommentAnnotation.module.css";
+import styles from "./DiffFindingAnnotation.module.css";
+import type { FindingActions } from "./FindingActions";
+import { FindingBalloon } from "./FindingBalloon";
 
-export interface DiffCommentAnnotationProps {
-	commentIds: readonly string[];
-	commentsById: ReadonlyMap<string, ReviewCommentDto>;
-	expandedCommentIds: ReadonlySet<string>;
-	onToggle(commentId: string): void;
-	actions: CommentActions;
+export interface DiffFindingAnnotationProps {
+	findingIds: readonly string[];
+	findingsById: ReadonlyMap<string, ReviewFindingDto>;
+	expandedFindingIds: ReadonlySet<string>;
+	onToggle(findingId: string): void;
+	actions: FindingActions;
 }
 
 /**
@@ -28,24 +28,24 @@ export interface DiffCommentAnnotationProps {
  * comments anchor here; each comment opens into its own balloon
  * independently, so the reader controls exactly how many are open at once.
  */
-export function DiffCommentAnnotation({
-	commentIds,
-	commentsById,
-	expandedCommentIds,
+export function DiffFindingAnnotation({
+	findingIds,
+	findingsById,
+	expandedFindingIds,
 	onToggle,
 	actions,
-}: DiffCommentAnnotationProps) {
-	const comments = commentIds
-		.map((id) => commentsById.get(id))
-		.filter((comment): comment is ReviewCommentDto => comment !== undefined);
-	if (comments.length === 0) {
+}: DiffFindingAnnotationProps) {
+	const findings = findingIds
+		.map((id) => findingsById.get(id))
+		.filter((finding): finding is ReviewFindingDto => finding !== undefined);
+	if (findings.length === 0) {
 		return null;
 	}
-	const collapsed = comments.filter(
-		(comment) => !expandedCommentIds.has(comment.id),
+	const collapsed = findings.filter(
+		(finding) => !expandedFindingIds.has(finding.id),
 	);
-	const expanded = comments.filter((comment) =>
-		expandedCommentIds.has(comment.id),
+	const expanded = findings.filter((finding) =>
+		expandedFindingIds.has(finding.id),
 	);
 
 	return (
@@ -54,26 +54,26 @@ export function DiffCommentAnnotation({
 				<button
 					type="button"
 					className={styles.marker}
-					data-comment-marker="true"
+					data-finding-marker="true"
 					data-tier={worstTier(collapsed)}
 					data-kind={markerKind(collapsed)}
 					onClick={() => {
-						for (const comment of collapsed) {
-							onToggle(comment.id);
+						for (const finding of collapsed) {
+							onToggle(finding.id);
 						}
 					}}
 				>
-					<MarkerIcon comments={collapsed} />
+					<MarkerIcon findings={collapsed} />
 					{collapsed.length > 1 && (
 						<span className={styles.count}>{collapsed.length}</span>
 					)}
 				</button>
 			)}
-			{expanded.map((comment) => (
+			{expanded.map((finding) => (
 				<ExpandingBalloon
-					key={comment.id}
-					comment={comment}
-					onCollapse={() => onToggle(comment.id)}
+					key={finding.id}
+					finding={finding}
+					onCollapse={() => onToggle(finding.id)}
 					actions={actions}
 				/>
 			))}
@@ -82,11 +82,11 @@ export function DiffCommentAnnotation({
 }
 
 /** A lone question shows a question mark; anything else keeps the comment marks. */
-function MarkerIcon({ comments }: { comments: readonly ReviewCommentDto[] }) {
-	if (comments.length > 1) {
+function MarkerIcon({ findings }: { findings: readonly ReviewFindingDto[] }) {
+	if (findings.length > 1) {
 		return <AlertFillIcon size={14} />;
 	}
-	if (comments[0]?.kind === "question") {
+	if (findings[0]?.kind === "question") {
 		return <QuestionIcon size={14} />;
 	}
 	return <CommentIcon size={14} />;
@@ -98,20 +98,20 @@ function MarkerIcon({ comments }: { comments: readonly ReviewCommentDto[] }) {
  * the animation has finished.
  */
 function ExpandingBalloon({
-	comment,
+	finding,
 	onCollapse,
 	actions,
 }: {
-	comment: ReviewCommentDto;
+	finding: ReviewFindingDto;
 	onCollapse(): void;
-	actions: CommentActions;
+	actions: FindingActions;
 }) {
 	const [closing, setClosing] = useState(false);
 
 	return (
 		<Collapsible open={!closing} onClosed={onCollapse}>
-			<CommentBalloon
-				comment={comment}
+			<FindingBalloon
+				finding={finding}
 				onCollapse={() => setClosing(true)}
 				actions={actions}
 			/>
@@ -128,18 +128,18 @@ const TIER_SEVERITY: Record<ReviewTierDto, number> = {
 
 /** The worst tier under this marker, or nothing when it holds only questions. */
 function worstTier(
-	comments: readonly ReviewCommentDto[],
+	findings: readonly ReviewFindingDto[],
 ): ReviewTierDto | undefined {
 	let worst: ReviewTierDto | undefined;
-	for (const comment of comments) {
-		if (comment.tier === undefined) {
+	for (const finding of findings) {
+		if (finding.tier === undefined) {
 			continue;
 		}
 		if (
 			worst === undefined ||
-			TIER_SEVERITY[comment.tier] < TIER_SEVERITY[worst]
+			TIER_SEVERITY[finding.tier] < TIER_SEVERITY[worst]
 		) {
-			worst = comment.tier;
+			worst = finding.tier;
 		}
 	}
 	return worst;
@@ -151,9 +151,9 @@ function worstTier(
  * the sidebar count all use.
  */
 function markerKind(
-	comments: readonly ReviewCommentDto[],
+	findings: readonly ReviewFindingDto[],
 ): ReviewFindingKindDto | undefined {
-	return comments.every((comment) => comment.kind === "question")
+	return findings.every((finding) => finding.kind === "question")
 		? "question"
 		: undefined;
 }

@@ -1,4 +1,4 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
+import type { ReviewFindingDto } from "@dto/ReviewDto";
 import type { RunDto } from "@dto/RunDto";
 import { AlertIcon, StopIcon } from "@primer/octicons-react";
 import { countByTier } from "../../../domain/finding/countByTier";
@@ -42,7 +42,7 @@ export function RunStatusBar({ review }: { review: ReviewRunState }) {
 				{pass !== null && pass.residue.length > 0 && (
 					<ResidueWarning files={pass.residue} />
 				)}
-				<CompletedRun run={run} comments={pass?.comments ?? []} />
+				<CompletedRun run={run} findings={pass?.findings ?? []} />
 			</>
 		);
 	}
@@ -56,10 +56,10 @@ export function RunStatusBar({ review }: { review: ReviewRunState }) {
  */
 function CompletedRun({
 	run,
-	comments,
+	findings,
 }: {
 	run: RunDto;
-	comments: readonly ReviewCommentDto[];
+	findings: readonly ReviewFindingDto[];
 }) {
 	const durationMs = runDurationMs(run);
 	if (durationMs === null) {
@@ -74,7 +74,7 @@ function CompletedRun({
 						{formatElapsed(durationMs)}
 					</span>
 				</p>
-				<p className={styles.detail}>{completedTake(run, comments)}</p>
+				<p className={styles.detail}>{completedTake(run, findings)}</p>
 			</div>
 		</div>
 	);
@@ -82,25 +82,25 @@ function CompletedRun({
 
 function completedTake(
 	run: RunDto,
-	comments: readonly ReviewCommentDto[],
+	findings: readonly ReviewFindingDto[],
 ): string {
 	const parts: string[] = [];
 	const steps = run.progress?.toolCalls;
 	if (steps !== undefined) {
 		parts.push(`${steps} step${steps === 1 ? "" : "s"}`);
 	}
-	parts.push(findingsTake(comments));
+	parts.push(findingsTake(findings));
 	return parts.join(" · ");
 }
 
 /** "4 findings, 1 blocker" — worst tier called out, worst-first per reviewTier.ts */
-function findingsTake(comments: readonly ReviewCommentDto[]): string {
-	if (comments.length === 0) {
+function findingsTake(findings: readonly ReviewFindingDto[]): string {
+	if (findings.length === 0) {
 		return "no findings";
 	}
-	const counts = countByTier(comments);
+	const counts = countByTier(findings);
 	const worst = REVIEW_TIER_ORDER.find((tier) => counts[tier] > 0);
-	const total = `${comments.length} finding${comments.length === 1 ? "" : "s"}`;
+	const total = `${findings.length} finding${findings.length === 1 ? "" : "s"}`;
 	if (worst === undefined) {
 		return total;
 	}

@@ -224,7 +224,7 @@ describe("createPendingReview", () => {
 	it("creates a review and returns it, camelCasing the response", async () => {
 		const created = await service.createPendingReview(482, {
 			body: "overview",
-			comments: [
+			findings: [
 				{ path: "src/limiter.ts", line: 3, side: "RIGHT", body: "note" },
 			],
 		});
@@ -241,7 +241,7 @@ describe("createPendingReview", () => {
 		process.env.FAKE_GH_LOG = logPath;
 		try {
 			await service.createPendingReview(482, {
-				comments: [
+				findings: [
 					{
 						path: "src/limiter.ts",
 						line: 4,
@@ -265,7 +265,7 @@ describe("createPendingReview", () => {
 		process.env.FAKE_GH_REVIEW_CREATE_EXIT = "22";
 		const error = await rejectionOf(
 			service.createPendingReview(482, {
-				comments: [
+				findings: [
 					{ path: "src/limiter.ts", line: 999, side: "RIGHT", body: "x" },
 				],
 			}),

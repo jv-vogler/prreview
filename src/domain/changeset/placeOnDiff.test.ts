@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff } from "../changeset/FileDiff";
 import type { Hunk } from "../changeset/Hunk";
-import { placeComment } from "./placeComment";
+import { placeOnDiff } from "./placeOnDiff";
 
 function file(overrides: Partial<FileDiff> = {}): FileDiff {
 	return {
@@ -32,7 +32,7 @@ function hunk(overrides: Partial<Hunk> = {}): Hunk {
 	};
 }
 
-describe("placeComment", () => {
+describe("placeOnDiff", () => {
 	it("places a range that falls entirely inside one hunk as exact, on the new side", () => {
 		const target = file({
 			hunks: [
@@ -47,7 +47,7 @@ describe("placeComment", () => {
 			],
 		});
 
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: target.path, startLine: 2, endLine: 3 },
 			[target],
 		);
@@ -72,7 +72,7 @@ describe("placeComment", () => {
 			],
 		});
 
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: target.path, startLine: 5, endLine: 6 },
 			[target],
 		);
@@ -101,7 +101,7 @@ describe("placeComment", () => {
 
 		// the requested range (2..40) crosses a gap of unrendered lines the
 		// diff never carries, so it cannot be exact
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: target.path, startLine: 2, endLine: 40 },
 			[target],
 		);
@@ -131,7 +131,7 @@ describe("placeComment", () => {
 			],
 		});
 
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: target.path, startLine: 10, endLine: 13 },
 			[target],
 		);
@@ -158,7 +158,7 @@ describe("placeComment", () => {
 			],
 		});
 
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: target.path, startLine: 100, endLine: 105 },
 			[target],
 		);
@@ -176,7 +176,7 @@ describe("placeComment", () => {
 	it("answers unplaceable when the file is absent from the diff", () => {
 		const target = file();
 
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: "src/other.ts", startLine: 1, endLine: 1 },
 			[target],
 		);
@@ -185,7 +185,7 @@ describe("placeComment", () => {
 	});
 
 	it("answers unplaceable against an empty diff", () => {
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: "src/greeting.ts", startLine: 1, endLine: 1 },
 			[],
 		);
@@ -196,7 +196,7 @@ describe("placeComment", () => {
 	it("answers unplaceable for a file present in the diff with no rendered lines", () => {
 		const target = file({ isBinary: true, hunks: [] });
 
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: target.path, startLine: 1, endLine: 1 },
 			[target],
 		);
@@ -213,7 +213,7 @@ describe("placeComment", () => {
 			],
 		});
 
-		const placement = placeComment(
+		const placement = placeOnDiff(
 			{ path: target.path, startLine: 1, endLine: 1 },
 			[target],
 		);

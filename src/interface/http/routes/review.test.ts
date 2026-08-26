@@ -263,9 +263,9 @@ describe("GET /api/review", () => {
 
 		const response = await app.request("/api/review");
 		const body = (await response.json()) as {
-			pass: { comments: { path: string; placement: { kind: string } }[] };
+			pass: { findings: { path: string; placement: { kind: string } }[] };
 		};
-		expect(body.pass.comments).toEqual([
+		expect(body.pass.findings).toEqual([
 			expect.objectContaining({
 				path: "src/greeting.ts",
 				placement: { kind: "exact", fileId: "file-1", side: "new", line: 1 },
@@ -348,9 +348,9 @@ describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
 		});
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as {
-			comments: { id: string; body: string; edited: boolean }[];
+			findings: { id: string; body: string; edited: boolean }[];
 		};
-		expect(body.comments).toEqual([
+		expect(body.findings).toEqual([
 			expect.objectContaining({
 				id: "finding-0",
 				body: "reworded body",
@@ -388,9 +388,9 @@ describe("DELETE /api/review/comments/:id and .../restore (TASK-046, TASK-047)",
 		});
 		expect(deleted.status).toBe(200);
 		const deletedBody = (await deleted.json()) as {
-			comments: { id: string; deleted: boolean }[];
+			findings: { id: string; deleted: boolean }[];
 		};
-		expect(deletedBody.comments).toEqual([
+		expect(deletedBody.findings).toEqual([
 			expect.objectContaining({ id: "finding-0", deleted: true }),
 		]);
 
@@ -400,9 +400,9 @@ describe("DELETE /api/review/comments/:id and .../restore (TASK-046, TASK-047)",
 		);
 		expect(restored.status).toBe(200);
 		const body = (await restored.json()) as {
-			comments: { id: string; deleted: boolean }[];
+			findings: { id: string; deleted: boolean }[];
 		};
-		expect(body.comments).toEqual([
+		expect(body.findings).toEqual([
 			expect.objectContaining({ id: "finding-0", deleted: false }),
 		]);
 	});
@@ -477,10 +477,10 @@ describe("POST /api/review/publish (TASK-050, TASK-053)", () => {
 		});
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as {
-			published: { reviewId: number; commentIds: string[] } | null;
+			published: { reviewId: number; findingIds: string[] } | null;
 		};
 		expect(body.published).toEqual(
-			expect.objectContaining({ reviewId: 1, commentIds: ["finding-0"] }),
+			expect.objectContaining({ reviewId: 1, findingIds: ["finding-0"] }),
 		);
 		expect(githubService?.createdReviews).toHaveLength(1);
 	});

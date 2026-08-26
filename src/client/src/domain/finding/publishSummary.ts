@@ -1,14 +1,14 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
+import type { ReviewFindingDto } from "@dto/ReviewDto";
 
 export type PublishExclusionReason = "pre-existing" | "unplaceable";
 
 export interface PublishExclusion {
-	comment: ReviewCommentDto;
+	finding: ReviewFindingDto;
 	reason: PublishExclusionReason;
 }
 
 export interface PublishSummary {
-	publishable: ReviewCommentDto[];
+	publishable: ReviewFindingDto[];
 	excluded: PublishExclusion[];
 }
 
@@ -19,17 +19,17 @@ export interface PublishSummary {
  * rule is the failure mode this exists to avoid.
  */
 export function summarizePublish(
-	comments: readonly ReviewCommentDto[],
+	findings: readonly ReviewFindingDto[],
 ): PublishSummary {
-	const publishable: ReviewCommentDto[] = [];
+	const publishable: ReviewFindingDto[] = [];
 	const excluded: PublishExclusion[] = [];
-	for (const comment of comments) {
-		if (comment.lane === "pre-existing") {
-			excluded.push({ comment, reason: "pre-existing" });
-		} else if (comment.placement.kind === "unplaceable") {
-			excluded.push({ comment, reason: "unplaceable" });
+	for (const finding of findings) {
+		if (finding.lane === "pre-existing") {
+			excluded.push({ finding, reason: "pre-existing" });
+		} else if (finding.placement.kind === "unplaceable") {
+			excluded.push({ finding, reason: "unplaceable" });
 		} else {
-			publishable.push(comment);
+			publishable.push(finding);
 		}
 	}
 	return { publishable, excluded };

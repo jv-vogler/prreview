@@ -20,7 +20,7 @@ export interface PrInfo {
  * present for a genuine range — GitHub accepts a range spanning hunk
  * boundaries as-is, so callers never need to collapse one to a single line.
  */
-export interface ReviewComment {
+export interface GithubComment {
 	path: string;
 	line: number;
 	side: "LEFT" | "RIGHT";
@@ -37,7 +37,7 @@ export interface ReviewComment {
  */
 export interface ReviewInput {
 	body?: string;
-	comments?: ReviewComment[];
+	findings?: GithubComment[];
 }
 
 /**

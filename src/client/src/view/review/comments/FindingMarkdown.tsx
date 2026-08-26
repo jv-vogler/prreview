@@ -1,7 +1,7 @@
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { parseAlertBlock } from "../../../domain/finding/parseAlertBlock";
-import styles from "./CommentMarkdown.module.css";
+import styles from "./FindingMarkdown.module.css";
 
 /**
  * Renders a finding's `body` as markdown (TASK-043): bullets, backticks and
@@ -9,7 +9,7 @@ import styles from "./CommentMarkdown.module.css";
  * renders as a styled box instead of a plain blockquote, using
  * `parseAlertBlock`'s pure extraction rather than a markdown plugin.
  */
-export function CommentMarkdown({ body }: { body: string }) {
+export function FindingMarkdown({ body }: { body: string }) {
 	const alert = parseAlertBlock(body);
 	if (alert === null) {
 		return <Prose text={body} />;

@@ -1,14 +1,14 @@
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { CommentPlacement } from "../changeset/placeComment";
-import { placeComment } from "../changeset/placeComment";
+import type { FindingPlacement } from "../changeset/placeOnDiff";
+import { placeOnDiff } from "../changeset/placeOnDiff";
 import type {
 	ReviewFindingKind,
 	ReviewLane,
 	ReviewTier,
 } from "../pass/reviewSchema";
 import type { StoredReview } from "../pass/StoredReview";
-import { effectiveBody, isDeleted } from "./commentEdits";
-import { commentIdAt } from "./reviewCommentId";
+import { effectiveBody, isDeleted } from "./curation";
+import { findingIdAt } from "./findingId";
 
 /**
  * One finding as curation and placement have left it: the engine's own
@@ -18,7 +18,7 @@ import { commentIdAt } from "./reviewCommentId";
  * `publishReview` (TASK-050, what actually gets sent to GitHub) build on,
  * so a finding is placed and curated exactly once.
  */
-export interface EffectiveComment {
+export interface EffectiveFinding {
 	id: string;
 	path: string;
 	startLine: number;
@@ -32,7 +32,7 @@ export interface EffectiveComment {
 	proof: string;
 	verified: boolean;
 	lane: ReviewLane;
-	placement: CommentPlacement;
+	placement: FindingPlacement;
 	/** true once the reader has overwritten `body` (TASK-046) */
 	edited: boolean;
 	/** dismissed by the reader; still returned so it can be restored */
@@ -40,23 +40,23 @@ export interface EffectiveComment {
 }
 
 /** Every finding, including dismissed ones — callers that must exclude those filter themselves. */
-export function effectiveComments(
+export function effectiveFindings(
 	stored: StoredReview,
 	files: readonly FileDiff[],
-): EffectiveComment[] {
+): EffectiveFinding[] {
 	return stored.pass.findings.map((finding, index) =>
-		toEffectiveComment(finding, index, stored, files),
+		toEffectiveFinding(finding, index, stored, files),
 	);
 }
 
-function toEffectiveComment(
+function toEffectiveFinding(
 	finding: StoredReview["pass"]["findings"][number],
 	index: number,
 	stored: StoredReview,
 	files: readonly FileDiff[],
-): EffectiveComment {
-	const id = commentIdAt(stored, index);
-	const edit = stored.commentEdits[id];
+): EffectiveFinding {
+	const id = findingIdAt(stored, index);
+	const edit = stored.findingEdits[id];
 	return {
 		id,
 		path: finding.path,
@@ -70,7 +70,7 @@ function toEffectiveComment(
 		proof: finding.proof,
 		verified: finding.verified,
 		lane: finding.lane,
-		placement: placeComment(
+		placement: placeOnDiff(
 			{
 				path: finding.path,
 				startLine: finding.startLine,

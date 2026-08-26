@@ -3,7 +3,7 @@ import { FakeGithubService } from "../../test/helpers/FakeGithubService";
 import { FakeSessionStore } from "../../test/helpers/FakeSessionStore";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
-import type { EffectiveComment } from "../domain/finding/effectiveComments";
+import type { EffectiveFinding } from "../domain/finding/effectiveFindings";
 import type { ReviewFinding } from "../domain/pass/reviewSchema";
 import type { StoredReview } from "../domain/pass/StoredReview";
 import { buildPublishPayload, publishReview } from "./publishReview";
@@ -40,7 +40,7 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 			findings: [finding()],
 		},
 		residue: [],
-		commentEdits: {},
+		findingEdits: {},
 		published: null,
 		...overrides,
 	};
@@ -74,8 +74,8 @@ const FILE: FileDiff = {
 };
 
 function effective(
-	overrides: Partial<EffectiveComment> = {},
-): EffectiveComment {
+	overrides: Partial<EffectiveFinding> = {},
+): EffectiveFinding {
 	return {
 		id: "finding-0",
 		path: "src/a.ts",
@@ -254,7 +254,7 @@ describe("publishReview", () => {
 	it("refuses when the only finding has been dismissed", async () => {
 		const sessionStore = new FakeSessionStore();
 		await sessionStore.saveReview(
-			storedReview({ commentEdits: { "finding-0": { deleted: true } } }),
+			storedReview({ findingEdits: { "finding-0": { deleted: true } } }),
 		);
 		await expect(
 			publishReview(
@@ -296,7 +296,7 @@ describe("publishReview", () => {
 		expect(githubService.createdReviews[0]).toEqual({
 			pr: 42,
 			input: {
-				comments: [
+				findings: [
 					{ path: "src/a.ts", line: 1, side: "RIGHT", body: "a finding" },
 				],
 			},
@@ -305,7 +305,7 @@ describe("publishReview", () => {
 			reviewId: 1,
 			htmlUrl: "https://example.invalid/pull/1#review-1",
 			publishedAt: expect.any(String),
-			commentIds: ["finding-0"],
+			findingIds: ["finding-0"],
 		});
 		// the artifact itself is untouched — a second pass stays possible
 		expect(result.pass.findings).toHaveLength(3);
@@ -342,10 +342,10 @@ describe("publishReview", () => {
 			[FILE],
 		);
 
-		expect(githubService.createdReviews[0].input.comments).toEqual([
+		expect(githubService.createdReviews[0].input.findings).toEqual([
 			{ path: "src/a.ts", line: 1, side: "RIGHT", body: "a finding" },
 		]);
-		expect(result.published?.commentIds).toEqual(["finding-0"]);
+		expect(result.published?.findingIds).toEqual(["finding-0"]);
 	});
 
 	it("discards a previously published pending review before creating the new one", async () => {
@@ -356,7 +356,7 @@ describe("publishReview", () => {
 					reviewId: 7,
 					htmlUrl: "https://example.invalid/pull/1#review-7",
 					publishedAt: "2026-08-21T00:00:00.000Z",
-					commentIds: ["finding-0"],
+					findingIds: ["finding-0"],
 				},
 			}),
 		);
@@ -380,7 +380,7 @@ describe("publishReview", () => {
 					reviewId: 7,
 					htmlUrl: "https://example.invalid/pull/1#review-7",
 					publishedAt: "2026-08-21T00:00:00.000Z",
-					commentIds: ["finding-0"],
+					findingIds: ["finding-0"],
 				},
 			}),
 		);

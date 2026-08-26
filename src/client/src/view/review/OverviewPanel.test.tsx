@@ -10,7 +10,7 @@ function pass(overrides: Partial<ReviewPassDto> = {}): ReviewPassDto {
 		overview: "One short overview.",
 		verdict: "Matches the ticket.",
 		ticket: null,
-		comments: [],
+		findings: [],
 		explanations: [],
 		residue: [],
 		published: null,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { StoredReview } from "../pass/StoredReview";
-import { effectiveComments } from "./effectiveComments";
+import { effectiveFindings } from "./effectiveFindings";
 
 function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 	return {
@@ -29,7 +29,7 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 			],
 		},
 		residue: [],
-		commentEdits: {},
+		findingEdits: {},
 		published: null,
 		...overrides,
 	};
@@ -74,10 +74,10 @@ function finding(body: string) {
 	};
 }
 
-describe("effectiveComments", () => {
+describe("effectiveFindings", () => {
 	it("resolves a stable id, placement and edited=false for an untouched finding", () => {
-		const [comment] = effectiveComments(storedReview(), [FILE]);
-		expect(comment).toMatchObject({
+		const [finding] = effectiveFindings(storedReview(), [FILE]);
+		expect(finding).toMatchObject({
 			id: "finding-0",
 			body: "original body",
 			edited: false,
@@ -87,23 +87,23 @@ describe("effectiveComments", () => {
 
 	it("layers an edit's body on top without touching the underlying finding", () => {
 		const stored = storedReview({
-			commentEdits: { "finding-0": { body: "reworded" } },
+			findingEdits: { "finding-0": { body: "reworded" } },
 		});
-		const [comment] = effectiveComments(stored, [FILE]);
-		expect(comment).toMatchObject({ body: "reworded", edited: true });
+		const [finding] = effectiveFindings(stored, [FILE]);
+		expect(finding).toMatchObject({ body: "reworded", edited: true });
 	});
 
 	it("tags a deleted finding rather than dropping it, so it can be restored", () => {
 		const stored = storedReview({
-			commentEdits: { "finding-0": { deleted: true } },
+			findingEdits: { "finding-0": { deleted: true } },
 		});
-		const [comment] = effectiveComments(stored, [FILE]);
-		expect(comment).toMatchObject({ id: "finding-0", deleted: true });
+		const [finding] = effectiveFindings(stored, [FILE]);
+		expect(finding).toMatchObject({ id: "finding-0", deleted: true });
 	});
 
 	it("marks a finding unplaceable when its path is not in the diff", () => {
-		const [comment] = effectiveComments(storedReview(), []);
-		expect(comment.placement).toEqual({ kind: "unplaceable" });
+		const [finding] = effectiveFindings(storedReview(), []);
+		expect(finding.placement).toEqual({ kind: "unplaceable" });
 	});
 
 	it("keeps an edit on its own finding when the pass is rebuilt in another order", () => {
@@ -116,10 +116,10 @@ describe("effectiveComments", () => {
 				findings: [finding("the new one"), finding("the carried one")],
 			},
 			findingIds: ["finding-3", "finding-0"],
-			commentEdits: { "finding-0": { body: "the reader's wording" } },
+			findingEdits: { "finding-0": { body: "the reader's wording" } },
 		});
 
-		expect(effectiveComments(stored, [FILE])).toEqual([
+		expect(effectiveFindings(stored, [FILE])).toEqual([
 			expect.objectContaining({
 				id: "finding-3",
 				body: "the new one",

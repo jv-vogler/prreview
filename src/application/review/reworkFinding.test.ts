@@ -4,7 +4,7 @@ import { FakeGit } from "../../../test/helpers/FakeGit";
 import { FakeSessionStore } from "../../../test/helpers/FakeSessionStore";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { StoredReview } from "../../domain/pass/StoredReview";
-import { buildReworkJob } from "./reworkComment";
+import { buildReworkJob } from "./reworkFinding";
 
 const FILES: FileDiff[] = [];
 
@@ -34,7 +34,7 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 			],
 		},
 		residue: [],
-		commentEdits: {},
+		findingEdits: {},
 		published: null,
 		...overrides,
 	};
@@ -73,7 +73,7 @@ describe("buildReworkJob", () => {
 			},
 			{
 				changesetId: "worktree",
-				commentId: "finding-0",
+				findingId: "finding-0",
 				instruction: "concise",
 				files: FILES,
 			},
@@ -101,7 +101,7 @@ describe("buildReworkJob", () => {
 			},
 			{
 				changesetId: "worktree",
-				commentId: "finding-7",
+				findingId: "finding-7",
 				instruction: "concise",
 				files: FILES,
 			},
@@ -112,7 +112,7 @@ describe("buildReworkJob", () => {
 	it("rejects reworking a comment that has been deleted", async () => {
 		const sessionStore = new FakeSessionStore();
 		await sessionStore.saveReview(
-			storedReview({ commentEdits: { "finding-0": { deleted: true } } }),
+			storedReview({ findingEdits: { "finding-0": { deleted: true } } }),
 		);
 		const job = buildReworkJob(
 			{
@@ -123,7 +123,7 @@ describe("buildReworkJob", () => {
 			},
 			{
 				changesetId: "worktree",
-				commentId: "finding-0",
+				findingId: "finding-0",
 				instruction: "concise",
 				files: FILES,
 			},
@@ -148,7 +148,7 @@ describe("buildReworkJob", () => {
 			{ engine, git: new FakeGit(), sessionStore, report: () => {} },
 			{
 				changesetId: "worktree",
-				commentId: "finding-0",
+				findingId: "finding-0",
 				instruction: "expand",
 				files: FILES,
 			},
@@ -182,7 +182,7 @@ describe("buildReworkJob", () => {
 			{ engine, git: new FakeGit(), sessionStore, report: () => {} },
 			{
 				changesetId: "worktree",
-				commentId: "finding-0",
+				findingId: "finding-0",
 				instruction: "explain",
 				files: FILES,
 			},
@@ -219,7 +219,7 @@ describe("buildReworkJob", () => {
 			{ engine, git: new FakeGit(), sessionStore, report: () => {} },
 			{
 				changesetId: "worktree",
-				commentId: "finding-0",
+				findingId: "finding-0",
 				instruction: "concise",
 				files: FILES,
 			},

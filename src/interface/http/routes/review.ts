@@ -1,12 +1,12 @@
 import { Hono } from "hono";
-import { applyCommentOps } from "../../../application/applyCommentOps";
+import { applyFindingOps } from "../../../application/applyFindingOps";
 import type { GithubService } from "../../../application/ports/GithubService";
 import type { SessionStore } from "../../../application/ports/SessionStore";
 import { publishReview } from "../../../application/publishReview";
 import { changesetIdFor } from "../../../domain/changeset/ChangesetId";
 import { EngineError } from "../../../domain/errors/EngineError";
 import {
-	editCommentRequestDtoSchema,
+	editFindingRequestDtoSchema,
 	reviewRunRequestDtoSchema,
 	reworkRequestDtoSchema,
 } from "../dto/ReviewDto";
@@ -75,29 +75,29 @@ export function reviewRoute(deps: ReviewRouteDeps): Hono {
 	});
 
 	route.patch("/comments/:id", async (context) => {
-		const request = await validatedJson(context, editCommentRequestDtoSchema);
-		const stored = await applyCommentOps(
+		const request = await validatedJson(context, editFindingRequestDtoSchema);
+		const stored = await applyFindingOps(
 			{ sessionStore: deps.sessionStore },
 			currentChangesetId(deps.state),
-			{ kind: "edit", commentId: context.req.param("id"), body: request.body },
+			{ kind: "edit", findingId: context.req.param("id"), body: request.body },
 		);
 		return context.json(toReviewPassDto(stored, deps.state.current().files));
 	});
 
 	route.delete("/comments/:id", async (context) => {
-		const stored = await applyCommentOps(
+		const stored = await applyFindingOps(
 			{ sessionStore: deps.sessionStore },
 			currentChangesetId(deps.state),
-			{ kind: "delete", commentId: context.req.param("id") },
+			{ kind: "delete", findingId: context.req.param("id") },
 		);
 		return context.json(toReviewPassDto(stored, deps.state.current().files));
 	});
 
 	route.post("/comments/:id/restore", async (context) => {
-		const stored = await applyCommentOps(
+		const stored = await applyFindingOps(
 			{ sessionStore: deps.sessionStore },
 			currentChangesetId(deps.state),
-			{ kind: "restore", commentId: context.req.param("id") },
+			{ kind: "restore", findingId: context.req.param("id") },
 		);
 		return context.json(toReviewPassDto(stored, deps.state.current().files));
 	});

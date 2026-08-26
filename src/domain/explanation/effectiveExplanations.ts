@@ -1,11 +1,11 @@
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { CommentPlacement } from "../changeset/placeComment";
-import { placeComment } from "../changeset/placeComment";
+import type { FindingPlacement } from "../changeset/placeOnDiff";
+import { placeOnDiff } from "../changeset/placeOnDiff";
 import type { StoredReview } from "../pass/StoredReview";
 
 /**
  * One explanation with its spot on the rendered diff resolved, through the
- * same `placeComment` contract findings use — never a fork of it. An
+ * same `placeOnDiff` contract findings use — never a fork of it. An
  * unplaceable explanation is still returned, placement and all: the diff
  * view drops it, but it reaches the wire so it is never silently lost.
  */
@@ -16,11 +16,11 @@ export interface EffectiveExplanation {
 	endLine: number;
 	says: string[];
 	topic?: string;
-	placement: CommentPlacement;
+	placement: FindingPlacement;
 }
 
 /**
- * Positional like `reviewCommentId`: nothing ever reorders or removes an
+ * Positional like `findingId`: nothing ever reorders or removes an
  * explanation for the life of a pass, so its index is a stable identity.
  */
 export function explanationId(index: number): string {
@@ -38,7 +38,7 @@ export function effectiveExplanations(
 		endLine: explanation.endLine,
 		says: explanation.says,
 		...(explanation.topic === undefined ? {} : { topic: explanation.topic }),
-		placement: placeComment(
+		placement: placeOnDiff(
 			{
 				path: explanation.path,
 				startLine: explanation.startLine,

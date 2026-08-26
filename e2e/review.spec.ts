@@ -64,13 +64,13 @@ test.describe("review pass", () => {
 		).toBeVisible({ timeout: RUN_SETTLE_TIMEOUT_MS });
 
 		// REQ-004: comments are collapsed by default — a marker, not a balloon
-		const markers = page.locator("[data-comment-marker]");
+		const markers = page.locator("[data-finding-marker]");
 		await expect(markers.first()).toBeVisible();
-		await expect(page.locator("[data-comment-id]")).toHaveCount(0);
+		await expect(page.locator("[data-finding-id]")).toHaveCount(0);
 
 		// clicking the marker expands its balloon
 		await markers.first().click();
-		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
+		await expect(page.locator("[data-finding-id]").first()).toBeVisible();
 
 		// REQ-010: a finding whose path is not in the diff is never dropped —
 		// it is listed in its own sidebar section instead
@@ -88,7 +88,7 @@ test.describe("review pass", () => {
 		// "Question" where a defect's says its tier
 		await expect(page.getByText("1 Question", { exact: true })).toBeVisible();
 		const questionRow = page.locator(
-			"[data-comment-row][data-kind='question']",
+			"[data-finding-row][data-kind='question']",
 		);
 		await expect(questionRow).toHaveCount(1);
 		await expect(questionRow).toContainText("Question");
@@ -114,7 +114,7 @@ test.describe("review pass", () => {
 		await expect(chip).toBeVisible();
 
 		// hiding explanations never touched the comments
-		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
+		await expect(page.locator("[data-finding-id]").first()).toBeVisible();
 
 		// the overview mentions each topic label verbatim, and the mention
 		// renders as that topic's colored chip, inline in the prose
@@ -174,7 +174,7 @@ test.describe("review pass", () => {
 			.getByRole("button", { name: "Keep the current review" })
 			.click();
 		await expect(dialog).toBeHidden();
-		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
+		await expect(page.locator("[data-finding-id]").first()).toBeVisible();
 
 		// ?explanations=margin: the comparison mode keeps every card open,
 		// pinned right, with no chips (the pass is stored, so no second run)

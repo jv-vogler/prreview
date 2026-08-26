@@ -1,9 +1,9 @@
 import type { ChangesetDto, FileDiffDto } from "@dto/ChangesetDto";
-import type { ExplanationDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type { ExplanationDto, ReviewFindingDto } from "@dto/ReviewDto";
 import type { CodeViewDiffItem } from "@pierre/diffs";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { CommentActions } from "../review/comments/CommentActions";
+import type { FindingActions } from "../review/comments/FindingActions";
 import { DiffWorkspace } from "./DiffWorkspace";
 
 // the real CodeView needs a highlight worker pool; the seam under test is
@@ -67,7 +67,7 @@ const EXPLANATION: ExplanationDto = {
 	placement: { kind: "exact", fileId: "file-1", side: "new", line: 2 },
 };
 
-const ACTIONS: CommentActions = {
+const ACTIONS: FindingActions = {
 	onEdit: () => {},
 	onDelete: () => {},
 	onRestore: () => {},
@@ -89,9 +89,9 @@ function workspace(overrides: {
 			foldedFileIds={new Set()}
 			onToggleFold={() => {}}
 			handleRef={{ current: null }}
-			comments={[] as readonly ReviewCommentDto[]}
-			expandedCommentIds={new Set()}
-			onToggleComment={() => {}}
+			findings={[] as readonly ReviewFindingDto[]}
+			expandedFindingIds={new Set()}
+			onToggleFinding={() => {}}
 			actions={ACTIONS}
 			explanationsMode="chips"
 			{...overrides}

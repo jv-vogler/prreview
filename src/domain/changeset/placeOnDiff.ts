@@ -2,9 +2,9 @@ import type { FileDiff } from "../changeset/FileDiff";
 import { buildLineIndex, type LineIndex } from "../changeset/LineIndex";
 
 /** which side of the diff a placed comment anchors to */
-export type CommentAnchorSide = "old" | "new";
+export type AnchorSide = "old" | "new";
 
-export interface CommentTarget {
+export interface FindingTarget {
 	path: string;
 	startLine: number;
 	endLine: number;
@@ -17,12 +17,12 @@ export interface CommentTarget {
  * nearest rendered line stands in, carrying the original range for display;
  * `unplaceable` means there is nothing in the diff to anchor to at all.
  */
-export type CommentPlacement =
-	| { kind: "exact"; fileId: string; side: CommentAnchorSide; line: number }
+export type FindingPlacement =
+	| { kind: "exact"; fileId: string; side: AnchorSide; line: number }
 	| {
 			kind: "clamped";
 			fileId: string;
-			side: CommentAnchorSide;
+			side: AnchorSide;
 			line: number;
 			requestedStartLine: number;
 			requestedEndLine: number;
@@ -30,7 +30,7 @@ export type CommentPlacement =
 	| { kind: "unplaceable" };
 
 interface RenderableLine {
-	side: CommentAnchorSide;
+	side: AnchorSide;
 	line: number;
 }
 
@@ -40,10 +40,10 @@ interface RenderableLine {
  * exactly, as the prompt instructs the agent to use it (reviewPrompt.ts's
  * `## Anchoring`).
  */
-export function placeComment(
-	target: CommentTarget,
+export function placeOnDiff(
+	target: FindingTarget,
 	files: readonly FileDiff[],
-): CommentPlacement {
+): FindingPlacement {
 	const file = files.find((candidate) => candidate.path === target.path);
 	if (file === undefined) {
 		return { kind: "unplaceable" };
@@ -80,9 +80,9 @@ export function placeComment(
 
 /** the new side is tried first, matching the prompt's own default anchoring */
 function exactSideFor(
-	target: CommentTarget,
+	target: FindingTarget,
 	index: LineIndex,
-): CommentAnchorSide | null {
+): AnchorSide | null {
 	if (isRangeRenderable(target, index.newLines)) {
 		return "new";
 	}
@@ -93,7 +93,7 @@ function exactSideFor(
 }
 
 function isRangeRenderable(
-	target: CommentTarget,
+	target: FindingTarget,
 	lines: ReadonlyMap<number, string>,
 ): boolean {
 	for (let line = target.startLine; line <= target.endLine; line++) {

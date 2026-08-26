@@ -11,8 +11,8 @@ import {
 } from "../../domain/agentTask/toJsonSchema";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import { effectiveBody, isDeleted } from "../../domain/finding/commentEdits";
-import { findingIndexForComment } from "../../domain/finding/reviewCommentId";
+import { effectiveBody, isDeleted } from "../../domain/finding/curation";
+import { findingIndexFor } from "../../domain/finding/findingId";
 import { BODY_MAX, type ReviewFinding } from "../../domain/pass/reviewSchema";
 import {
 	describeToolActivity,
@@ -43,15 +43,15 @@ const reworkResultSchema = z.object({
 	body: z.string().min(1).max(BODY_MAX),
 });
 
-export interface ReworkCommentInput {
+export interface ReworkFindingInput {
 	changesetId: ChangesetId;
-	commentId: string;
+	findingId: string;
 	instruction: ReworkInstruction;
 	/** the diff currently on screen, for the cited-code grounding */
 	files: readonly FileDiff[];
 }
 
-export interface ReworkCommentDeps {
+export interface ReworkFindingDeps {
 	engine: Engine;
 	git: Git;
 	sessionStore: SessionStore;
@@ -67,25 +67,25 @@ export interface ReworkCommentDeps {
  * edit path (TASK-046), never an in-place overwrite.
  */
 export function buildReworkJob(
-	deps: ReworkCommentDeps,
-	input: ReworkCommentInput,
+	deps: ReworkFindingDeps,
+	input: ReworkFindingInput,
 ): RunJob {
 	return async (context: RunContext): Promise<RunOutcome> => {
 		const stored = await deps.sessionStore.loadReview(input.changesetId);
 		if (stored === null) {
 			throw new Error("no review pass exists for this changeset yet");
 		}
-		const index = findingIndexForComment(stored, input.commentId);
+		const index = findingIndexFor(stored, input.findingId);
 		const finding: ReviewFinding | undefined =
 			index === null ? undefined : stored.pass.findings[index];
 		if (finding === undefined) {
 			throw new Error(
-				`comment ${input.commentId} does not exist in the stored pass`,
+				`finding ${input.findingId} does not exist in the stored pass`,
 			);
 		}
-		const edit = stored.commentEdits[input.commentId];
+		const edit = stored.findingEdits[input.findingId];
 		if (isDeleted(edit)) {
-			throw new Error(`comment ${input.commentId} has been deleted`);
+			throw new Error(`finding ${input.findingId} has been deleted`);
 		}
 
 		const jsonSchema = toJsonSchema(reworkResultSchema);

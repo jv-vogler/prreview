@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeSessionStore } from "../../test/helpers/FakeSessionStore";
 import type { StoredReview } from "../domain/pass/StoredReview";
-import { applyCommentOps } from "./applyCommentOps";
+import { applyFindingOps } from "./applyFindingOps";
 
 const CHANGESET_ID = "worktree";
 
@@ -31,23 +31,23 @@ function storedReview(): StoredReview {
 			],
 		},
 		residue: [],
-		commentEdits: {},
+		findingEdits: {},
 		published: null,
 	};
 }
 
-describe("applyCommentOps", () => {
+describe("applyFindingOps", () => {
 	it("overwrites a comment's body and persists it", async () => {
 		const store = new FakeSessionStore();
 		await store.saveReview(storedReview());
 
-		const updated = await applyCommentOps(
+		const updated = await applyFindingOps(
 			{ sessionStore: store },
 			CHANGESET_ID,
-			{ kind: "edit", commentId: "finding-0", body: "reworded" },
+			{ kind: "edit", findingId: "finding-0", body: "reworded" },
 		);
 
-		expect(updated.commentEdits["finding-0"]).toEqual({ body: "reworded" });
+		expect(updated.findingEdits["finding-0"]).toEqual({ body: "reworded" });
 		expect(await store.loadReview(CHANGESET_ID)).toEqual(updated);
 	});
 
@@ -55,37 +55,37 @@ describe("applyCommentOps", () => {
 		const store = new FakeSessionStore();
 		await store.saveReview(storedReview());
 
-		const deleted = await applyCommentOps(
+		const deleted = await applyFindingOps(
 			{ sessionStore: store },
 			CHANGESET_ID,
-			{ kind: "delete", commentId: "finding-0" },
+			{ kind: "delete", findingId: "finding-0" },
 		);
-		expect(deleted.commentEdits["finding-0"]).toEqual({ deleted: true });
+		expect(deleted.findingEdits["finding-0"]).toEqual({ deleted: true });
 
-		const restored = await applyCommentOps(
+		const restored = await applyFindingOps(
 			{ sessionStore: store },
 			CHANGESET_ID,
-			{ kind: "restore", commentId: "finding-0" },
+			{ kind: "restore", findingId: "finding-0" },
 		);
-		expect(restored.commentEdits["finding-0"]).toEqual({ deleted: false });
+		expect(restored.findingEdits["finding-0"]).toEqual({ deleted: false });
 	});
 
 	it("keeps an edited body across a later delete", async () => {
 		const store = new FakeSessionStore();
 		await store.saveReview(storedReview());
-		await applyCommentOps({ sessionStore: store }, CHANGESET_ID, {
+		await applyFindingOps({ sessionStore: store }, CHANGESET_ID, {
 			kind: "edit",
-			commentId: "finding-0",
+			findingId: "finding-0",
 			body: "reworded",
 		});
 
-		const deleted = await applyCommentOps(
+		const deleted = await applyFindingOps(
 			{ sessionStore: store },
 			CHANGESET_ID,
-			{ kind: "delete", commentId: "finding-0" },
+			{ kind: "delete", findingId: "finding-0" },
 		);
 
-		expect(deleted.commentEdits["finding-0"]).toEqual({
+		expect(deleted.findingEdits["finding-0"]).toEqual({
 			body: "reworded",
 			deleted: true,
 		});
@@ -96,9 +96,9 @@ describe("applyCommentOps", () => {
 		await store.saveReview(storedReview());
 
 		await expect(
-			applyCommentOps({ sessionStore: store }, CHANGESET_ID, {
+			applyFindingOps({ sessionStore: store }, CHANGESET_ID, {
 				kind: "edit",
-				commentId: "finding-7",
+				findingId: "finding-7",
 				body: "x",
 			}),
 		).rejects.toMatchObject({ reason: "comment-not-found" });
@@ -108,9 +108,9 @@ describe("applyCommentOps", () => {
 		const store = new FakeSessionStore();
 
 		await expect(
-			applyCommentOps({ sessionStore: store }, CHANGESET_ID, {
+			applyFindingOps({ sessionStore: store }, CHANGESET_ID, {
 				kind: "delete",
-				commentId: "finding-0",
+				findingId: "finding-0",
 			}),
 		).rejects.toMatchObject({ reason: "no-review" });
 	});
@@ -125,13 +125,13 @@ describe("applyCommentOps", () => {
 			findingIds: ["finding-3", "finding-0"],
 		});
 
-		const updated = await applyCommentOps(
+		const updated = await applyFindingOps(
 			{ sessionStore: store },
 			CHANGESET_ID,
-			{ kind: "edit", commentId: "finding-0", body: "reworded" },
+			{ kind: "edit", findingId: "finding-0", body: "reworded" },
 		);
 
-		expect(updated.commentEdits).toEqual({ "finding-0": { body: "reworded" } });
+		expect(updated.findingEdits).toEqual({ "finding-0": { body: "reworded" } });
 	});
 
 	it("rejects a position that a pass carrying its own ids never named", async () => {
@@ -140,9 +140,9 @@ describe("applyCommentOps", () => {
 		await store.saveReview({ ...stored, findingIds: ["finding-3"] });
 
 		await expect(
-			applyCommentOps({ sessionStore: store }, CHANGESET_ID, {
+			applyFindingOps({ sessionStore: store }, CHANGESET_ID, {
 				kind: "delete",
-				commentId: "finding-0",
+				findingId: "finding-0",
 			}),
 		).rejects.toMatchObject({ reason: "comment-not-found" });
 	});

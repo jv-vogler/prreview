@@ -68,7 +68,7 @@ export type RunKindDto = z.infer<typeof runKindDtoSchema>;
 /**
  * One review run. `queuedAt` is always known; `startedAt` appears once the
  * manager picked it up, which is what makes elapsed time honest for a run
- * still waiting. `commentId`/`result` only appear on a `kind: "rework"` run
+ * still waiting. `findingId`/`result` only appear on a `kind: "rework"` run
  * — `result` is the proposed body once it has succeeded, never persisted on
  * its own (TASK-046 owns the only write path).
  */
@@ -85,7 +85,7 @@ export const runDtoSchema = z.object({
 	progress: runProgressDtoSchema.optional(),
 	/** how long this run may go silent before it is stopped; not a wall clock */
 	idleTimeoutMs: z.int().min(0),
-	commentId: z.string().optional(),
+	findingId: z.string().optional(),
 	result: z.string().optional(),
 });
 

@@ -17,42 +17,42 @@ export interface StoredFindingIds {
  * is what lets an edit, a dismissal or a publish record survive the change
  * with no rewrite.
  */
-export function reviewCommentId(index: number): string {
+export function findingId(index: number): string {
 	return `${ID_PREFIX}${index}`;
 }
 
 /** The id of the finding at `index`: the pass's own, or its position's. */
-export function commentIdAt(stored: StoredFindingIds, index: number): string {
-	return stored.findingIds?.[index] ?? reviewCommentId(index);
+export function findingIdAt(stored: StoredFindingIds, index: number): string {
+	return stored.findingIds?.[index] ?? findingId(index);
 }
 
 /**
- * The inverse of `commentIdAt`; null when this pass has no such finding.
+ * The inverse of `findingIdAt`; null when this pass has no such finding.
  * A position is only accepted when the pass names no id of its own there:
  * once a pass carries ids, they are the only truth about which finding is
  * which, and reading `finding-1` as "the second one" would reattach the
  * reader's edit to a finding that never had it.
  */
-export function findingIndexForComment(
+export function findingIndexFor(
 	stored: StoredFindingIds,
-	commentId: string,
+	findingId: string,
 ): number | null {
-	const named = stored.findingIds?.indexOf(commentId) ?? -1;
+	const named = stored.findingIds?.indexOf(findingId) ?? -1;
 	if (named >= 0) {
 		return named;
 	}
-	const positional = positionOf(commentId);
+	const positional = positionOf(findingId);
 	if (positional === null || stored.findingIds?.[positional] !== undefined) {
 		return null;
 	}
 	return positional;
 }
 
-function positionOf(commentId: string): number | null {
-	if (!commentId.startsWith(ID_PREFIX)) {
+function positionOf(findingId: string): number | null {
+	if (!findingId.startsWith(ID_PREFIX)) {
 		return null;
 	}
-	const rest = commentId.slice(ID_PREFIX.length);
+	const rest = findingId.slice(ID_PREFIX.length);
 	if (!/^\d+$/.test(rest)) {
 		return null;
 	}

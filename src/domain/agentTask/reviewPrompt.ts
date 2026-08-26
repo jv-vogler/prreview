@@ -65,12 +65,12 @@ export interface PreviousReviewInput {
 	createdAt: string;
 	overview: string;
 	verdict: string;
-	comments: readonly PreviousCommentInput[];
+	findings: readonly PreviousFindingInput[];
 	/** inline PR comments on GitHub, anyone's; null = not a PR or unreadable */
 	conversation: readonly PrConversationEntry[] | null;
 }
 
-export interface PreviousCommentInput {
+export interface PreviousFindingInput {
 	/** the finding's own id — what a `carried` verdict names it by */
 	id: string;
 	/** the tier, or `question` for a finding that asked rather than claimed */
@@ -370,9 +370,9 @@ function renderPreviousReview(
 		"",
 		`Verdict: ${previous.verdict}`,
 		"",
-		previous.comments.length === 0
+		previous.findings.length === 0
 			? "It had no findings."
-			: previous.comments.map(renderPreviousComment).join("\n\n"),
+			: previous.findings.map(renderPreviousFinding).join("\n\n"),
 		"",
 		...renderConversation(previous.conversation),
 	];
@@ -403,20 +403,20 @@ function deltaReviewRules(createdAt: string): string[] {
 	];
 }
 
-function renderPreviousComment(
-	comment: PreviousCommentInput,
+function renderPreviousFinding(
+	finding: PreviousFindingInput,
 	index: number,
 ): string {
 	const flags = [
-		comment.dismissed ? "dismissed by the reviewer" : null,
-		comment.edited ? "wording edited by the reviewer" : null,
-		carriedFlag(comment.carried),
+		finding.dismissed ? "dismissed by the reviewer" : null,
+		finding.edited ? "wording edited by the reviewer" : null,
+		carriedFlag(finding.carried),
 	].filter((flag) => flag !== null);
 	const suffix = flags.length === 0 ? "" : ` [${flags.join(", ")}]`;
-	const anchor = `${comment.path}:${comment.startLine}-${comment.endLine}`;
+	const anchor = `${finding.path}:${finding.startLine}-${finding.endLine}`;
 	return [
-		`${index + 1}. [${comment.id}] (${comment.tier}) ${comment.title} @ ${anchor}${suffix}`,
-		indent(comment.body),
+		`${index + 1}. [${finding.id}] (${finding.tier}) ${finding.title} @ ${anchor}${suffix}`,
+		indent(finding.body),
 	].join("\n");
 }
 

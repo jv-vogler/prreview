@@ -1,30 +1,30 @@
-import type { CommentAnchorSideDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type { AnchorSideDto, ReviewFindingDto } from "@dto/ReviewDto";
 
 /**
  * Where one comment's gutter marker goes on the rendered diff — every
  * comment whose placement is `exact` or `clamped` gets one; `unplaceable`
  * comments never appear here, only in the sidebar (REQ-010).
  */
-export interface PlacedComment {
+export interface PlacedFinding {
 	fileId: string;
-	side: CommentAnchorSideDto;
+	side: AnchorSideDto;
 	line: number;
-	commentId: string;
+	findingId: string;
 }
 
-export function placedComments(
-	comments: readonly ReviewCommentDto[],
-): PlacedComment[] {
-	const placed: PlacedComment[] = [];
-	for (const comment of comments) {
-		if (comment.placement.kind === "unplaceable") {
+export function placedFindings(
+	findings: readonly ReviewFindingDto[],
+): PlacedFinding[] {
+	const placed: PlacedFinding[] = [];
+	for (const finding of findings) {
+		if (finding.placement.kind === "unplaceable") {
 			continue;
 		}
 		placed.push({
-			fileId: comment.placement.fileId,
-			side: comment.placement.side,
-			line: comment.placement.line,
-			commentId: comment.id,
+			fileId: finding.placement.fileId,
+			side: finding.placement.side,
+			line: finding.placement.line,
+			findingId: finding.id,
 		});
 	}
 	return placed;
@@ -33,13 +33,13 @@ export function placedComments(
 /** One rendered diff line can carry more than one comment; they share a marker. */
 export interface AnnotationGroup {
 	fileId: string;
-	side: CommentAnchorSideDto;
+	side: AnchorSideDto;
 	line: number;
-	commentIds: string[];
+	findingIds: string[];
 }
 
-export function groupPlacedComments(
-	placed: readonly PlacedComment[],
+export function groupPlacedFindings(
+	placed: readonly PlacedFinding[],
 ): AnnotationGroup[] {
 	const groups = new Map<string, AnnotationGroup>();
 	for (const item of placed) {
@@ -50,10 +50,10 @@ export function groupPlacedComments(
 				fileId: item.fileId,
 				side: item.side,
 				line: item.line,
-				commentIds: [item.commentId],
+				findingIds: [item.findingId],
 			});
 		} else {
-			existing.commentIds.push(item.commentId);
+			existing.findingIds.push(item.findingId);
 		}
 	}
 	return [...groups.values()];

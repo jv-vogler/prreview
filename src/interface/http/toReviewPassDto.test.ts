@@ -32,7 +32,7 @@ const STORED: StoredReview = {
 		findings: [],
 	},
 	residue: [],
-	commentEdits: {},
+	findingEdits: {},
 	published: null,
 };
 
@@ -121,11 +121,11 @@ describe("toReviewPassDto", () => {
 				reviewId: 1,
 				htmlUrl: "https://example.com/r/1",
 				publishedAt: "2026-08-23T00:00:00.000Z",
-				commentIds: ["finding-0"],
+				findingIds: ["finding-0"],
 			},
 		};
 		const dto = toReviewPassDto(stored, [FILE]);
-		expect(dto.comments.map((comment) => comment.published)).toEqual([
+		expect(dto.findings.map((finding) => finding.published)).toEqual([
 			true,
 			false,
 		]);
@@ -155,7 +155,7 @@ describe("toReviewPassDto", () => {
 		);
 
 		expect(
-			pass.comments.map((comment) => [comment.id, comment.carried]),
+			pass.findings.map((finding) => [finding.id, finding.carried]),
 		).toEqual([
 			["finding-4", true],
 			["finding-9", false],

@@ -17,7 +17,7 @@ function storedReview(explanations: ReviewExplanation[]): StoredReview {
 			findings: [],
 		},
 		residue: [],
-		commentEdits: {},
+		findingEdits: {},
 		published: null,
 	};
 }
@@ -46,7 +46,7 @@ const FILE: FileDiff = {
 };
 
 describe("effectiveExplanations", () => {
-	it("resolves a positional id and an exact placement through placeComment", () => {
+	it("resolves a positional id and an exact placement through placeOnDiff", () => {
 		const [explanation] = effectiveExplanations(
 			storedReview([
 				{

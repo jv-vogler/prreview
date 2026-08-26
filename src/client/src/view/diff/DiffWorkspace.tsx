@@ -1,9 +1,9 @@
 import type { BlobRequest } from "@dto/BlobRequest";
 import type { ChangesetDto, FileDiffDto } from "@dto/ChangesetDto";
 import type {
-	CommentAnchorSideDto,
+	AnchorSideDto,
 	ExplanationDto,
-	ReviewCommentDto,
+	ReviewFindingDto,
 } from "@dto/ReviewDto";
 import type {
 	CodeViewDiffItem,
@@ -23,14 +23,14 @@ import {
 } from "../../domain/explanation/placedExplanations";
 import { topicColorsFor } from "../../domain/explanation/topicColors";
 import {
-	groupPlacedComments,
-	placedComments,
-} from "../../domain/finding/placedComments";
+	groupPlacedFindings,
+	placedFindings,
+} from "../../domain/finding/placedFindings";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
 import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
-import type { CommentActions } from "../review/comments/CommentActions";
-import { DiffCommentAnnotation } from "../review/comments/DiffCommentAnnotation";
+import { DiffFindingAnnotation } from "../review/comments/DiffFindingAnnotation";
+import type { FindingActions } from "../review/comments/FindingActions";
 import {
 	DiffExplanationAnnotation,
 	type ExplanationsMode,
@@ -46,13 +46,13 @@ import { useHeaderFoldClicks } from "./useHeaderFoldClicks";
 
 /** the annotation metadata carried per rendered diff line (TASK-043) */
 interface DiffAnnotationMeta {
-	commentIds: string[];
+	findingIds: string[];
 	explanationIds: string[];
 }
 
 export interface DiffWorkspaceHandle {
 	scrollToFile(fileId: string): void;
-	scrollToComment(comment: ReviewCommentDto): void;
+	scrollToFinding(finding: ReviewFindingDto): void;
 	scrollToExplanation(explanation: ExplanationDto): void;
 }
 
@@ -65,10 +65,10 @@ export interface DiffWorkspaceProps {
 	onToggleFold(fileId: string): void;
 	handleRef: React.RefObject<DiffWorkspaceHandle | null>;
 	/** every comment for the pass on screen, placed or not (unplaced ones carry no annotation) */
-	comments: readonly ReviewCommentDto[];
-	expandedCommentIds: ReadonlySet<string>;
-	onToggleComment(commentId: string): void;
-	actions: CommentActions;
+	findings: readonly ReviewFindingDto[];
+	expandedFindingIds: ReadonlySet<string>;
+	onToggleFinding(findingId: string): void;
+	actions: FindingActions;
 	/** the pass's change explanations; unplaceable ones carry no annotation */
 	explanations: readonly ExplanationDto[];
 	/** the one header toggle: off drops the explanations entirely */
@@ -77,11 +77,10 @@ export interface DiffWorkspaceProps {
 	explanationsMode: ExplanationsMode;
 }
 
-const ANNOTATION_SIDE: Record<CommentAnchorSideDto, "deletions" | "additions"> =
-	{
-		old: "deletions",
-		new: "additions",
-	};
+const ANNOTATION_SIDE: Record<AnchorSideDto, "deletions" | "additions"> = {
+	old: "deletions",
+	new: "additions",
+};
 
 /** The one screen's renderer: Pierre's virtualized CodeView over the resolved changeset. */
 export function DiffWorkspace({
@@ -91,9 +90,9 @@ export function DiffWorkspace({
 	foldedFileIds,
 	onToggleFold,
 	handleRef,
-	comments,
-	expandedCommentIds,
-	onToggleComment,
+	findings,
+	expandedFindingIds,
+	onToggleFinding,
 	actions,
 	explanations,
 	showExplanations,
@@ -104,9 +103,9 @@ export function DiffWorkspace({
 
 	const cacheKeyPrefix = `${changeset.ref.baseSha}-${changeset.ref.headSha ?? "worktree"}`;
 
-	const commentsById = useMemo(
-		() => new Map(comments.map((comment) => [comment.id, comment])),
-		[comments],
+	const findingsById = useMemo(
+		() => new Map(findings.map((finding) => [finding.id, finding])),
+		[findings],
 	);
 
 	const explanationsById = useMemo(
@@ -123,12 +122,12 @@ export function DiffWorkspace({
 			string,
 			{
 				fileId: string;
-				side: CommentAnchorSideDto;
+				side: AnchorSideDto;
 				line: number;
 				meta: DiffAnnotationMeta;
 			}
 		>();
-		const at = (fileId: string, side: CommentAnchorSideDto, line: number) => {
+		const at = (fileId: string, side: AnchorSideDto, line: number) => {
 			const key = `${fileId}:${side}:${line}`;
 			let entry = merged.get(key);
 			if (entry === undefined) {
@@ -136,7 +135,7 @@ export function DiffWorkspace({
 					fileId,
 					side,
 					line,
-					meta: { commentIds: [], explanationIds: [] },
+					meta: { findingIds: [], explanationIds: [] },
 				};
 				merged.set(key, entry);
 			}
@@ -151,9 +150,9 @@ export function DiffWorkspace({
 				);
 			}
 		}
-		for (const group of groupPlacedComments(placedComments(comments))) {
-			at(group.fileId, group.side, group.line).meta.commentIds.push(
-				...group.commentIds,
+		for (const group of groupPlacedFindings(placedFindings(findings))) {
+			at(group.fileId, group.side, group.line).meta.findingIds.push(
+				...group.findingIds,
 			);
 		}
 		const byFile = new Map<string, DiffLineAnnotation<DiffAnnotationMeta>[]>();
@@ -167,13 +166,13 @@ export function DiffWorkspace({
 			byFile.set(entry.fileId, forFile);
 		}
 		return byFile;
-	}, [comments, explanations, showExplanations]);
+	}, [findings, explanations, showExplanations]);
 
 	// Pierre reuses a file's whole rendered record — annotations included —
 	// until `version` moves (see the comment at its use below), so a new
 	// pass's comments, its explanations, the show/hide toggle and the
 	// explanations mode all need their own bump distinct from the fold bit.
-	const commentsRevisionRef = useRef(0);
+	const findingsRevisionRef = useRef(0);
 	const previousAnnotationsRef = useRef(annotationsByFileId);
 	const previousModeRef = useRef(explanationsMode);
 	if (
@@ -182,9 +181,9 @@ export function DiffWorkspace({
 	) {
 		previousAnnotationsRef.current = annotationsByFileId;
 		previousModeRef.current = explanationsMode;
-		commentsRevisionRef.current += 1;
+		findingsRevisionRef.current += 1;
 	}
-	const commentsRevision = commentsRevisionRef.current;
+	const findingsRevision = findingsRevisionRef.current;
 
 	const items = useMemo<CodeViewDiffItem<DiffAnnotationMeta>[]>(() => {
 		const parsed = parsePatchFiles(
@@ -209,7 +208,7 @@ export function DiffWorkspace({
 					// the renderer reuses a file's rendered record — including its
 					// annotations — until this number moves, so both a fold and a
 					// new pass's comments have to be encoded into it
-					version: (collapsed ? 1 : 0) + commentsRevision * 2,
+					version: (collapsed ? 1 : 0) + findingsRevision * 2,
 					collapsed,
 					annotations: annotationsByFileId.get(file.id),
 				},
@@ -220,7 +219,7 @@ export function DiffWorkspace({
 		cacheKeyPrefix,
 		foldedFileIds,
 		annotationsByFileId,
-		commentsRevision,
+		findingsRevision,
 	]);
 
 	const filesByPath = useMemo(
@@ -277,15 +276,15 @@ export function DiffWorkspace({
 				behavior: "instant",
 			});
 		},
-		scrollToComment: (comment) => {
-			if (comment.placement.kind === "unplaceable") {
+		scrollToFinding: (finding) => {
+			if (finding.placement.kind === "unplaceable") {
 				return;
 			}
 			codeViewRef.current?.scrollTo({
 				type: "line",
-				id: comment.placement.fileId,
-				lineNumber: comment.placement.line,
-				side: ANNOTATION_SIDE[comment.placement.side],
+				id: finding.placement.fileId,
+				lineNumber: finding.placement.line,
+				side: ANNOTATION_SIDE[finding.placement.side],
 				align: "center",
 				behavior: "smooth",
 			});
@@ -339,11 +338,11 @@ export function DiffWorkspace({
 										explanation !== undefined,
 								)}
 						/>
-						<DiffCommentAnnotation
-							commentIds={annotation.metadata.commentIds}
-							commentsById={commentsById}
-							expandedCommentIds={expandedCommentIds}
-							onToggle={onToggleComment}
+						<DiffFindingAnnotation
+							findingIds={annotation.metadata.findingIds}
+							findingsById={findingsById}
+							expandedFindingIds={expandedFindingIds}
+							onToggle={onToggleFinding}
 							actions={actions}
 						/>
 					</>

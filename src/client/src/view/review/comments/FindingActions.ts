@@ -6,7 +6,7 @@ import type { ReworkInstructionDto } from "@dto/ReviewDto";
  * full review pass.
  */
 export interface ReworkProposal {
-	commentId: string;
+	findingId: string;
 	status: "running" | "succeeded" | "failed";
 	/** only set once `status` is `"succeeded"` */
 	proposedBody?: string;
@@ -15,18 +15,18 @@ export interface ReworkProposal {
 }
 
 /**
- * Every curation move a `CommentBalloon` can trigger, bundled so it threads
- * as one prop through `DiffCommentAnnotation` and `CommentWorklist` rather
+ * Every curation move a `FindingBalloon` can trigger, bundled so it threads
+ * as one prop through `DiffFindingAnnotation` and `FindingWorklist` rather
  * than five (TASK-046, TASK-047, TASK-049). `onRework` is absent rather than
  * disabled when there is no agent (REQ-009) — the control does not render
  * at all.
  */
-export interface CommentActions {
-	onEdit(commentId: string, body: string): void;
-	onDelete(commentId: string): void;
-	onRestore(commentId: string): void;
-	onRework?(commentId: string, instruction: ReworkInstructionDto): void;
+export interface FindingActions {
+	onEdit(findingId: string, body: string): void;
+	onDelete(findingId: string): void;
+	onRestore(findingId: string): void;
+	onRework?(findingId: string, instruction: ReworkInstructionDto): void;
 	reworkProposal: ReworkProposal | null;
-	onAcceptRework(commentId: string, body: string): void;
+	onAcceptRework(findingId: string, body: string): void;
 	onDismissRework(): void;
 }

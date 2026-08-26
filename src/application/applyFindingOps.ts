@@ -1,7 +1,7 @@
 import type { ChangesetId } from "../domain/changeset/ChangesetId";
-import { ReviewCommentError } from "../domain/errors/ReviewCommentError";
-import { findingIndexForComment } from "../domain/finding/reviewCommentId";
-import type { CommentEdit, StoredReview } from "../domain/pass/StoredReview";
+import { FindingError } from "../domain/errors/FindingError";
+import { findingIndexFor } from "../domain/finding/findingId";
+import type { FindingEdit, StoredReview } from "../domain/pass/StoredReview";
 import type { SessionStore } from "./ports/SessionStore";
 
 /**
@@ -10,12 +10,12 @@ import type { SessionStore } from "./ports/SessionStore";
  * because `delete` is meant to be undoable — nothing here is destructive
  * until a new pass overwrites the whole artifact.
  */
-export type CommentOp =
-	| { kind: "edit"; commentId: string; body: string }
-	| { kind: "delete"; commentId: string }
-	| { kind: "restore"; commentId: string };
+export type FindingOp =
+	| { kind: "edit"; findingId: string; body: string }
+	| { kind: "delete"; findingId: string }
+	| { kind: "restore"; findingId: string };
 
-export interface ApplyCommentOpsDeps {
+export interface ApplyFindingOpsDeps {
 	sessionStore: SessionStore;
 }
 
@@ -24,33 +24,33 @@ export interface ApplyCommentOpsDeps {
  * — edit, delete, restore — goes through here, so every one of them is
  * validated the same way and lands in the store the same way. Never touches
  * `pass.findings` itself; curation is a layer on top, kept in
- * `commentEdits`, so the engine's own answer stays intact underneath it.
+ * `findingEdits`, so the engine's own answer stays intact underneath it.
  */
-export async function applyCommentOps(
-	deps: ApplyCommentOpsDeps,
+export async function applyFindingOps(
+	deps: ApplyFindingOpsDeps,
 	changesetId: ChangesetId,
-	op: CommentOp,
+	op: FindingOp,
 ): Promise<StoredReview> {
 	const stored = await deps.sessionStore.loadReview(changesetId);
 	if (stored === null) {
-		throw new ReviewCommentError(
+		throw new FindingError(
 			"no-review",
 			"No review pass exists for this changeset yet.",
 		);
 	}
-	const index = findingIndexForComment(stored, op.commentId);
+	const index = findingIndexFor(stored, op.findingId);
 	if (index === null || stored.pass.findings[index] === undefined) {
-		throw new ReviewCommentError(
+		throw new FindingError(
 			"comment-not-found",
-			`Comment ${op.commentId} does not exist in the stored pass.`,
+			`Finding ${op.findingId} does not exist in the stored pass.`,
 		);
 	}
 
 	const updated: StoredReview = {
 		...stored,
-		commentEdits: {
-			...stored.commentEdits,
-			[op.commentId]: nextEdit(stored.commentEdits[op.commentId], op),
+		findingEdits: {
+			...stored.findingEdits,
+			[op.findingId]: nextEdit(stored.findingEdits[op.findingId], op),
 		},
 	};
 	await deps.sessionStore.saveReview(updated);
@@ -58,9 +58,9 @@ export async function applyCommentOps(
 }
 
 function nextEdit(
-	current: CommentEdit | undefined,
-	op: CommentOp,
-): CommentEdit {
+	current: FindingEdit | undefined,
+	op: FindingOp,
+): FindingEdit {
 	switch (op.kind) {
 		case "edit":
 			return { ...current, body: op.body };

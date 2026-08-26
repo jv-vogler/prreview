@@ -1,7 +1,7 @@
 /*
  * The rail appears mid-run, once the agent writes its first plan — it has no
  * height to start from, so the row opens the same way a comment balloon does
- * (DiffCommentAnnotation.module.css's row-open trick): a single grid row
+ * (DiffFindingAnnotation.module.css's row-open trick): a single grid row
  * interpolating between 0fr and 1fr, which is the only way to animate a
  * height nobody measured.
  */
@@ -106,7 +106,7 @@
 /*
  * The active step's dot carries the "alive" signal for the whole bar — the
  * old bare pulse dot steps aside once a plan exists (RunStatusBar.tsx). Same
- * halo idiom as DiffCommentAnnotation.module.css's marker-pulse: the spread
+ * halo idiom as DiffFindingAnnotation.module.css's marker-pulse: the spread
  * grows while the colour is still opaque, driven by a local custom property
  * so colour and motion stay separated.
  */

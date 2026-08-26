@@ -6,13 +6,13 @@ import { AppError } from "./AppError";
  * finding in that pass — a stale id from an earlier pass, or a typo, never
  * something to recover from silently.
  */
-export type ReviewCommentErrorReason = "no-review" | "comment-not-found";
+export type FindingErrorReason = "no-review" | "comment-not-found";
 
-export class ReviewCommentError extends AppError {
-	override readonly reason: ReviewCommentErrorReason;
+export class FindingError extends AppError {
+	override readonly reason: FindingErrorReason;
 
 	constructor(
-		reason: ReviewCommentErrorReason,
+		reason: FindingErrorReason,
 		message: string,
 		options?: { cause?: unknown },
 	) {
