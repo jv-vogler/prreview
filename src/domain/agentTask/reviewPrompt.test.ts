@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import { buildReviewPrompt, renderNumberedDiff } from "./reviewPrompt";
+import { renderNumberedDiff } from "./numberedDiff";
+import { buildReviewPrompt } from "./reviewPrompt";
 
 const FILE: FileDiff = {
 	id: "f1",

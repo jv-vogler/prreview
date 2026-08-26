@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { FileDiff } from "../changeset/FileDiff";
 import { BODY_MAX, type ReviewFinding } from "../pass/ReviewPass";
-import { renderNumberedDiff } from "./reviewPrompt";
+import { renderNumberedDiff } from "./numberedDiff";
 
 export type ReworkInstruction = "concise" | "expand" | "explain";
 
