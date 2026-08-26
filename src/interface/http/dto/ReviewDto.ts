@@ -37,6 +37,8 @@ export const findingPlacementDtoSchema = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("unplaceable") }),
 ]);
 
+export type FindingPlacementDto = z.infer<typeof findingPlacementDtoSchema>;
+
 export const reviewFindingDtoSchema = z.object({
 	id: z.string(),
 	path: z.string(),

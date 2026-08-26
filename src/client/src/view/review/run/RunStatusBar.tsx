@@ -92,16 +92,23 @@ function findingsTake(findings: readonly ReviewFindingDto[]): string {
 	return `${total}, ${counts[worst]} ${REVIEW_TIER_LABEL[worst].toLowerCase()}${counts[worst] === 1 ? "" : "s"}`;
 }
 
-function runDurationMs(run: RunDto): number | null {
-	if (run.startedAt === undefined || run.endedAt === undefined) {
+function spanMs(
+	from: string | undefined,
+	to: string | undefined,
+): number | null {
+	if (from === undefined || to === undefined) {
 		return null;
 	}
-	const started = Date.parse(run.startedAt);
-	const ended = Date.parse(run.endedAt);
+	const started = Date.parse(from);
+	const ended = Date.parse(to);
 	if (Number.isNaN(started) || Number.isNaN(ended)) {
 		return null;
 	}
 	return Math.max(0, ended - started);
+}
+
+function runDurationMs(run: RunDto): number | null {
+	return spanMs(run.startedAt, run.endedAt);
 }
 
 function ResidueWarning({ files }: { files: string[] }) {
@@ -132,7 +139,6 @@ function ActiveRun({ run, onCancel }: { run: RunDto; onCancel(): void }) {
 
 	return (
 		<div className={styles.bar} data-run-status="running" role="status">
-			{}
 			{itinerary === null && (
 				<span className={styles.pulse} data-stalled={stalled || undefined} />
 			)}
@@ -233,14 +239,5 @@ function CancelledRun({ run, onRetry }: { run: RunDto; onRetry(): void }) {
 }
 
 function elapsedAtEnd(run: RunDto): number | null {
-	const start = run.startedAt ?? run.queuedAt;
-	if (run.endedAt === undefined) {
-		return null;
-	}
-	const started = Date.parse(start);
-	const ended = Date.parse(run.endedAt);
-	if (Number.isNaN(started) || Number.isNaN(ended)) {
-		return null;
-	}
-	return Math.max(0, ended - started);
+	return spanMs(run.startedAt ?? run.queuedAt, run.endedAt);
 }

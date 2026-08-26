@@ -26,14 +26,14 @@ export function ExplanationsPanel({
 	onJumpTo,
 	onToggleTopic,
 }: ExplanationsPanelProps) {
+	if (explanations.length === 0) {
+		return <p className={styles.empty}>No explanations.</p>;
+	}
 	const topics = topicsFor(explanations);
 	const colors = topicColorsFor(explanations);
 	const standalone = explanations.filter(
 		(explanation) => explanation.topic === undefined,
 	);
-	if (explanations.length === 0) {
-		return <p className={styles.empty}>No explanations.</p>;
-	}
 	return (
 		<div className={styles.panel}>
 			{topics.map((topic) => (

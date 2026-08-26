@@ -35,7 +35,10 @@ import {
 import type { FindingActions } from "../view/review/comments/FindingActions";
 import { reworkProposalFor } from "../view/review/comments/FindingActions";
 import type { ExplanationsMode } from "../view/review/explanations/DiffExplanationAnnotation";
-import { HighlightedExplanationsContext } from "../view/review/explanations/highlightedExplanations";
+import {
+	HighlightedExplanationsContext,
+	NO_HIGHLIGHTED_EXPLANATIONS,
+} from "../view/review/explanations/highlightedExplanations";
 import { OverviewPanel } from "../view/review/OverviewPanel";
 import { PublishControl } from "../view/review/PublishControl";
 import { ReReviewDialog } from "../view/review/ReReviewDialog";
@@ -47,8 +50,6 @@ import { ReviewHeader } from "./ReviewHeader";
 import styles from "./ReviewPage.module.css";
 
 const api = createApiClient();
-
-const NO_HIGHLIGHT: ReadonlySet<string> = new Set();
 
 const EXPLANATIONS_MODE: ExplanationsMode =
 	new URLSearchParams(window.location.search).get("explanations") === "margin"
@@ -377,7 +378,7 @@ function ResolvedReview({
 
 	return (
 		<HighlightedExplanationsContext.Provider
-			value={highlighted?.ids ?? NO_HIGHLIGHT}
+			value={highlighted?.ids ?? NO_HIGHLIGHTED_EXPLANATIONS}
 		>
 			{confirmingReReview && (
 				<ReReviewDialog

@@ -3,6 +3,7 @@ import type { ChangesetDto, FileDiffDto } from "@dto/ChangesetDto";
 import type {
 	AnchorSideDto,
 	ExplanationDto,
+	FindingPlacementDto,
 	ReviewFindingDto,
 } from "@dto/ReviewDto";
 import type {
@@ -75,6 +76,23 @@ const ANNOTATION_SIDE: Record<AnchorSideDto, "deletions" | "additions"> = {
 	old: "deletions",
 	new: "additions",
 };
+
+function scrollToPlacement(
+	codeView: CodeViewHandle<DiffAnnotationMeta> | null,
+	placement: FindingPlacementDto,
+): void {
+	if (placement.kind === "unplaceable") {
+		return;
+	}
+	codeView?.scrollTo({
+		type: "line",
+		id: placement.fileId,
+		lineNumber: placement.line,
+		side: ANNOTATION_SIDE[placement.side],
+		align: "center",
+		behavior: "smooth",
+	});
+}
 
 export function DiffWorkspace({
 	api,
@@ -256,32 +274,10 @@ export function DiffWorkspace({
 				behavior: "instant",
 			});
 		},
-		scrollToFinding: (finding) => {
-			if (finding.placement.kind === "unplaceable") {
-				return;
-			}
-			codeViewRef.current?.scrollTo({
-				type: "line",
-				id: finding.placement.fileId,
-				lineNumber: finding.placement.line,
-				side: ANNOTATION_SIDE[finding.placement.side],
-				align: "center",
-				behavior: "smooth",
-			});
-		},
-		scrollToExplanation: (explanation) => {
-			if (explanation.placement.kind === "unplaceable") {
-				return;
-			}
-			codeViewRef.current?.scrollTo({
-				type: "line",
-				id: explanation.placement.fileId,
-				lineNumber: explanation.placement.line,
-				side: ANNOTATION_SIDE[explanation.placement.side],
-				align: "center",
-				behavior: "smooth",
-			});
-		},
+		scrollToFinding: (finding) =>
+			scrollToPlacement(codeViewRef.current, finding.placement),
+		scrollToExplanation: (explanation) =>
+			scrollToPlacement(codeViewRef.current, explanation.placement),
 	};
 
 	return (
