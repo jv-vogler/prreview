@@ -25,13 +25,13 @@ function finding(overrides: Partial<ReviewFindingDto>): ReviewFindingDto {
 }
 
 describe("summarizePublish", () => {
-	it("counts an exact, review-lane comment as publishable", () => {
+	it("counts an exact, review-lane finding as publishable", () => {
 		const summary = summarizePublish([finding({})]);
 		expect(summary.publishable).toEqual([finding({})]);
 		expect(summary.excluded).toEqual([]);
 	});
 
-	it("counts a clamped, review-lane comment as publishable", () => {
+	it("counts a clamped, review-lane finding as publishable", () => {
 		const clamped = finding({
 			placement: {
 				kind: "clamped",
@@ -45,7 +45,7 @@ describe("summarizePublish", () => {
 		expect(summarizePublish([clamped]).publishable).toEqual([clamped]);
 	});
 
-	it("excludes a pre-existing-lane comment, reporting why", () => {
+	it("excludes a pre-existing-lane finding, reporting why", () => {
 		const preExisting = finding({ id: "finding-1", lane: "pre-existing" });
 		const summary = summarizePublish([preExisting]);
 		expect(summary.publishable).toEqual([]);
@@ -54,7 +54,7 @@ describe("summarizePublish", () => {
 		]);
 	});
 
-	it("excludes an unplaceable comment, reporting why", () => {
+	it("excludes an unplaceable finding, reporting why", () => {
 		const unplaceable = finding({
 			id: "finding-2",
 			placement: { kind: "unplaceable" },
@@ -68,7 +68,7 @@ describe("summarizePublish", () => {
 });
 
 describe("summarizePublish with questions", () => {
-	it("counts a question as publishable, exactly like any other comment", () => {
+	it("counts a question as publishable, exactly like any other finding", () => {
 		const question = finding({
 			id: "finding-3",
 			kind: "question",

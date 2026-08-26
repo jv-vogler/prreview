@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { FindingActions } from "./FindingActions";
 import { FindingBalloon } from "./FindingBalloon";
 
-const COMMENT: ReviewFindingDto = {
+const FINDING: ReviewFindingDto = {
 	id: "finding-0",
 	path: "src/greeting.ts",
 	startLine: 1,
@@ -40,7 +40,7 @@ describe("FindingBalloon", () => {
 		const onEdit = vi.fn();
 		render(
 			<FindingBalloon
-				finding={COMMENT}
+				finding={FINDING}
 				onCollapse={() => {}}
 				actions={actions({ onEdit })}
 			/>,
@@ -57,7 +57,7 @@ describe("FindingBalloon", () => {
 		const onEdit = vi.fn();
 		render(
 			<FindingBalloon
-				finding={COMMENT}
+				finding={FINDING}
 				onCollapse={() => {}}
 				actions={actions({ onEdit })}
 			/>,
@@ -72,7 +72,7 @@ describe("FindingBalloon", () => {
 		const onDelete = vi.fn();
 		render(
 			<FindingBalloon
-				finding={COMMENT}
+				finding={FINDING}
 				onCollapse={() => {}}
 				actions={actions({ onDelete })}
 			/>,
@@ -85,7 +85,7 @@ describe("FindingBalloon", () => {
 		const onRestore = vi.fn();
 		render(
 			<FindingBalloon
-				finding={{ ...COMMENT, deleted: true }}
+				finding={{ ...FINDING, deleted: true }}
 				onCollapse={() => {}}
 				actions={actions({ onRestore })}
 			/>,
@@ -101,7 +101,7 @@ describe("FindingBalloon", () => {
 	it("labels a question as one, where a defect shows its tier", () => {
 		render(
 			<FindingBalloon
-				finding={{ ...COMMENT, kind: "question", tier: undefined }}
+				finding={{ ...FINDING, kind: "question", tier: undefined }}
 				onCollapse={() => {}}
 				actions={actions()}
 			/>,
@@ -113,7 +113,7 @@ describe("FindingBalloon", () => {
 	it("hides the rework control entirely when no agent is available", () => {
 		render(
 			<FindingBalloon
-				finding={COMMENT}
+				finding={FINDING}
 				onCollapse={() => {}}
 				actions={actions()}
 			/>,
@@ -125,7 +125,7 @@ describe("FindingBalloon", () => {
 		const onRework = vi.fn();
 		render(
 			<FindingBalloon
-				finding={COMMENT}
+				finding={FINDING}
 				onCollapse={() => {}}
 				actions={actions({ onRework })}
 			/>,
@@ -138,7 +138,7 @@ describe("FindingBalloon", () => {
 		const onAcceptRework = vi.fn();
 		render(
 			<FindingBalloon
-				finding={COMMENT}
+				finding={FINDING}
 				onCollapse={() => {}}
 				actions={actions({
 					onRework: vi.fn(),

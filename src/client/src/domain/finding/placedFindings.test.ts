@@ -25,7 +25,7 @@ function finding(overrides: Partial<ReviewFindingDto>): ReviewFindingDto {
 }
 
 describe("placedFindings", () => {
-	it("drops unplaceable comments", () => {
+	it("drops unplaceable findings", () => {
 		const findings = [finding({ placement: { kind: "unplaceable" } })];
 		expect(placedFindings(findings)).toEqual([]);
 	});
@@ -56,7 +56,7 @@ describe("placedFindings", () => {
 });
 
 describe("groupPlacedFindings", () => {
-	it("merges comments anchored to the same file, side and line", () => {
+	it("merges findings anchored to the same file, side and line", () => {
 		const grouped = groupPlacedFindings([
 			{ fileId: "file-1", side: "new", line: 3, findingId: "finding-0" },
 			{ fileId: "file-1", side: "new", line: 3, findingId: "finding-1" },

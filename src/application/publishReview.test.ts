@@ -96,7 +96,7 @@ function effective(
 }
 
 describe("buildPublishPayload", () => {
-	it("excludes a pre-existing-lane comment, reporting why", () => {
+	it("excludes a pre-existing-lane finding, reporting why", () => {
 		const { included, excluded } = buildPublishPayload([
 			effective({ lane: "pre-existing" }),
 		]);
@@ -104,7 +104,7 @@ describe("buildPublishPayload", () => {
 		expect(excluded).toEqual([{ id: "finding-0", reason: "pre-existing" }]);
 	});
 
-	it("excludes an unplaceable comment, reporting why", () => {
+	it("excludes an unplaceable finding, reporting why", () => {
 		const { included, excluded } = buildPublishPayload([
 			effective({ placement: { kind: "unplaceable" } }),
 		]);
@@ -264,7 +264,7 @@ describe("publishReview", () => {
 		).rejects.toMatchObject({ reason: "nothing-publishable" });
 	});
 
-	it("publishes the placeable review-lane comments and records the result", async () => {
+	it("publishes the placeable review-lane findings and records the result", async () => {
 		const sessionStore = new FakeSessionStore();
 		await sessionStore.saveReview(
 			storedReview({

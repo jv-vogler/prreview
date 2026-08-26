@@ -37,7 +37,7 @@ function storedReview(): StoredReview {
 }
 
 describe("applyFindingOps", () => {
-	it("overwrites a comment's body and persists it", async () => {
+	it("overwrites a finding's body and persists it", async () => {
 		const store = new FakeSessionStore();
 		await store.saveReview(storedReview());
 
@@ -51,7 +51,7 @@ describe("applyFindingOps", () => {
 		expect(await store.loadReview(CHANGESET_ID)).toEqual(updated);
 	});
 
-	it("marks a comment deleted, then restore clears it", async () => {
+	it("marks a finding deleted, then restore clears it", async () => {
 		const store = new FakeSessionStore();
 		await store.saveReview(storedReview());
 

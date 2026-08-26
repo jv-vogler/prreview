@@ -84,7 +84,7 @@ describe("toReviewPassDto", () => {
 		expect(reviewPassDtoSchema.safeParse(dto).success).toBe(true);
 	});
 
-	it("marks exactly the comments the last publish sent", () => {
+	it("marks exactly the findings the last publish sent", () => {
 		const stored: StoredReview = {
 			...STORED,
 			pass: {

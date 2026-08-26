@@ -358,7 +358,7 @@ describe("PATCH /api/review/comments/:id", () => {
 		]);
 	});
 
-	it("answers 404 for a comment id that does not exist", async () => {
+	it("answers 404 for a finding id that does not exist", async () => {
 		const { app } = await appWithOneFinding();
 		const response = await app.request("/api/review/comments/finding-9", {
 			method: "PATCH",
@@ -380,7 +380,7 @@ describe("PATCH /api/review/comments/:id", () => {
 });
 
 describe("DELETE /api/review/comments/:id and .../restore", () => {
-	it("marks a comment deleted rather than removing it, then restore clears that", async () => {
+	it("marks a finding deleted rather than removing it, then restore clears that", async () => {
 		const { app } = await appWithOneFinding();
 		const deleted = await app.request("/api/review/comments/finding-0", {
 			method: "DELETE",
@@ -466,7 +466,7 @@ const GREETING_FILE: FileDiff = {
 };
 
 describe("POST /api/review/publish", () => {
-	it("publishes the review-lane comments and answers the recomputed pass", async () => {
+	it("publishes the review-lane findings and answers the recomputed pass", async () => {
 		const { app, githubService } = await appWithOneFinding({
 			source: PR_SOURCE,
 			files: [GREETING_FILE],

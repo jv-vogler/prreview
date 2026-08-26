@@ -87,7 +87,7 @@ describe("buildReworkJob", () => {
 		expect(sessionStore.saved).toHaveLength(1);
 	});
 
-	it("rejects a comment id the pass does not have", async () => {
+	it("rejects a finding id the pass does not have", async () => {
 		const sessionStore = new FakeSessionStore();
 		await sessionStore.saveReview(storedReview());
 		const job = buildReworkJob(
@@ -107,7 +107,7 @@ describe("buildReworkJob", () => {
 		await expect(job(context())).rejects.toThrow(/does not exist/);
 	});
 
-	it("rejects reworking a comment that has been deleted", async () => {
+	it("rejects reworking a finding that has been deleted", async () => {
 		const sessionStore = new FakeSessionStore();
 		await sessionStore.saveReview(
 			storedReview({ findingEdits: { "finding-0": { deleted: true } } }),
