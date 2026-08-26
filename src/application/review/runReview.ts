@@ -18,10 +18,10 @@ import type { ChangesetSource } from "../../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import { effectiveBody, isDeleted } from "../../domain/finding/curation";
 import { findingId, findingIdAt } from "../../domain/finding/findingId";
+import type { ReviewPass } from "../../domain/pass/ReviewPass";
+import { reviewOutputSchema } from "../../domain/pass/ReviewPass";
 import type { ReusePlan } from "../../domain/pass/reusePlan";
 import { checkpointOf, planReuse } from "../../domain/pass/reusePlan";
-import type { ReviewPass } from "../../domain/pass/reviewSchema";
-import { reviewPassSchema } from "../../domain/pass/reviewSchema";
 import type {
 	FindingEdit,
 	PublishedRecord,
@@ -82,7 +82,7 @@ export function buildReviewJob(
 	deps: RunReviewDeps,
 	input: RunReviewInput,
 ): (context: RunContext) => Promise<RunOutcome> {
-	const jsonSchema = toJsonSchema(reviewPassSchema);
+	const jsonSchema = toJsonSchema(reviewOutputSchema);
 	assertSchemaFitsArgv(jsonSchema);
 
 	const task = {
@@ -90,7 +90,7 @@ export function buildReviewJob(
 		maxTurns: REVIEW_MAX_TURNS,
 		idleTimeoutMs: REVIEW_IDLE_TIMEOUT_MS,
 		systemContract: reviewContract(),
-		outputSchema: reviewPassSchema,
+		outputSchema: reviewOutputSchema,
 	};
 	return async (context) => {
 		const stored = await deps.sessionStore.loadReview(input.changesetId);
@@ -150,7 +150,7 @@ export function buildReviewJob(
 			}
 
 			const after = await deps.git.statusPorcelain();
-			const answered = reviewPassSchema.parse(terminal.structuredOutput);
+			const answered = reviewOutputSchema.parse(terminal.structuredOutput);
 			await deps.sessionStore.saveReview({
 				changesetId: input.changesetId,
 				createdAt: new Date().toISOString(),

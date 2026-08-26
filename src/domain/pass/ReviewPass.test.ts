@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reviewPassSchema, storedReviewPassSchema } from "./reviewSchema";
+import { reviewOutputSchema, storedReviewPassSchema } from "./ReviewPass";
 
 const BARE_PASS = {
 	overview: "x",
@@ -18,14 +18,14 @@ function explanation(overrides: Record<string, unknown> = {}) {
 	};
 }
 
-describe("reviewPassSchema explanations", () => {
+describe("reviewOutputSchema explanations", () => {
 	it("defaults to an empty array, so a pass written before they existed parses", () => {
-		expect(reviewPassSchema.parse(BARE_PASS).explanations).toEqual([]);
+		expect(reviewOutputSchema.parse(BARE_PASS).explanations).toEqual([]);
 		expect(storedReviewPassSchema.parse(BARE_PASS).explanations).toEqual([]);
 	});
 
 	it("accepts an explanation with and without a topic", () => {
-		const parsed = reviewPassSchema.parse({
+		const parsed = reviewOutputSchema.parse({
 			...BARE_PASS,
 			explanations: [
 				explanation({ topic: "config TTL" }),
@@ -42,7 +42,7 @@ describe("reviewPassSchema explanations", () => {
 			...BARE_PASS,
 			explanations: [explanation({ says: [] })],
 		};
-		expect(reviewPassSchema.safeParse(withEmptySays).success).toBe(false);
+		expect(reviewOutputSchema.safeParse(withEmptySays).success).toBe(false);
 		expect(storedReviewPassSchema.safeParse(withEmptySays).success).toBe(false);
 	});
 
@@ -51,7 +51,7 @@ describe("reviewPassSchema explanations", () => {
 			...BARE_PASS,
 			explanations: [explanation({ says: ["x".repeat(200), "a", "b", "c"] })],
 		};
-		expect(reviewPassSchema.safeParse(overBudget).success).toBe(false);
+		expect(reviewOutputSchema.safeParse(overBudget).success).toBe(false);
 		expect(storedReviewPassSchema.safeParse(overBudget).success).toBe(true);
 	});
 });
@@ -71,10 +71,10 @@ function finding(overrides: Record<string, unknown> = {}) {
 	};
 }
 
-describe("reviewPassSchema findings", () => {
+describe("reviewOutputSchema findings", () => {
 	it("reads a finding with no kind as a defect, so a stored pass still parses", () => {
 		const pass = { ...BARE_PASS, findings: [finding()] };
-		expect(reviewPassSchema.parse(pass).findings[0].kind).toBe("defect");
+		expect(reviewOutputSchema.parse(pass).findings[0].kind).toBe("defect");
 		expect(storedReviewPassSchema.parse(pass).findings[0].kind).toBe("defect");
 	});
 
@@ -83,7 +83,9 @@ describe("reviewPassSchema findings", () => {
 			...BARE_PASS,
 			findings: [finding({ kind: "question", tier: undefined })],
 		};
-		expect(reviewPassSchema.parse(pass).findings[0]).not.toHaveProperty("tier");
+		expect(reviewOutputSchema.parse(pass).findings[0]).not.toHaveProperty(
+			"tier",
+		);
 		expect(storedReviewPassSchema.safeParse(pass).success).toBe(true);
 	});
 
@@ -92,7 +94,7 @@ describe("reviewPassSchema findings", () => {
 			...BARE_PASS,
 			findings: [finding({ tier: undefined })],
 		};
-		expect(reviewPassSchema.safeParse(untieredDefect).success).toBe(false);
+		expect(reviewOutputSchema.safeParse(untieredDefect).success).toBe(false);
 		expect(storedReviewPassSchema.safeParse(untieredDefect).success).toBe(
 			false,
 		);
@@ -100,7 +102,7 @@ describe("reviewPassSchema findings", () => {
 
 	// dropping the stray field beats discarding a finished pass over it
 	it("drops a tier a question should never have carried", () => {
-		const parsed = reviewPassSchema.parse({
+		const parsed = reviewOutputSchema.parse({
 			...BARE_PASS,
 			findings: [finding({ kind: "question" })],
 		});
@@ -108,10 +110,10 @@ describe("reviewPassSchema findings", () => {
 	});
 });
 
-describe("reviewPassSchema explanation grounding", () => {
+describe("reviewOutputSchema explanation grounding", () => {
 	it("defaults to inferred, the honest reading of a pass that never said", () => {
 		const pass = { ...BARE_PASS, explanations: [explanation()] };
-		expect(reviewPassSchema.parse(pass).explanations[0].grounding).toBe(
+		expect(reviewOutputSchema.parse(pass).explanations[0].grounding).toBe(
 			"inferred",
 		);
 		expect(storedReviewPassSchema.parse(pass).explanations[0].grounding).toBe(
@@ -120,7 +122,7 @@ describe("reviewPassSchema explanation grounding", () => {
 	});
 
 	it("keeps `code` when the reason was actually read", () => {
-		const parsed = reviewPassSchema.parse({
+		const parsed = reviewOutputSchema.parse({
 			...BARE_PASS,
 			explanations: [explanation({ grounding: "code" })],
 		});

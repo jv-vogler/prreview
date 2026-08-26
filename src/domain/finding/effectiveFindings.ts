@@ -5,7 +5,7 @@ import type {
 	ReviewFindingKind,
 	ReviewLane,
 	ReviewTier,
-} from "../pass/reviewSchema";
+} from "../pass/ReviewPass";
 import type { StoredReview } from "../pass/StoredReview";
 import { effectiveBody, isDeleted } from "./curation";
 import { findingIdAt } from "./findingId";

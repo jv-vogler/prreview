@@ -2,7 +2,7 @@ import type { BlobRef } from "../../domain/changeset/BlobRef";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import { isDeleted } from "../finding/curation";
 import { findingIdAt } from "../finding/findingId";
-import type { ReviewFinding } from "./reviewSchema";
+import type { ReviewFinding } from "./ReviewPass";
 import type { ReviewCheckpoint, StoredReview } from "./StoredReview";
 
 /**

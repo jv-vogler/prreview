@@ -1,5 +1,5 @@
 import type { ChangesetId } from "../changeset/ChangesetId";
-import type { ReviewPass } from "./reviewSchema";
+import type { ReviewPass } from "./ReviewPass";
 
 /**
  * The review artifact: one finished pass, everything the reader has done

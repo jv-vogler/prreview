@@ -1,4 +1,4 @@
-import { reviewPassSchema } from "../pass/reviewSchema";
+import { reviewOutputSchema } from "../pass/ReviewPass";
 
 /**
  * Every schema this codebase ever hands to `--json-schema`, in one place.
@@ -7,5 +7,5 @@ import { reviewPassSchema } from "../pass/reviewSchema";
  * (CON-002).
  */
 export const taskSchemas = {
-	review: reviewPassSchema,
+	review: reviewOutputSchema,
 } as const;

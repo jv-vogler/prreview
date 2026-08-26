@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { ReviewExplanation } from "../pass/reviewSchema";
+import type { ReviewExplanation } from "../pass/ReviewPass";
 import type { StoredReview } from "../pass/StoredReview";
 import { effectiveExplanations } from "./effectiveExplanations";
 

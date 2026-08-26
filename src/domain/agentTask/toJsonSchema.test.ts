@@ -34,7 +34,7 @@ describe("toJsonSchema", () => {
 	/*
 	 * The tier/kind rule has to reach the CLI, not just `parse`. Ajv is the
 	 * validator that still has a turn left to fix a bad finding; by the time
-	 * `reviewPassSchema.parse` sees one, the only move left is discarding a
+	 * `reviewOutputSchema.parse` sees one, the only move left is discarding a
 	 * finished pass.
 	 */
 	it("carries the defect/question split into the schema the CLI validates", () => {

@@ -4,7 +4,7 @@ import { FakeSessionStore } from "../../test/helpers/FakeSessionStore";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
 import type { EffectiveFinding } from "../domain/finding/effectiveFindings";
-import type { ReviewFinding } from "../domain/pass/reviewSchema";
+import type { ReviewFinding } from "../domain/pass/ReviewPass";
 import type { StoredReview } from "../domain/pass/StoredReview";
 import { buildPublishPayload, publishReview } from "./publishReview";
 

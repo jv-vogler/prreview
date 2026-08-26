@@ -81,9 +81,10 @@ const CARRIED_WHY_MAX = 240;
  * when it was written, so lowering a ceiling must never make it unreadable —
  * that is what turned a tightened `OVERVIEW_MAX` into "does not match the
  * review artifact schema" on a session recorded an hour earlier. So the shape
- * is built twice: `reviewPassSchema` carries the ceilings and gates what the
- * engine may hand back, and `storedReviewPassSchema` drops them and gates only
- * the shape, which is all a reader off disk can honestly ask for.
+ * is built twice from one definition: `reviewOutputSchema` carries the
+ * ceilings and gates what the engine may hand back, `storedReviewPassSchema`
+ * drops them and gates only the shape, which is all a reader off disk can
+ * honestly ask for.
  */
 function bounded(max: number, enforce: boolean) {
 	return enforce ? z.string().max(max) : z.string();
@@ -200,7 +201,12 @@ function buildPassSchema(enforce: boolean) {
 	});
 }
 
-export const reviewPassSchema = buildPassSchema(true);
+/**
+ * What the engine may hand back: the same shape, plus the word budgets the
+ * prompt holds it to. This is what reaches the CLI as `--json-schema`, so a
+ * violation is caught while the agent still has a turn to fix it.
+ */
+export const reviewOutputSchema = buildPassSchema(true);
 
 /** what a pass already on disk has to be, which is the shape and nothing more */
 export const storedReviewPassSchema = buildPassSchema(false);
@@ -209,7 +215,7 @@ export type ReviewFinding = z.infer<ReturnType<typeof buildFindingSchema>>;
 export type ReviewExplanation = z.infer<
 	ReturnType<typeof buildExplanationSchema>
 >;
-export type ReviewPass = z.infer<typeof reviewPassSchema>;
+export type ReviewPass = z.infer<typeof reviewOutputSchema>;
 export type ReviewScope = (typeof SCOPE)[number];
 export type ReviewTier = (typeof TIER)[number];
 export type ReviewLane = (typeof LANE)[number];

@@ -13,7 +13,7 @@ import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import { effectiveBody, isDeleted } from "../../domain/finding/curation";
 import { findingIndexFor } from "../../domain/finding/findingId";
-import { BODY_MAX, type ReviewFinding } from "../../domain/pass/reviewSchema";
+import { BODY_MAX, type ReviewFinding } from "../../domain/pass/ReviewPass";
 import {
 	describeToolActivity,
 	type RunProgressUpdate,

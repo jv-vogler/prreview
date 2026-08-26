@@ -1,4 +1,4 @@
-import type { ReviewFinding } from "../pass/reviewSchema";
+import type { ReviewFinding } from "../pass/ReviewPass";
 import type { FindingEdit } from "../pass/StoredReview";
 
 /**

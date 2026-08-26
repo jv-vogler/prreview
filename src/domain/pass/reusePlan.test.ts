@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
+import type { ReviewFinding } from "./ReviewPass";
 import { checkpointOf, planReuse } from "./reusePlan";
-import type { ReviewFinding } from "./reviewSchema";
 import type { ReviewCheckpoint, StoredReview } from "./StoredReview";
 
 const BASE_SHA = "a".repeat(40);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { storedReviewPassSchema } from "../../domain/pass/reviewSchema";
+import { storedReviewPassSchema } from "../../domain/pass/ReviewPass";
 
 const findingEditSchema = z.object({
 	body: z.string().optional(),
