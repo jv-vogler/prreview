@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeEngine } from "../../../test/helpers/FakeEngine";
+import type { EngineEvent } from "../../domain/run/EngineEvent";
 import type { RunProgressUpdate } from "../../domain/run/RunProgress";
-import type { EngineEvent } from "../ports/Engine";
 import { runEngineTask } from "./runEngineTask";
 
 const TASK = {

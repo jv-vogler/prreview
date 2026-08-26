@@ -12,7 +12,7 @@ import {
 	it,
 } from "vitest";
 import { createPathShim, type PathShim } from "../../../test/helpers/shimPath";
-import type { EngineEvent } from "../../application/ports/Engine";
+import type { EngineEvent } from "../../domain/run/EngineEvent";
 import { ClaudeEngine } from "./ClaudeEngine";
 
 const FIXTURES_DIR = fileURLToPath(

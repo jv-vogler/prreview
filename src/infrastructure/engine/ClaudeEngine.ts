@@ -1,17 +1,17 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import type { Engine } from "../../application/ports/Engine";
 import type {
-	AgentInfo,
-	Engine,
-	EngineEvent,
 	OutputParser,
 	TaskInput,
 	TaskSpec,
-} from "../../application/ports/Engine";
+} from "../../domain/agentTask/TaskSpec";
 import type { EngineErrorReason } from "../../domain/errors/EngineError";
+import type { EngineEvent } from "../../domain/run/EngineEvent";
 import {
 	applyTaskCall,
 	type ItineraryStep,
 } from "../../domain/run/RunProgress";
+import type { AgentInfo } from "../../domain/session/Toolchain";
 import { exec } from "../git/exec";
 import { parseAgentVersion } from "../toolchain/agentVersion";
 import { buildTaskArgv, buildVersionArgv } from "./argv";

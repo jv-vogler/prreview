@@ -1,10 +1,7 @@
-import type {
-	AgentInfo,
-	Engine,
-	EngineEvent,
-	TaskInput,
-	TaskSpec,
-} from "../../src/application/ports/Engine";
+import type { Engine } from "../../src/application/ports/Engine";
+import type { TaskInput, TaskSpec } from "../../src/domain/agentTask/TaskSpec";
+import type { EngineEvent } from "../../src/domain/run/EngineEvent";
+import type { AgentInfo } from "../../src/domain/session/Toolchain";
 
 export class FakeEngine implements Engine {
 	events: EngineEvent[] = [];
