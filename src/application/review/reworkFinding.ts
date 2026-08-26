@@ -14,14 +14,13 @@ import type { FileDiff } from "../../domain/changeset/FileDiff";
 import { effectiveBody, isDeleted } from "../../domain/finding/curation";
 import { findingIndexFor } from "../../domain/finding/findingId";
 import { BODY_MAX, type ReviewFinding } from "../../domain/pass/ReviewPass";
-import {
-	describeToolActivity,
-	type RunProgressUpdate,
-} from "../../domain/run/RunProgress";
-import type { Engine, EngineResultEvent } from "../ports/Engine";
+import type { FindingEdit } from "../../domain/pass/StoredReview";
+import type { RunProgressUpdate } from "../../domain/run/RunProgress";
+import type { Engine } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { RunContext, RunJob, RunOutcome } from "../ports/RunManager";
 import type { SessionStore } from "../ports/SessionStore";
+import { runEngineTask } from "./runEngineTask";
 
 /**
  * What the reader can ask for on one comment (TASK-048, REQ-006). All three
@@ -71,22 +70,7 @@ export function buildReworkJob(
 	input: ReworkFindingInput,
 ): RunJob {
 	return async (context: RunContext): Promise<RunOutcome> => {
-		const stored = await deps.sessionStore.loadReview(input.changesetId);
-		if (stored === null) {
-			throw new Error("no review pass exists for this changeset yet");
-		}
-		const index = findingIndexFor(stored, input.findingId);
-		const finding: ReviewFinding | undefined =
-			index === null ? undefined : stored.pass.findings[index];
-		if (finding === undefined) {
-			throw new Error(
-				`finding ${input.findingId} does not exist in the stored pass`,
-			);
-		}
-		const edit = stored.findingEdits[input.findingId];
-		if (isDeleted(edit)) {
-			throw new Error(`finding ${input.findingId} has been deleted`);
-		}
+		const { finding, edit } = await reworkableFinding(deps.sessionStore, input);
 
 		const jsonSchema = toJsonSchema(reworkResultSchema);
 		assertSchemaFitsArgv(jsonSchema);
@@ -97,56 +81,51 @@ export function buildReworkJob(
 			files: input.files,
 		});
 
-		const onAbort = () => {
-			void deps.engine.stop();
-		};
-		context.signal.addEventListener("abort", onAbort);
-		if (context.signal.aborted) {
-			onAbort();
+		const result = await runEngineTask(
+			deps,
+			context,
+			{
+				jsonSchema,
+				maxTurns: REWORK_MAX_TURNS,
+				idleTimeoutMs: REWORK_IDLE_TIMEOUT_MS,
+				systemContract: reworkContract(),
+				outputSchema: reworkResultSchema,
+			},
+			{ prompt, workspaceDir: await deps.git.repoRoot() },
+			{
+				noResult: "The rework ended with no result.",
+				failed: "The rework run failed.",
+			},
+		);
+		if (!result.ok) {
+			return result.outcome;
 		}
-
-		try {
-			let terminal: EngineResultEvent | null = null;
-			for await (const event of deps.engine.runTask(
-				{
-					jsonSchema,
-					maxTurns: REWORK_MAX_TURNS,
-					idleTimeoutMs: REWORK_IDLE_TIMEOUT_MS,
-					systemContract: reworkContract(),
-					outputSchema: reworkResultSchema,
-				},
-				{ prompt, workspaceDir: await deps.git.repoRoot() },
-			)) {
-				if (event.type === "tool") {
-					deps.report(context.runId, {
-						kind: "activity",
-						activity: describeToolActivity(event.name, event.target),
-					});
-				} else if (event.type === "result") {
-					terminal = event;
-				}
-			}
-
-			if (terminal === null) {
-				return {
-					ok: false,
-					reason: "crashed",
-					message: "The rework ended with no result.",
-				};
-			}
-			if (!terminal.ok) {
-				return {
-					ok: false,
-					reason: terminal.reason,
-					message: terminal.stderrTail || "The rework run failed.",
-				};
-			}
-			const output = reworkResultSchema.parse(terminal.structuredOutput);
-			return { ok: true, result: output.body };
-		} finally {
-			context.signal.removeEventListener("abort", onAbort);
-		}
+		const output = reworkResultSchema.parse(result.structuredOutput);
+		return { ok: true, result: output.body };
 	};
+}
+
+/** The finding a rework may touch: it exists, and the reader has not removed it. */
+async function reworkableFinding(
+	sessionStore: SessionStore,
+	input: ReworkFindingInput,
+): Promise<{ finding: ReviewFinding; edit: FindingEdit | undefined }> {
+	const stored = await sessionStore.loadReview(input.changesetId);
+	if (stored === null) {
+		throw new Error("no review pass exists for this changeset yet");
+	}
+	const index = findingIndexFor(stored, input.findingId);
+	const finding = index === null ? undefined : stored.pass.findings[index];
+	if (finding === undefined) {
+		throw new Error(
+			`finding ${input.findingId} does not exist in the stored pass`,
+		);
+	}
+	const edit = stored.findingEdits[input.findingId];
+	if (isDeleted(edit)) {
+		throw new Error(`finding ${input.findingId} has been deleted`);
+	}
+	return { finding, edit };
 }
 
 interface ReworkPromptInput {

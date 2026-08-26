@@ -365,6 +365,28 @@ interface WorktreeSide {
  * Only paths whose *worktree* differs from the index need hashing — the index
  * side is already covered by ls-files.
  */
+/** Fields before the path in a `--porcelain=v2` entry, per entry kind. */
+const HEADER_FIELDS: Record<string, number> = { "1": 8, "2": 9, u: 10 };
+
+interface TrackedEntry {
+	path: string;
+	/** the worktree column of the XY status pair */
+	worktreeStatus: string;
+	/** a rename carries its original path as the next NUL-separated field */
+	consumesNextField: boolean;
+	unmerged: boolean;
+}
+
+function parseTrackedEntry(entry: string, kind: string): TrackedEntry {
+	const fields = entry.split(" ");
+	return {
+		path: fields.slice(HEADER_FIELDS[kind]).join(" "),
+		worktreeStatus: fields[1][1],
+		consumesNextField: kind === "2",
+		unmerged: kind === "u",
+	};
+}
+
 function parseWorktreeSide(entries: readonly string[]): WorktreeSide {
 	const pathsToHash: string[] = [];
 	const deletedPaths: string[] = [];
@@ -372,25 +394,21 @@ function parseWorktreeSide(entries: readonly string[]): WorktreeSide {
 	for (let index = 0; index < entries.length; index++) {
 		const entry = entries[index];
 		const kind = entry[0];
-
 		if (kind === "?") {
 			pathsToHash.push(entry.slice(2));
 			continue;
 		}
-		if (kind === "1" || kind === "2" || kind === "u") {
-			const fields = entry.split(" ");
-			const headerFieldCount = kind === "1" ? 8 : kind === "2" ? 9 : /* u */ 10;
-			const path = fields.slice(headerFieldCount).join(" ");
-			if (kind === "2") {
-				// the original path arrives as the next NUL-separated field
-				index++;
-			}
-			const worktreeStatus = fields[1][1];
-			if (worktreeStatus === "D") {
-				deletedPaths.push(path);
-			} else if (worktreeStatus !== "." || kind === "u") {
-				pathsToHash.push(path);
-			}
+		if (HEADER_FIELDS[kind] === undefined) {
+			continue;
+		}
+		const tracked = parseTrackedEntry(entry, kind);
+		if (tracked.consumesNextField) {
+			index++;
+		}
+		if (tracked.worktreeStatus === "D") {
+			deletedPaths.push(tracked.path);
+		} else if (tracked.worktreeStatus !== "." || tracked.unmerged) {
+			pathsToHash.push(tracked.path);
 		}
 	}
 

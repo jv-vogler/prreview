@@ -26,6 +26,74 @@ export interface ExplanationCardLayout {
  * reflow case). Stacks lay out top to bottom pinned beside their anchors; a
  * stack that would overlap the one above it slides down below it instead.
  */
+/** Where one card wants to sit before the stacking pass moves it. */
+interface Placement {
+	stack: HTMLElement;
+	top: number;
+	anchorTop: number;
+}
+
+/** Which side of the viewport an anchor sits on, or neither. */
+function sideOf(
+	anchorTop: number,
+	roof: number,
+	limit: number,
+): "above" | "below" | undefined {
+	if (anchorTop < roof) {
+		return "above";
+	}
+	return anchorTop > limit ? "below" : undefined;
+}
+
+/**
+ * Where one card belongs this frame, or null when it has nothing honest to
+ * show and should be hidden.
+ */
+function placeStack(
+	entry: TrackedStack,
+	roof: number,
+	limit: number,
+): Placement | null {
+	const { anchor, stack } = entry;
+	if (entry.block === undefined) {
+		entry.block = anchor.closest("diffs-container");
+	}
+	const blockRect = entry.block?.getBoundingClientRect();
+	const blockOnScreen =
+		blockRect !== undefined && blockRect.width > 0 && blockRect.bottom > roof;
+	const stuckTop = () =>
+		blockRect === undefined
+			? roof + GAP_PX
+			: Math.min(roof + GAP_PX, blockRect.bottom - stack.offsetHeight);
+
+	const anchorRect = anchor.getBoundingClientRect();
+	if (anchorRect.width === 0) {
+		// the renderer drops a far-out row's layout (and reshapes the block),
+		// so a zero rect says nothing about where the line is. The remembered
+		// side does: last seen above and its block still on screen, the card
+		// stays stuck at the top; last seen below, or never measured at all,
+		// there is nothing honest to show.
+		return entry.lastSeen === "above" && blockOnScreen
+			? { stack, top: stuckTop(), anchorTop: Number.NEGATIVE_INFINITY }
+			: null;
+	}
+
+	const anchorTop = anchorRect.top;
+	entry.lastSeen = sideOf(anchorTop, roof, limit);
+	// below the viewport it just waits its turn; a fixed element would
+	// otherwise float over the surrounding chrome
+	if (anchorTop > limit) {
+		return null;
+	}
+	if (anchorTop < roof) {
+		// the line scrolled past, but its context is still on screen: the card
+		// sticks at the viewport top while its file block remains, and slides
+		// out under the block's own end
+		return blockOnScreen ? { stack, top: stuckTop(), anchorTop } : null;
+	}
+	return { stack, top: anchorTop + GAP_PX, anchorTop };
+}
+
 interface TrackedStack {
 	anchor: HTMLElement;
 	stack: HTMLElement;
@@ -61,93 +129,32 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 	const resizes =
 		typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
 
-	const relayout = () => {
-		const first = stacks.values().next();
-		if (first.done) {
+	const rewatchViewport = (viewport: Element | null) => {
+		if (viewport === watchedViewport) {
 			return;
 		}
-		const viewport = scrollableAncestor(first.value.anchor);
-		if (viewport !== watchedViewport) {
-			mutations?.disconnect();
-			if (watchedViewport !== null) {
-				resizes?.unobserve(watchedViewport);
-			}
-			if (viewport !== null) {
-				// attributes as well: the renderer moves rows by rewriting style
-				// transforms, so a childList-only observer sees the balloon land
-				// but never the lines shifting under it
-				mutations?.observe(viewport, {
-					childList: true,
-					subtree: true,
-					attributes: true,
-					attributeFilter: ["style", "class"],
-				});
-				// and the viewport's own size: chrome above it folding away
-				// moves the whole diff without a single event inside it
-				resizes?.observe(viewport);
-			}
-			watchedViewport = viewport;
+		mutations?.disconnect();
+		if (watchedViewport !== null) {
+			resizes?.unobserve(watchedViewport);
 		}
-		const bounds = viewport?.getBoundingClientRect();
-		const roof = bounds?.top ?? 0;
-		const limit = bounds?.bottom ?? window.innerHeight;
-		const right = `${Math.max(0, window.innerWidth - (bounds?.right ?? window.innerWidth)) + EDGE_PX}px`;
-		const visible: { stack: HTMLElement; top: number; anchorTop: number }[] =
-			[];
-		for (const entry of stacks.values()) {
-			const { anchor, stack } = entry;
-			if (entry.block === undefined) {
-				entry.block = anchor.closest("diffs-container");
-			}
-			const blockRect = entry.block?.getBoundingClientRect();
-			const blockOnScreen =
-				blockRect !== undefined &&
-				blockRect.width > 0 &&
-				blockRect.bottom > roof;
-			const stuckTop = () =>
-				blockRect === undefined
-					? roof + GAP_PX
-					: Math.min(roof + GAP_PX, blockRect.bottom - stack.offsetHeight);
-			const anchorRect = anchor.getBoundingClientRect();
-			if (anchorRect.width === 0) {
-				// the renderer drops a far-out row's layout (and reshapes the
-				// block), so a zero rect says nothing about where the line is.
-				// The remembered side does: last seen above and its block still
-				// on screen, the card stays stuck at the top; last seen below,
-				// or never measured at all, there is nothing honest to show.
-				if (entry.lastSeen === "above" && blockOnScreen) {
-					visible.push({
-						stack,
-						top: stuckTop(),
-						anchorTop: Number.NEGATIVE_INFINITY,
-					});
-				} else {
-					stack.style.visibility = "hidden";
-				}
-				continue;
-			}
-			const anchorTop = anchorRect.top;
-			entry.lastSeen =
-				anchorTop < roof ? "above" : anchorTop > limit ? "below" : undefined;
-			// below the viewport it just waits its turn; a fixed element would
-			// otherwise float over the surrounding chrome
-			if (anchorTop > limit) {
-				stack.style.visibility = "hidden";
-				continue;
-			}
-			let top = anchorTop + GAP_PX;
-			if (anchorTop < roof) {
-				// the line scrolled past, but its context is still on screen:
-				// the card sticks at the viewport top while its file block
-				// remains, and slides out under the block's own end
-				if (!blockOnScreen) {
-					stack.style.visibility = "hidden";
-					continue;
-				}
-				top = stuckTop();
-			}
-			visible.push({ stack, top, anchorTop });
+		if (viewport !== null) {
+			// attributes as well: the renderer moves rows by rewriting style
+			// transforms, so a childList-only observer sees the balloon land
+			// but never the lines shifting under it
+			mutations?.observe(viewport, {
+				childList: true,
+				subtree: true,
+				attributes: true,
+				attributeFilter: ["style", "class"],
+			});
+			// and the viewport's own size: chrome above it folding away
+			// moves the whole diff without a single event inside it
+			resizes?.observe(viewport);
 		}
+		watchedViewport = viewport;
+	};
+
+	const settle = (visible: Placement[], limit: number, right: string) => {
 		visible.sort((a, b) => a.top - b.top || a.anchorTop - b.anchorTop);
 		let floor = Number.NEGATIVE_INFINITY;
 		for (const { stack, top } of visible) {
@@ -163,6 +170,30 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 			stack.style.visibility = "visible";
 			floor = settled + stack.offsetHeight + STACK_GAP_PX;
 		}
+	};
+
+	const relayout = () => {
+		const first = stacks.values().next();
+		if (first.done) {
+			return;
+		}
+		const viewport = scrollableAncestor(first.value.anchor);
+		rewatchViewport(viewport);
+		const bounds = viewport?.getBoundingClientRect();
+		const roof = bounds?.top ?? 0;
+		const limit = bounds?.bottom ?? window.innerHeight;
+		const right = `${Math.max(0, window.innerWidth - (bounds?.right ?? window.innerWidth)) + EDGE_PX}px`;
+
+		const visible: Placement[] = [];
+		for (const entry of stacks.values()) {
+			const placement = placeStack(entry, roof, limit);
+			if (placement === null) {
+				entry.stack.style.visibility = "hidden";
+			} else {
+				visible.push(placement);
+			}
+		}
+		settle(visible, limit, right);
 	};
 
 	const listen = () => {

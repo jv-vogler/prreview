@@ -21,7 +21,6 @@ import {
 	reworkFinding,
 } from "../infrastructure/endpoints/reviewFindings";
 import { createApiClient } from "../infrastructure/httpClients/apiClient";
-import { ChangesetHeading } from "../view/diff/ChangesetHeading";
 import {
 	DiffWorkspace,
 	type DiffWorkspaceHandle,
@@ -33,10 +32,8 @@ import {
 	REVIEW_PANEL,
 	usePanelWidth,
 } from "../view/layout/usePanelWidth";
-import type {
-	FindingActions,
-	ReworkProposal,
-} from "../view/review/comments/FindingActions";
+import type { FindingActions } from "../view/review/comments/FindingActions";
+import { reworkProposalFor } from "../view/review/comments/FindingActions";
 import type { ExplanationsMode } from "../view/review/explanations/DiffExplanationAnnotation";
 import { HighlightedExplanationsContext } from "../view/review/explanations/highlightedExplanations";
 import { OverviewPanel } from "../view/review/OverviewPanel";
@@ -44,8 +41,9 @@ import { PublishControl } from "../view/review/PublishControl";
 import { ReReviewDialog } from "../view/review/ReReviewDialog";
 import { ReviewSidebar } from "../view/review/ReviewSidebar";
 import { RunStatusBar } from "../view/review/run/RunStatusBar";
-import { REVIEW_FAILURE_COPY } from "../view/review/run/reviewFailureCopy";
+import type { ReviewRunState } from "../view/review/run/useReviewRun";
 import { useReviewRun } from "../view/review/run/useReviewRun";
+import { ReviewHeader } from "./ReviewHeader";
 import styles from "./ReviewPage.module.css";
 
 const api = createApiClient();
@@ -352,48 +350,10 @@ function ResolvedReview({
 		[dismissRework, onEditFinding],
 	);
 
-	// at most one rework in flight at a time (it shares the review's own
-	// one-run-at-a-time lane) — derived straight off the same run state
-	// RunStatusBar reads, just filtered to this one comment (TASK-049)
-	const reworkProposal = useMemo<ReworkProposal | null>(() => {
-		const run = review.run;
-		if (
-			run === null ||
-			run.kind !== "rework" ||
-			run.findingId === undefined ||
-			run.id === dismissedRunId
-		) {
-			return null;
-		}
-		if (run.status === "queued" || run.status === "running") {
-			return { findingId: run.findingId, status: "running" };
-		}
-		if (run.status === "succeeded" && run.result !== undefined) {
-			return {
-				findingId: run.findingId,
-				status: "succeeded",
-				proposedBody: run.result,
-			};
-		}
-		if (run.status === "failed" || run.status === "timed-out") {
-			return {
-				findingId: run.findingId,
-				status: "failed",
-				errorMessage:
-					run.error !== undefined
-						? REVIEW_FAILURE_COPY[run.error.reason]
-						: "The rework did not finish.",
-			};
-		}
-		if (run.status === "cancelled") {
-			return {
-				findingId: run.findingId,
-				status: "failed",
-				errorMessage: "The rework was cancelled.",
-			};
-		}
-		return null;
-	}, [review.run, dismissedRunId]);
+	const reworkProposal = useMemo(
+		() => reworkProposalFor(review.run, dismissedRunId),
+		[review.run, dismissedRunId],
+	);
 
 	const actions = useMemo<FindingActions>(
 		() => ({
@@ -481,57 +441,18 @@ function ResolvedReview({
 				<div className={styles.main}>
 					{aiAvailable && <RunStatusBar review={review} />}
 					<div className={styles.overview}>
-						<div className={styles.headerRow}>
-							<div className={styles.headerSubject}>
-								<ChangesetHeading
-									source={changeset.ref.source}
-									resolved={changeset.announce.resolved}
-									prUrl={changeset.ref.prUrl}
-								/>
-							</div>
-							<div className={styles.controls}>
-								{explanations.length > 0 && (
-									<button
-										type="button"
-										className={styles.explanationsToggle}
-										aria-pressed={showExplanations}
-										onClick={() => setShowExplanations((current) => !current)}
-									>
-										{showExplanations
-											? "Hide explanations"
-											: "Show explanations"}
-									</button>
-								)}
-								{aiAvailable && (
-									<button
-										type="button"
-										className={styles.reviewButton}
-										disabled={
-											review.starting ||
-											reResolving ||
-											review.run?.status === "queued" ||
-											review.run?.status === "running"
-										}
-										onClick={onReviewPressed}
-									>
-										Review
-									</button>
-								)}
-							</div>
-						</div>
-						{review.startError !== null && (
-							<p className={styles.startError}>{review.startError}</p>
-						)}
-						{reResolveError !== null && (
-							<p className={styles.startError} role="alert">
-								{reResolveError}
-							</p>
-						)}
-						{curationError !== null && (
-							<p className={styles.startError} role="alert">
-								{curationError}
-							</p>
-						)}
+						<ReviewHeader
+							changeset={changeset}
+							aiAvailable={aiAvailable}
+							explanationCount={explanations.length}
+							showExplanations={showExplanations}
+							onToggleExplanations={() =>
+								setShowExplanations((current) => !current)
+							}
+							reviewDisabled={reviewBusy(review, reResolving)}
+							onReview={onReviewPressed}
+							errors={[review.startError, reResolveError, curationError]}
+						/>
 						{review.pass !== null && (
 							<OverviewPanel
 								pass={review.pass}
@@ -598,6 +519,16 @@ function ResolvedReview({
 					)}
 			</div>
 		</HighlightedExplanationsContext.Provider>
+	);
+}
+
+/** A Review click is refused while anything is already resolving or running. */
+function reviewBusy(review: ReviewRunState, reResolving: boolean): boolean {
+	return (
+		review.starting ||
+		reResolving ||
+		review.run?.status === "queued" ||
+		review.run?.status === "running"
 	);
 }
 

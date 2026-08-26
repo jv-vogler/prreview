@@ -47,32 +47,33 @@ export const EMPTY_RUN_PROGRESS: RunProgress = {
  * than to a generic "working" — a name the reader can look up beats a
  * reassurance.
  */
+export const TASK_CREATE_TOOL = "TaskCreate";
+export const TASK_UPDATE_TOOL = "TaskUpdate";
+
+const planning = () => "Planning its next steps";
+const lookUp = (subject: string) =>
+	subject === "" ? "Looking something up" : `Looking up${subject}`;
+
+const ACTIVITY_BY_TOOL: Record<string, (subject: string) => string> = {
+	Read: (subject) => `Reading${subject === "" ? " a file" : subject}`,
+	Grep: (subject) => `Searching for${subject === "" ? " something" : subject}`,
+	Glob: (subject) =>
+		`Looking for files${subject === "" ? "" : ` matching${subject}`}`,
+	Bash: (subject) => `Running a command${subject === "" ? "" : `:${subject}`}`,
+	Write: (subject) => `Writing${subject === "" ? " a file" : subject}`,
+	Edit: (subject) => `Editing${subject === "" ? " a file" : subject}`,
+	[TASK_CREATE_TOOL]: planning,
+	[TASK_UPDATE_TOOL]: planning,
+	TaskList: planning,
+	TaskGet: planning,
+	WebFetch: lookUp,
+	WebSearch: lookUp,
+};
+
 export function describeToolActivity(name: string, target?: string): string {
 	const subject = target === undefined ? "" : ` ${shorten(target)}`;
-	switch (name) {
-		case "Read":
-			return `Reading${subject === "" ? " a file" : subject}`;
-		case "Grep":
-			return `Searching for${subject === "" ? " something" : subject}`;
-		case "Glob":
-			return `Looking for files${subject === "" ? "" : ` matching${subject}`}`;
-		case "Bash":
-			return `Running a command${subject === "" ? "" : `:${subject}`}`;
-		case "Write":
-			return `Writing${subject === "" ? " a file" : subject}`;
-		case "Edit":
-			return `Editing${subject === "" ? " a file" : subject}`;
-		case TASK_CREATE_TOOL:
-		case TASK_UPDATE_TOOL:
-		case "TaskList":
-		case "TaskGet":
-			return "Planning its next steps";
-		case "WebFetch":
-		case "WebSearch":
-			return subject === "" ? "Looking something up" : `Looking up${subject}`;
-		default:
-			return `Using ${name}${subject}`;
-	}
+	const phrase = ACTIVITY_BY_TOOL[name];
+	return phrase === undefined ? `Using ${name}${subject}` : phrase(subject);
 }
 
 /** long enough to identify a path, short enough for one line of a status bar */
@@ -109,9 +110,6 @@ const TASK_STATE: Record<string, ItineraryStep["state"]> = {
 	in_progress: "active",
 	pending: "pending",
 };
-
-export const TASK_CREATE_TOOL = "TaskCreate";
-export const TASK_UPDATE_TOOL = "TaskUpdate";
 
 /**
  * The agent's plan arrives one call at a time — `TaskCreate` appends a task,

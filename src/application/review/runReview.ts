@@ -28,15 +28,13 @@ import type {
 	StoredReview,
 } from "../../domain/pass/StoredReview";
 import { diffStatusResidue } from "../../domain/run/diffStatusResidue";
-import {
-	describeToolActivity,
-	type RunProgressUpdate,
-} from "../../domain/run/RunProgress";
-import type { Engine, EngineResultEvent } from "../ports/Engine";
+import type { RunProgressUpdate } from "../../domain/run/RunProgress";
+import type { Engine } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { GithubService } from "../ports/GithubService";
 import type { RunContext, RunOutcome } from "../ports/RunManager";
 import type { SessionStore } from "../ports/SessionStore";
+import { runEngineTask } from "./runEngineTask";
 
 export interface RunReviewInput {
 	changesetId: ChangesetId;
@@ -107,67 +105,36 @@ export function buildReviewJob(
 				: { reuse: reusePromptInput(plan, stored) }),
 		});
 		const before = await deps.git.statusPorcelain();
-		const onAbort = () => {
-			void deps.engine.stop();
-		};
-		// covers both a cancel arriving mid-run and one that raced ahead of it
-		context.signal.addEventListener("abort", onAbort);
-		if (context.signal.aborted) {
-			onAbort();
+		const result = await runEngineTask(
+			deps,
+			context,
+			task,
+			{ prompt, workspaceDir: await deps.git.repoRoot() },
+			{
+				noResult: "The review ended with no result.",
+				failed: "The review run failed.",
+			},
+		);
+		if (!result.ok) {
+			return result.outcome;
 		}
 
-		try {
-			let terminal: EngineResultEvent | null = null;
-			for await (const event of deps.engine.runTask(task, {
-				prompt,
-				workspaceDir: await deps.git.repoRoot(),
-			})) {
-				if (event.type === "tool") {
-					deps.report(context.runId, {
-						kind: "activity",
-						activity: describeToolActivity(event.name, event.target),
-					});
-				} else if (event.type === "plan") {
-					deps.report(context.runId, { kind: "itinerary", steps: event.steps });
-				} else if (event.type === "result") {
-					terminal = event;
-				}
-			}
-
-			if (terminal === null) {
-				return {
-					ok: false,
-					reason: "crashed",
-					message: "The review ended with no result.",
-				};
-			}
-			if (!terminal.ok) {
-				return {
-					ok: false,
-					reason: terminal.reason,
-					message: terminal.stderrTail || "The review run failed.",
-				};
-			}
-
-			const after = await deps.git.statusPorcelain();
-			const answered = reviewOutputSchema.parse(terminal.structuredOutput);
-			await deps.sessionStore.saveReview({
-				changesetId: input.changesetId,
-				createdAt: new Date().toISOString(),
-				headSha: input.headSha,
-				residue: diffStatusResidue(before, after),
-				checkpoint: checkpointOf(
-					{ baseSha: input.baseSha, files: input.files },
-					input.headSha,
-				),
-				...(plan === null || stored === null
-					? freshArtifact(answered, stored)
-					: mergedArtifact(deps, plan, answered, stored)),
-			});
-			return { ok: true };
-		} finally {
-			context.signal.removeEventListener("abort", onAbort);
-		}
+		const after = await deps.git.statusPorcelain();
+		const answered = reviewOutputSchema.parse(result.structuredOutput);
+		await deps.sessionStore.saveReview({
+			changesetId: input.changesetId,
+			createdAt: new Date().toISOString(),
+			headSha: input.headSha,
+			residue: diffStatusResidue(before, after),
+			checkpoint: checkpointOf(
+				{ baseSha: input.baseSha, files: input.files },
+				input.headSha,
+			),
+			...(plan === null || stored === null
+				? freshArtifact(answered, stored)
+				: mergedArtifact(deps, plan, answered, stored)),
+		});
+		return { ok: true };
 	};
 }
 
