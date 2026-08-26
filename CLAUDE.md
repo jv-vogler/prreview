@@ -37,7 +37,7 @@ context, not an entity — a folder named for it collects everything and explain
 category, not a use-case: it constructs a request, it never issues one.
 
 The client mirrors this. `client/src/domain/` splits by the same entities; `view/review/` splits
-by feature (`comments/`, `explanations/`, `run/`). A component moves to a `shared/` folder when a
+by feature (`findings/`, `explanations/`, `run/`). A component moves to a `shared/` folder when a
 second feature actually imports it, never in anticipation — two things with the same noun in
 their name are usually not the same thing.
 

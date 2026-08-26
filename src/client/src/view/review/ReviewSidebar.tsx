@@ -1,9 +1,9 @@
 import type { ExplanationDto, ReviewFindingDto } from "@dto/ReviewDto";
 import { type ReactNode, useState } from "react";
 import type { Topic } from "../../domain/explanation/topics";
-import type { FindingActions } from "./comments/FindingActions";
-import { FindingWorklist } from "./comments/FindingWorklist";
 import { ExplanationsPanel } from "./explanations/ExplanationsPanel";
+import type { FindingActions } from "./findings/FindingActions";
+import { FindingWorklist } from "./findings/FindingWorklist";
 import styles from "./ReviewSidebar.module.css";
 
 type SidebarTab = "comments" | "explanations";

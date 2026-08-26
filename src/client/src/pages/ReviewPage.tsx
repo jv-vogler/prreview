@@ -32,13 +32,13 @@ import {
 	REVIEW_PANEL,
 	usePanelWidth,
 } from "../view/layout/usePanelWidth";
-import type { FindingActions } from "../view/review/comments/FindingActions";
-import { reworkProposalFor } from "../view/review/comments/FindingActions";
 import type { ExplanationsMode } from "../view/review/explanations/DiffExplanationAnnotation";
 import {
 	HighlightedExplanationsContext,
 	NO_HIGHLIGHTED_EXPLANATIONS,
 } from "../view/review/explanations/highlightedExplanations";
+import type { FindingActions } from "../view/review/findings/FindingActions";
+import { reworkProposalFor } from "../view/review/findings/FindingActions";
 import { OverviewPanel } from "../view/review/OverviewPanel";
 import { PublishControl } from "../view/review/PublishControl";
 import { ReReviewDialog } from "../view/review/ReReviewDialog";

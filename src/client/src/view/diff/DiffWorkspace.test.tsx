@@ -3,7 +3,7 @@ import type { ExplanationDto, ReviewFindingDto } from "@dto/ReviewDto";
 import type { CodeViewDiffItem } from "@pierre/diffs";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { FindingActions } from "../review/comments/FindingActions";
+import type { FindingActions } from "../review/findings/FindingActions";
 import { DiffWorkspace } from "./DiffWorkspace";
 
 const renderedItems: CodeViewDiffItem<unknown>[][] = [];

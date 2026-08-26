@@ -30,8 +30,6 @@ import {
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
 import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
-import { DiffFindingAnnotation } from "../review/comments/DiffFindingAnnotation";
-import type { FindingActions } from "../review/comments/FindingActions";
 import {
 	DiffExplanationAnnotation,
 	type ExplanationsMode,
@@ -40,6 +38,8 @@ import {
 	createExplanationCardLayout,
 	ExplanationCardLayoutContext,
 } from "../review/explanations/explanationCardLayout";
+import { DiffFindingAnnotation } from "../review/findings/DiffFindingAnnotation";
+import type { FindingActions } from "../review/findings/FindingActions";
 import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";
