@@ -141,7 +141,7 @@ function toPendingReview(review: RawReview): PendingReview {
 
 function toWirePayload(input: ReviewInput): {
 	body?: string;
-	findings?: {
+	comments?: {
 		path: string;
 		line: number;
 		side: "LEFT" | "RIGHT";
@@ -155,7 +155,7 @@ function toWirePayload(input: ReviewInput): {
 		...(input.findings === undefined
 			? {}
 			: {
-					findings: input.findings.map((finding) => ({
+					comments: input.findings.map((finding) => ({
 						path: finding.path,
 						line: finding.line,
 						side: finding.side,

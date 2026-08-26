@@ -252,10 +252,24 @@ describe("createPendingReview", () => {
 					},
 				],
 			});
-			const log = await readFile(logPath, "utf8");
-			expect(log.trim()).toBe(
+			const [argv, stdin] = (await readFile(logPath, "utf8"))
+				.trim()
+				.split("\n");
+			expect(argv).toBe(
 				"api repos/{owner}/{repo}/pulls/482/reviews -X POST --input -",
 			);
+			expect(JSON.parse((stdin ?? "").replace(/^stdin /, ""))).toEqual({
+				comments: [
+					{
+						path: "src/limiter.ts",
+						line: 4,
+						side: "RIGHT",
+						start_line: 3,
+						start_side: "RIGHT",
+						body: "range comment",
+					},
+				],
+			});
 		} finally {
 			await rm(logDirectory, { recursive: true, force: true });
 		}

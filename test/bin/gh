@@ -1,7 +1,8 @@
 #!/bin/sh
 # Fake gh CLI for adapter tests: emits canned output so the suite runs with
 # no real gh and no network. Knobs, all optional:
-#   FAKE_GH_LOG                 append each invocation's argv to this file
+#   FAKE_GH_LOG                 append each invocation's argv to this file, and
+#                               for an `--input -` call the payload it read
 #   FAKE_GH_VERSION_EXIT        exit code for `gh --version`        (default 0)
 #   FAKE_GH_AUTH_EXIT           exit code for `gh auth token`       (default 0)
 #   FAKE_GH_PR_VIEW_EXIT        exit code for `gh pr view`          (default 0)
@@ -73,12 +74,15 @@ fi
 # `gh api <endpoint> [-X <method>] [--input -]` — the review-publish surface
 # (docs/github-review-notes.md). No real substitution of {owner}/{repo}
 # happens here (that is the real gh binary's own job); the fake matches on
-# the endpoint's shape instead. --input's value is never read: the caller
-# closes stdin after writing, so leaving it unread cannot hang this script.
+# the endpoint's shape instead. Stdin is drained only when `--input -` says
+# the caller is writing one, so an argv-only call cannot block on a stdin
+# nobody closes. `read` is a builtin: the fake must run on a PATH holding
+# nothing but git, so no external command (cat, sed, ...) may appear here.
 if [ "$1" = "api" ]; then
 	endpoint="$2"
 	shift 2
 	method="GET"
+	reads_stdin=""
 	while [ $# -gt 0 ]; do
 		case "$1" in
 			-X)
@@ -86,6 +90,7 @@ if [ "$1" = "api" ]; then
 				shift 2
 				;;
 			--input)
+				reads_stdin=1
 				shift 2
 				;;
 			*)
@@ -93,6 +98,16 @@ if [ "$1" = "api" ]; then
 				;;
 		esac
 	done
+
+	if [ -n "$reads_stdin" ]; then
+		payload=""
+		while IFS= read -r chunk || [ -n "$chunk" ]; do
+			payload="$payload$chunk"
+		done
+		if [ -n "$FAKE_GH_LOG" ]; then
+			printf 'stdin %s\n' "$payload" >>"$FAKE_GH_LOG"
+		fi
+	fi
 
 	case "$endpoint" in
 		*/reviews/*)
