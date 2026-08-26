@@ -3,12 +3,9 @@ import {
 	countByTier,
 	countQuestions,
 } from "../../../domain/finding/countByTier";
+import { REVIEW_TIER_ORDER } from "../../../domain/finding/reviewTier";
 import { Collapsible } from "../../layout/Collapsible";
-import {
-	findingTierLabel,
-	REVIEW_TIER_LABEL,
-	REVIEW_TIER_ORDER,
-} from "../shared/reviewTier";
+import { findingTierLabel, REVIEW_TIER_LABEL } from "../shared/reviewTier";
 import type { FindingActions } from "./FindingActions";
 import { FindingBalloon } from "./FindingBalloon";
 import styles from "./FindingWorklist.module.css";

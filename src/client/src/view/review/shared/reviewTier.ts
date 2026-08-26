@@ -1,12 +1,5 @@
 import type { ReviewFindingKindDto, ReviewTierDto } from "@dto/ReviewDto";
 
-export const REVIEW_TIER_ORDER: readonly ReviewTierDto[] = [
-	"blocker",
-	"should-fix",
-	"suggestion",
-	"nitpick",
-];
-
 export const REVIEW_TIER_LABEL: Record<ReviewTierDto, string> = {
 	blocker: "Blocker",
 	"should-fix": "Should fix",

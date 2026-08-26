@@ -1,14 +1,12 @@
-import type {
-	ReviewFindingDto,
-	ReviewFindingKindDto,
-	ReviewTierDto,
-} from "@dto/ReviewDto";
+import type { ReviewFindingDto } from "@dto/ReviewDto";
 import {
 	AlertFillIcon,
 	CommentIcon,
 	QuestionIcon,
 } from "@primer/octicons-react";
 import { useState } from "react";
+import { allQuestions } from "../../../domain/finding/countByTier";
+import { worstTier } from "../../../domain/finding/reviewTier";
 import { Collapsible } from "../../layout/Collapsible";
 import styles from "./DiffFindingAnnotation.module.css";
 import type { FindingActions } from "./FindingActions";
@@ -50,7 +48,7 @@ export function DiffFindingAnnotation({
 					className={styles.marker}
 					data-finding-marker="true"
 					data-tier={worstTier(collapsed)}
-					data-kind={markerKind(collapsed)}
+					data-kind={allQuestions(collapsed) ? "question" : undefined}
 					onClick={() => {
 						for (const finding of collapsed) {
 							onToggle(finding.id);
@@ -105,37 +103,4 @@ function ExpandingBalloon({
 			/>
 		</Collapsible>
 	);
-}
-
-const TIER_SEVERITY: Record<ReviewTierDto, number> = {
-	blocker: 0,
-	"should-fix": 1,
-	suggestion: 2,
-	nitpick: 3,
-};
-
-function worstTier(
-	findings: readonly ReviewFindingDto[],
-): ReviewTierDto | undefined {
-	let worst: ReviewTierDto | undefined;
-	for (const finding of findings) {
-		if (finding.tier === undefined) {
-			continue;
-		}
-		if (
-			worst === undefined ||
-			TIER_SEVERITY[finding.tier] < TIER_SEVERITY[worst]
-		) {
-			worst = finding.tier;
-		}
-	}
-	return worst;
-}
-
-function markerKind(
-	findings: readonly ReviewFindingDto[],
-): ReviewFindingKindDto | undefined {
-	return findings.every((finding) => finding.kind === "question")
-		? "question"
-		: undefined;
 }
