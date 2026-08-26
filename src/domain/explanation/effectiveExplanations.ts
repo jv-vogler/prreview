@@ -1,5 +1,5 @@
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { FindingPlacement } from "../changeset/placeOnDiff";
+import type { DiffPlacement } from "../changeset/placeOnDiff";
 import { placeOnDiff } from "../changeset/placeOnDiff";
 import type { StoredReview } from "../pass/StoredReview";
 
@@ -10,7 +10,7 @@ export interface EffectiveExplanation {
 	endLine: number;
 	says: string[];
 	topic?: string;
-	placement: FindingPlacement;
+	placement: DiffPlacement;
 }
 
 export function explanationId(index: number): string {

@@ -19,7 +19,7 @@ const anchorSideDtoSchema = z.enum(["old", "new"]);
 
 export type AnchorSideDto = z.infer<typeof anchorSideDtoSchema>;
 
-export const findingPlacementDtoSchema = z.discriminatedUnion("kind", [
+export const diffPlacementDtoSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("exact"),
 		fileId: z.string(),
@@ -37,7 +37,7 @@ export const findingPlacementDtoSchema = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("unplaceable") }),
 ]);
 
-export type FindingPlacementDto = z.infer<typeof findingPlacementDtoSchema>;
+export type DiffPlacementDto = z.infer<typeof diffPlacementDtoSchema>;
 
 export const reviewFindingDtoSchema = z.object({
 	id: z.string(),
@@ -53,7 +53,7 @@ export const reviewFindingDtoSchema = z.object({
 	proof: z.string(),
 	verified: z.boolean(),
 	lane: reviewLaneDtoSchema,
-	placement: findingPlacementDtoSchema,
+	placement: diffPlacementDtoSchema,
 
 	edited: z.boolean(),
 
@@ -74,7 +74,7 @@ export const explanationDtoSchema = z.object({
 
 	says: z.array(z.string()),
 	topic: z.string().optional(),
-	placement: findingPlacementDtoSchema,
+	placement: diffPlacementDtoSchema,
 });
 
 export type ExplanationDto = z.infer<typeof explanationDtoSchema>;

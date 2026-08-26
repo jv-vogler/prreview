@@ -3,13 +3,13 @@ import { buildLineIndex, type LineIndex } from "../changeset/LineIndex";
 
 export type AnchorSide = "old" | "new";
 
-export interface FindingTarget {
+export interface DiffTarget {
 	path: string;
 	startLine: number;
 	endLine: number;
 }
 
-export type FindingPlacement =
+export type DiffPlacement =
 	| { kind: "exact"; fileId: string; side: AnchorSide; line: number }
 	| {
 			kind: "clamped";
@@ -27,9 +27,9 @@ interface RenderableLine {
 }
 
 export function placeOnDiff(
-	target: FindingTarget,
+	target: DiffTarget,
 	files: readonly FileDiff[],
-): FindingPlacement {
+): DiffPlacement {
 	const file = files.find((candidate) => candidate.path === target.path);
 	if (file === undefined) {
 		return { kind: "unplaceable" };
@@ -62,10 +62,7 @@ export function placeOnDiff(
 	};
 }
 
-function exactSideFor(
-	target: FindingTarget,
-	index: LineIndex,
-): AnchorSide | null {
+function exactSideFor(target: DiffTarget, index: LineIndex): AnchorSide | null {
 	if (isRangeRenderable(target, index.newLines)) {
 		return "new";
 	}
@@ -76,7 +73,7 @@ function exactSideFor(
 }
 
 function isRangeRenderable(
-	target: FindingTarget,
+	target: DiffTarget,
 	lines: ReadonlyMap<number, string>,
 ): boolean {
 	for (let line = target.startLine; line <= target.endLine; line++) {

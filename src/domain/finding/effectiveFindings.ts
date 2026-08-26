@@ -1,5 +1,5 @@
 import type { FileDiff } from "../../domain/changeset/FileDiff";
-import type { FindingPlacement } from "../changeset/placeOnDiff";
+import type { DiffPlacement } from "../changeset/placeOnDiff";
 import { placeOnDiff } from "../changeset/placeOnDiff";
 import type {
 	ReviewFindingKind,
@@ -23,7 +23,7 @@ export interface EffectiveFinding {
 	proof: string;
 	verified: boolean;
 	lane: ReviewLane;
-	placement: FindingPlacement;
+	placement: DiffPlacement;
 	edited: boolean;
 	deleted: boolean;
 }

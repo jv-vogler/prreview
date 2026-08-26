@@ -2,8 +2,8 @@ import type { BlobRequest } from "@dto/BlobRequest";
 import type { ChangesetDto, FileDiffDto } from "@dto/ChangesetDto";
 import type {
 	AnchorSideDto,
+	DiffPlacementDto,
 	ExplanationDto,
-	FindingPlacementDto,
 	ReviewFindingDto,
 } from "@dto/ReviewDto";
 import type {
@@ -79,7 +79,7 @@ const ANNOTATION_SIDE: Record<AnchorSideDto, "deletions" | "additions"> = {
 
 function scrollToPlacement(
 	codeView: CodeViewHandle<DiffAnnotationMeta> | null,
-	placement: FindingPlacementDto,
+	placement: DiffPlacementDto,
 ): void {
 	if (placement.kind === "unplaceable") {
 		return;

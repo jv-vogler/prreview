@@ -25,7 +25,7 @@ export function placedFindings(
 	return placed;
 }
 
-export interface AnnotationGroup {
+export interface FindingGroup {
 	fileId: string;
 	side: AnchorSideDto;
 	line: number;
@@ -34,8 +34,8 @@ export interface AnnotationGroup {
 
 export function groupPlacedFindings(
 	placed: readonly PlacedFinding[],
-): AnnotationGroup[] {
-	const groups = new Map<string, AnnotationGroup>();
+): FindingGroup[] {
+	const groups = new Map<string, FindingGroup>();
 	for (const item of placed) {
 		const key = `${item.fileId}:${item.side}:${item.line}`;
 		const existing = groups.get(key);
