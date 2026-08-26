@@ -18,27 +18,27 @@ import { useCallback, useMemo, useRef } from "react";
 import { blobSidesFor } from "../../domain/changeset/blobSidesFor";
 import { buildPatchText } from "../../domain/changeset/buildPatchText";
 import {
-	groupPlacedComments,
-	placedComments,
-} from "../../domain/review/placedComments";
-import {
 	groupPlacedExplanations,
 	placedExplanations,
-} from "../../domain/review/placedExplanations";
-import { topicColorsFor } from "../../domain/review/topicColors";
+} from "../../domain/explanation/placedExplanations";
+import { topicColorsFor } from "../../domain/explanation/topicColors";
+import {
+	groupPlacedComments,
+	placedComments,
+} from "../../domain/finding/placedComments";
 import { getBlob } from "../../infrastructure/endpoints/getBlob";
 import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
 import { HIGHLIGHTER, PIERRE_THEME_NAME } from "../app/WorkerPoolHost";
-import type { CommentActions } from "../review/CommentActions";
-import { DiffCommentAnnotation } from "../review/DiffCommentAnnotation";
+import type { CommentActions } from "../review/comments/CommentActions";
+import { DiffCommentAnnotation } from "../review/comments/DiffCommentAnnotation";
 import {
 	DiffExplanationAnnotation,
 	type ExplanationsMode,
-} from "../review/DiffExplanationAnnotation";
+} from "../review/explanations/DiffExplanationAnnotation";
 import {
 	createExplanationCardLayout,
 	ExplanationCardLayoutContext,
-} from "../review/explanationCardLayout";
+} from "../review/explanations/explanationCardLayout";
 import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
 import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";

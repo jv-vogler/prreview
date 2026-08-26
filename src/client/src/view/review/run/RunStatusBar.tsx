@@ -1,12 +1,12 @@
 import type { ReviewCommentDto } from "@dto/ReviewDto";
 import type { RunDto } from "@dto/RunDto";
 import { AlertIcon, StopIcon } from "@primer/octicons-react";
-import { countByTier } from "../../domain/review/countByTier";
+import { countByTier } from "../../../domain/finding/countByTier";
+import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "../comments/reviewTier";
 import { formatElapsed } from "./formatElapsed";
 import { Itinerary } from "./Itinerary";
 import styles from "./RunStatusBar.module.css";
 import { REVIEW_FAILURE_COPY } from "./reviewFailureCopy";
-import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "./reviewTier";
 import { useElapsedSince } from "./useElapsedSince";
 import type { ReviewRunState } from "./useReviewRun";
 

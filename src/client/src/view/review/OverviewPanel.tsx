@@ -4,9 +4,12 @@ import { useMemo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Collapsible } from "../layout/Collapsible";
+import {
+	linkTopicMentions,
+	topicFromHref,
+} from "./explanations/overviewTopicMentions";
+import { TopicChip } from "./explanations/TopicChip";
 import styles from "./OverviewPanel.module.css";
-import { linkTopicMentions, topicFromHref } from "./overviewTopicMentions";
-import { TopicChip } from "./TopicChip";
 
 /**
  * The pass's lede, above the diff (TASK-042, REQ-003): the business-level

@@ -9,7 +9,7 @@ import {
 	QuestionIcon,
 } from "@primer/octicons-react";
 import { useState } from "react";
-import { Collapsible } from "../layout/Collapsible";
+import { Collapsible } from "../../layout/Collapsible";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./DiffCommentAnnotation.module.css";

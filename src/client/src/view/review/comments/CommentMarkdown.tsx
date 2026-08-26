@@ -1,6 +1,6 @@
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { parseAlertBlock } from "../../domain/review/parseAlertBlock";
+import { parseAlertBlock } from "../../../domain/finding/parseAlertBlock";
 import styles from "./CommentMarkdown.module.css";
 
 /**

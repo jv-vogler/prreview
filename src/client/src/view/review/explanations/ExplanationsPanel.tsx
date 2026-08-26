@@ -1,15 +1,15 @@
 import type { ExplanationDto } from "@dto/ReviewDto";
 import { ChevronDownIcon, ChevronRightIcon } from "@primer/octicons-react";
 import { useState } from "react";
-import { topicColorsFor } from "../../domain/review/topicColors";
+import { topicColorsFor } from "../../../domain/explanation/topicColors";
 import {
 	type Topic,
 	topicPaths,
 	topicSummary,
 	topicSummaryLeads,
 	topicsFor,
-} from "../../domain/review/topics";
-import { Collapsible } from "../layout/Collapsible";
+} from "../../../domain/explanation/topics";
+import { Collapsible } from "../../layout/Collapsible";
 import { BacktickText } from "./ExplanationBalloon";
 import styles from "./ExplanationsPanel.module.css";
 import { useHighlightedExplanations } from "./highlightedExplanations";

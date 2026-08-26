@@ -3,7 +3,7 @@ import type { ExplanationDto, ReviewCommentDto } from "@dto/ReviewDto";
 import type { CodeViewDiffItem } from "@pierre/diffs";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { CommentActions } from "../review/CommentActions";
+import type { CommentActions } from "../review/comments/CommentActions";
 import { DiffWorkspace } from "./DiffWorkspace";
 
 // the real CodeView needs a highlight worker pool; the seam under test is

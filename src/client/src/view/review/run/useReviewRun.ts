@@ -2,13 +2,13 @@ import type { PassFreshnessDto, ReviewPassDto } from "@dto/ReviewDto";
 import type { ReviewStatusDto, RunDto } from "@dto/RunDto";
 import { serverEventSchema } from "@dto/ServerEvent";
 import { useCallback, useEffect, useState } from "react";
-import type { PostReviewOptions } from "../../infrastructure/endpoints/reviewRun";
+import type { PostReviewOptions } from "../../../infrastructure/endpoints/reviewRun";
 import {
 	cancelReviewRun,
 	getReviewRun,
 	postReviewRun,
-} from "../../infrastructure/endpoints/reviewRun";
-import type { ApiClient } from "../../infrastructure/httpClients/apiClient";
+} from "../../../infrastructure/endpoints/reviewRun";
+import type { ApiClient } from "../../../infrastructure/httpClients/apiClient";
 
 /** while a run is live, how often the poll fallback re-checks (TASK-037) */
 const POLL_MS = 8_000;

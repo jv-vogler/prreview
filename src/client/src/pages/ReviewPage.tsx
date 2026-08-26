@@ -5,9 +5,9 @@ import type {
 	ReworkInstructionDto,
 } from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sortExplanationsByDiff } from "../domain/review/explanationOrder";
-import { topicColorsFor } from "../domain/review/topicColors";
-import { type Topic, topicsFor } from "../domain/review/topics";
+import { sortExplanationsByDiff } from "../domain/explanation/explanationOrder";
+import { topicColorsFor } from "../domain/explanation/topicColors";
+import { type Topic, topicsFor } from "../domain/explanation/topics";
 import {
 	getChangeset,
 	refreshChangeset,
@@ -36,16 +36,16 @@ import {
 import type {
 	CommentActions,
 	ReworkProposal,
-} from "../view/review/CommentActions";
-import type { ExplanationsMode } from "../view/review/DiffExplanationAnnotation";
-import { HighlightedExplanationsContext } from "../view/review/highlightedExplanations";
+} from "../view/review/comments/CommentActions";
+import type { ExplanationsMode } from "../view/review/explanations/DiffExplanationAnnotation";
+import { HighlightedExplanationsContext } from "../view/review/explanations/highlightedExplanations";
 import { OverviewPanel } from "../view/review/OverviewPanel";
 import { PublishControl } from "../view/review/PublishControl";
 import { ReReviewDialog } from "../view/review/ReReviewDialog";
 import { ReviewSidebar } from "../view/review/ReviewSidebar";
-import { RunStatusBar } from "../view/review/RunStatusBar";
-import { REVIEW_FAILURE_COPY } from "../view/review/reviewFailureCopy";
-import { useReviewRun } from "../view/review/useReviewRun";
+import { RunStatusBar } from "../view/review/run/RunStatusBar";
+import { REVIEW_FAILURE_COPY } from "../view/review/run/reviewFailureCopy";
+import { useReviewRun } from "../view/review/run/useReviewRun";
 import styles from "./ReviewPage.module.css";
 
 const api = createApiClient();

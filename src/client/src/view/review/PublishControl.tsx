@@ -1,7 +1,7 @@
 import type { PublishedRecordDto, ReviewCommentDto } from "@dto/ReviewDto";
 import { useMemo } from "react";
-import type { PublishExclusionReason } from "../../domain/review/publishSummary";
-import { summarizePublish } from "../../domain/review/publishSummary";
+import type { PublishExclusionReason } from "../../domain/finding/publishSummary";
+import { summarizePublish } from "../../domain/finding/publishSummary";
 import styles from "./PublishControl.module.css";
 
 const EXCLUSION_COPY: Record<PublishExclusionReason, string> = {

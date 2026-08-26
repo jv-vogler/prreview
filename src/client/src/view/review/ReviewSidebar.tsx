@@ -1,9 +1,9 @@
 import type { ExplanationDto, ReviewCommentDto } from "@dto/ReviewDto";
 import { type ReactNode, useState } from "react";
-import type { Topic } from "../../domain/review/topics";
-import type { CommentActions } from "./CommentActions";
-import { CommentWorklist } from "./CommentWorklist";
-import { ExplanationsPanel } from "./ExplanationsPanel";
+import type { Topic } from "../../domain/explanation/topics";
+import type { CommentActions } from "./comments/CommentActions";
+import { CommentWorklist } from "./comments/CommentWorklist";
+import { ExplanationsPanel } from "./explanations/ExplanationsPanel";
 import styles from "./ReviewSidebar.module.css";
 
 type SidebarTab = "comments" | "explanations";
