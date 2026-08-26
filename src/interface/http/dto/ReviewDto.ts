@@ -15,8 +15,6 @@ export type ReviewFindingKindDto = z.infer<typeof reviewFindingKindDtoSchema>;
 
 const reviewLaneDtoSchema = z.enum(["review", "pre-existing"]);
 
-export type ReviewLaneDto = z.infer<typeof reviewLaneDtoSchema>;
-
 const anchorSideDtoSchema = z.enum(["old", "new"]);
 
 export type AnchorSideDto = z.infer<typeof anchorSideDtoSchema>;
@@ -38,8 +36,6 @@ export const findingPlacementDtoSchema = z.discriminatedUnion("kind", [
 	}),
 	z.object({ kind: z.literal("unplaceable") }),
 ]);
-
-export type FindingPlacementDto = z.infer<typeof findingPlacementDtoSchema>;
 
 export const reviewFindingDtoSchema = z.object({
 	id: z.string(),
@@ -97,8 +93,6 @@ export const reviewScopeDtoSchema = z.enum([
 	"no-ticket",
 ]);
 
-export type ReviewScopeDto = z.infer<typeof reviewScopeDtoSchema>;
-
 export const reviewPassDtoSchema = z.object({
 	overview: z.string(),
 	verdict: z.string(),
@@ -127,13 +121,9 @@ export const reviewRunRequestDtoSchema = z.object({
 	full: z.boolean().optional(),
 });
 
-export type ReviewRunRequestDto = z.infer<typeof reviewRunRequestDtoSchema>;
-
 export const editFindingRequestDtoSchema = z.object({
 	body: z.string().min(1),
 });
-
-export type EditFindingRequestDto = z.infer<typeof editFindingRequestDtoSchema>;
 
 export const reworkInstructionDtoSchema = z.enum([
 	"concise",
@@ -146,5 +136,3 @@ export type ReworkInstructionDto = z.infer<typeof reworkInstructionDtoSchema>;
 export const reworkRequestDtoSchema = z.object({
 	instruction: reworkInstructionDtoSchema,
 });
-
-export type ReworkRequestDto = z.infer<typeof reworkRequestDtoSchema>;

@@ -44,8 +44,6 @@ export const runStatusDtoSchema = z.enum([
 
 export const runKindDtoSchema = z.enum(["review", "rework"]);
 
-export type RunKindDto = z.infer<typeof runKindDtoSchema>;
-
 export const runDtoSchema = z.object({
 	id: z.string(),
 	kind: runKindDtoSchema,

@@ -14,16 +14,9 @@ export const REVIEW_TIER_LABEL: Record<ReviewTierDto, string> = {
 	nitpick: "Nitpick",
 };
 
-export const REVIEW_TIER_ALERT_LABEL: Record<ReviewTierDto, string> = {
-	blocker: "CAUTION",
-	"should-fix": "WARNING",
-	suggestion: "TIP",
-	nitpick: "NOTE",
-};
+const REVIEW_QUESTION_LABEL = "Question";
 
-export const REVIEW_QUESTION_LABEL = "Question";
-
-export const REVIEW_UNTIERED_LABEL = "Finding";
+const REVIEW_UNTIERED_LABEL = "Finding";
 
 export function findingTierLabel(finding: {
 	kind: ReviewFindingKindDto;

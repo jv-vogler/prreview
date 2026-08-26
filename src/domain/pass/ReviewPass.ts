@@ -134,12 +134,6 @@ export type ReviewExplanation = z.infer<
 	ReturnType<typeof buildExplanationSchema>
 >;
 export type ReviewPass = z.infer<typeof reviewOutputSchema>;
-export type ReviewScope = (typeof SCOPE)[number];
 export type ReviewTier = (typeof TIER)[number];
 export type ReviewLane = (typeof LANE)[number];
 export type ReviewFindingKind = (typeof KIND)[number];
-export type CarriedVerdict = (typeof CARRIED_VERDICT)[number];
-export type ExplanationGrounding = (typeof GROUNDING)[number];
-
-export const REVIEW_TIERS: readonly ReviewTier[] = TIER;
-export const REVIEW_LANES: readonly ReviewLane[] = LANE;
