@@ -46,7 +46,7 @@ export async function createFixtureRepo(
 	const repo = makeHandle(root);
 	if (options.initialCommit !== false) {
 		await repo.write("README.md", "# fixture\n");
-		await repo.commitAll("initial commit");
+		await commitEverything(root, "initial commit");
 	}
 	return repo;
 }
@@ -66,12 +66,11 @@ function makeHandle(root: string): FixtureRepo {
 		remove: (relativePath) => unlink(join(root, relativePath)),
 
 		commitAll: async (message) => {
-			await runGit(root, ["add", "-A"]);
-			await runGit(root, ["commit", "--quiet", "-m", message]);
-			return repo.headSha();
+			await commitEverything(root, message);
+			return readHeadSha(root);
 		},
 
-		headSha: async () => (await runGit(root, ["rev-parse", "HEAD"])).trim(),
+		headSha: () => readHeadSha(root),
 
 		clone: async () => {
 			const cloneRoot = await mkdtemp(join(tmpdir(), "prreview-fixture-"));
@@ -84,6 +83,15 @@ function makeHandle(root: string): FixtureRepo {
 		dispose: () => rm(root, { recursive: true, force: true }),
 	};
 	return repo;
+}
+
+async function commitEverything(root: string, message: string): Promise<void> {
+	await runGit(root, ["add", "-A"]);
+	await runGit(root, ["commit", "--quiet", "-m", message]);
+}
+
+async function readHeadSha(root: string): Promise<string> {
+	return (await runGit(root, ["rev-parse", "HEAD"])).trim();
 }
 
 function runGit(cwd: string, args: readonly string[]): Promise<string> {
