@@ -26,6 +26,7 @@ context, not an entity — a folder named for it collects everything and explain
 | `domain/pass/` | the stored artifact: the pass shape, the checkpoint, the reuse plan |
 | `domain/run/` | one agent execution: progress, itinerary, residue |
 | `domain/agentTask/` | how we ask an agent for a pass: prompt, contract, output schema, budgets |
+| `domain/githubReview/` | GitHub's own vocabulary: the PR, the review, the comment as their API models them |
 | `domain/errors/` | one failure: the base error and the reasons each layer may raise |
 | `domain/session/` | what this machine can do: the toolchain probe's answer and the flags derived from it |
 | `application/ports/` | interfaces only |

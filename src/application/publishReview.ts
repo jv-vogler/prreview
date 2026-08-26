@@ -5,8 +5,9 @@ import { FindingError } from "../domain/errors/FindingError";
 import { PublishError } from "../domain/errors/PublishError";
 import type { EffectiveFinding } from "../domain/finding/effectiveFindings";
 import { effectiveFindings } from "../domain/finding/effectiveFindings";
+import type { GithubComment } from "../domain/githubReview/GithubReview";
 import type { StoredReview } from "../domain/pass/StoredReview";
-import type { GithubComment, GithubService } from "./ports/GithubService";
+import type { GithubService } from "./ports/GithubService";
 import type { SessionStore } from "./ports/SessionStore";
 
 export interface PublishReviewDeps {

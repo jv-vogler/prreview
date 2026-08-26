@@ -3,9 +3,10 @@ import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import { AppError } from "../domain/errors/AppError";
 import { ChangesetError } from "../domain/errors/ChangesetError";
 import { GithubError } from "../domain/errors/GithubError";
+import type { PrInfo } from "../domain/githubReview/GithubReview";
 import type { Toolchain } from "../domain/session/Toolchain";
 import type { Git } from "./ports/Git";
-import type { GithubService, PrInfo } from "./ports/GithubService";
+import type { GithubService } from "./ports/GithubService";
 
 const PR_NUMBER_PATTERN = /^\d+$/;
 

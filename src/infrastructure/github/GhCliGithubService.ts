@@ -1,11 +1,11 @@
 import type { Git } from "../../application/ports/Git";
+import type { GithubService } from "../../application/ports/GithubService";
 import type {
-	GithubService,
 	PendingReview,
 	PrInfo,
 	PrReviewCommentInfo,
 	ReviewInput,
-} from "../../application/ports/GithubService";
+} from "../../domain/githubReview/GithubReview";
 import type { Toolchain } from "../../domain/session/Toolchain";
 import { exec } from "../git/exec";
 

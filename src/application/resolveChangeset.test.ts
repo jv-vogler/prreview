@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildTestContainer } from "../../test/helpers/buildTestContainer";
 import { ChangesetError } from "../domain/errors/ChangesetError";
 import { GithubError } from "../domain/errors/GithubError";
-import type { PrInfo } from "./ports/GithubService";
+import type { PrInfo } from "../domain/githubReview/GithubReview";
 
 function sha(letter: string): string {
 	return letter.repeat(40);

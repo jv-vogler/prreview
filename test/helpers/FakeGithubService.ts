@@ -1,11 +1,11 @@
+import type { GithubService } from "../../src/application/ports/GithubService";
+import { GithubError } from "../../src/domain/errors/GithubError";
 import type {
-	GithubService,
 	PendingReview,
 	PrInfo,
 	PrReviewCommentInfo,
 	ReviewInput,
-} from "../../src/application/ports/GithubService";
-import { GithubError } from "../../src/domain/errors/GithubError";
+} from "../../src/domain/githubReview/GithubReview";
 import type { Toolchain } from "../../src/domain/session/Toolchain";
 
 export interface FakeGithubState {
