@@ -3,10 +3,10 @@ import { FakeGithubService } from "../../test/helpers/FakeGithubService";
 import { FakeSessionStore } from "../../test/helpers/FakeSessionStore";
 import type { ChangesetSource } from "../domain/changeset/ChangesetSource";
 import type { FileDiff } from "../domain/changeset/FileDiff";
-import type { StoredReview } from "./ports/SessionStore";
+import type { EffectiveFinding } from "../domain/finding/effectiveFindings";
+import type { ReviewFinding } from "../domain/pass/ReviewPass";
+import type { StoredReview } from "../domain/pass/StoredReview";
 import { buildPublishPayload, publishReview } from "./publishReview";
-import type { EffectiveComment } from "./review/effectiveComments";
-import type { ReviewFinding } from "./review/reviewSchema";
 
 const CHANGESET_ID = "pr:acme/api#42";
 const PR_SOURCE: ChangesetSource = { kind: "pr", repo: "acme/api", number: 42 };
@@ -40,7 +40,7 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 			findings: [finding()],
 		},
 		residue: [],
-		commentEdits: {},
+		findingEdits: {},
 		published: null,
 		...overrides,
 	};
@@ -74,8 +74,8 @@ const FILE: FileDiff = {
 };
 
 function effective(
-	overrides: Partial<EffectiveComment> = {},
-): EffectiveComment {
+	overrides: Partial<EffectiveFinding> = {},
+): EffectiveFinding {
 	return {
 		id: "finding-0",
 		path: "src/a.ts",
@@ -96,7 +96,7 @@ function effective(
 }
 
 describe("buildPublishPayload", () => {
-	it("excludes a pre-existing-lane comment, reporting why", () => {
+	it("excludes a pre-existing-lane finding, reporting why", () => {
 		const { included, excluded } = buildPublishPayload([
 			effective({ lane: "pre-existing" }),
 		]);
@@ -104,7 +104,7 @@ describe("buildPublishPayload", () => {
 		expect(excluded).toEqual([{ id: "finding-0", reason: "pre-existing" }]);
 	});
 
-	it("excludes an unplaceable comment, reporting why", () => {
+	it("excludes an unplaceable finding, reporting why", () => {
 		const { included, excluded } = buildPublishPayload([
 			effective({ placement: { kind: "unplaceable" } }),
 		]);
@@ -131,8 +131,6 @@ describe("buildPublishPayload", () => {
 		);
 	});
 
-	// a question is asked the way a human asks it: the body is the question,
-	// with no tier to announce and so no alert block to carry
 	it("publishes a question as its body alone, no alert block added", () => {
 		const { included } = buildPublishPayload([
 			effective({
@@ -254,7 +252,7 @@ describe("publishReview", () => {
 	it("refuses when the only finding has been dismissed", async () => {
 		const sessionStore = new FakeSessionStore();
 		await sessionStore.saveReview(
-			storedReview({ commentEdits: { "finding-0": { deleted: true } } }),
+			storedReview({ findingEdits: { "finding-0": { deleted: true } } }),
 		);
 		await expect(
 			publishReview(
@@ -266,7 +264,7 @@ describe("publishReview", () => {
 		).rejects.toMatchObject({ reason: "nothing-publishable" });
 	});
 
-	it("publishes the placeable review-lane comments and records the result", async () => {
+	it("publishes the placeable review-lane findings and records the result", async () => {
 		const sessionStore = new FakeSessionStore();
 		await sessionStore.saveReview(
 			storedReview({
@@ -296,7 +294,7 @@ describe("publishReview", () => {
 		expect(githubService.createdReviews[0]).toEqual({
 			pr: 42,
 			input: {
-				comments: [
+				findings: [
 					{ path: "src/a.ts", line: 1, side: "RIGHT", body: "a finding" },
 				],
 			},
@@ -305,9 +303,9 @@ describe("publishReview", () => {
 			reviewId: 1,
 			htmlUrl: "https://example.invalid/pull/1#review-1",
 			publishedAt: expect.any(String),
-			commentIds: ["finding-0"],
+			findingIds: ["finding-0"],
 		});
-		// the artifact itself is untouched — a second pass stays possible
+
 		expect(result.pass.findings).toHaveLength(3);
 	});
 
@@ -342,10 +340,10 @@ describe("publishReview", () => {
 			[FILE],
 		);
 
-		expect(githubService.createdReviews[0].input.comments).toEqual([
+		expect(githubService.createdReviews[0].input.findings).toEqual([
 			{ path: "src/a.ts", line: 1, side: "RIGHT", body: "a finding" },
 		]);
-		expect(result.published?.commentIds).toEqual(["finding-0"]);
+		expect(result.published?.findingIds).toEqual(["finding-0"]);
 	});
 
 	it("discards a previously published pending review before creating the new one", async () => {
@@ -356,7 +354,7 @@ describe("publishReview", () => {
 					reviewId: 7,
 					htmlUrl: "https://example.invalid/pull/1#review-7",
 					publishedAt: "2026-08-21T00:00:00.000Z",
-					commentIds: ["finding-0"],
+					findingIds: ["finding-0"],
 				},
 			}),
 		);
@@ -380,7 +378,7 @@ describe("publishReview", () => {
 					reviewId: 7,
 					htmlUrl: "https://example.invalid/pull/1#review-7",
 					publishedAt: "2026-08-21T00:00:00.000Z",
-					commentIds: ["finding-0"],
+					findingIds: ["finding-0"],
 				},
 			}),
 		);

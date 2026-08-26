@@ -224,7 +224,7 @@ describe("createPendingReview", () => {
 	it("creates a review and returns it, camelCasing the response", async () => {
 		const created = await service.createPendingReview(482, {
 			body: "overview",
-			comments: [
+			findings: [
 				{ path: "src/limiter.ts", line: 3, side: "RIGHT", body: "note" },
 			],
 		});
@@ -241,7 +241,7 @@ describe("createPendingReview", () => {
 		process.env.FAKE_GH_LOG = logPath;
 		try {
 			await service.createPendingReview(482, {
-				comments: [
+				findings: [
 					{
 						path: "src/limiter.ts",
 						line: 4,
@@ -252,10 +252,24 @@ describe("createPendingReview", () => {
 					},
 				],
 			});
-			const log = await readFile(logPath, "utf8");
-			expect(log.trim()).toBe(
+			const [argv, stdin] = (await readFile(logPath, "utf8"))
+				.trim()
+				.split("\n");
+			expect(argv).toBe(
 				"api repos/{owner}/{repo}/pulls/482/reviews -X POST --input -",
 			);
+			expect(JSON.parse((stdin ?? "").replace(/^stdin /, ""))).toEqual({
+				comments: [
+					{
+						path: "src/limiter.ts",
+						line: 4,
+						side: "RIGHT",
+						start_line: 3,
+						start_side: "RIGHT",
+						body: "range comment",
+					},
+				],
+			});
 		} finally {
 			await rm(logDirectory, { recursive: true, force: true });
 		}
@@ -265,7 +279,7 @@ describe("createPendingReview", () => {
 		process.env.FAKE_GH_REVIEW_CREATE_EXIT = "22";
 		const error = await rejectionOf(
 			service.createPendingReview(482, {
-				comments: [
+				findings: [
 					{ path: "src/limiter.ts", line: 999, side: "RIGHT", body: "x" },
 				],
 			}),

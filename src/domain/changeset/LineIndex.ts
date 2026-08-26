@@ -1,11 +1,5 @@
 import type { FileDiff } from "./FileDiff";
 
-/**
- * Answers "is this line actually part of the diff?" for one file, mapping a
- * line number on either side to the id of the hunk containing it. Derived
- * from the IR rather than stored, because the IR snapshot is plain JSON and
- * Maps do not survive it.
- */
 export interface LineIndex {
 	oldLines: Map<number, string>;
 	newLines: Map<number, string>;

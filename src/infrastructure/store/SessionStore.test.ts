@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { StoredReview } from "../../application/ports/SessionStore";
+import type { StoredReview } from "../../domain/pass/StoredReview";
 import { SessionStore } from "./SessionStore";
 
 const PASS: StoredReview["pass"] = {
@@ -32,7 +32,7 @@ describe("SessionStore", () => {
 			headSha: null,
 			pass: PASS,
 			residue: [],
-			commentEdits: {},
+			findingEdits: {},
 			published: null,
 		};
 		await store.saveReview(review);
@@ -50,7 +50,7 @@ describe("SessionStore", () => {
 			headSha: null,
 			pass: PASS,
 			residue: [],
-			commentEdits: {},
+			findingEdits: {},
 			published: null,
 			findingIds: ["finding-4"],
 			nextFindingId: 5,
@@ -63,8 +63,37 @@ describe("SessionStore", () => {
 		};
 		await store.saveReview(review);
 		await store.flush();
-
 		expect(await store.loadReview("worktree")).toEqual(review);
+	});
+
+	it("reads a review.json written when a finding was still called a comment", async () => {
+		const store = new SessionStore({ dataDir, debounceMs: 0 });
+		const legacy = {
+			changesetId: "worktree",
+			createdAt: "2026-08-21T10:00:00.000Z",
+			headSha: null,
+			pass: PASS,
+			residue: [],
+			commentEdits: { "finding-0": { body: "the reader's wording" } },
+			published: {
+				reviewId: 1,
+				htmlUrl: "https://example.com/r/1",
+				publishedAt: "2026-08-21T10:00:00.000Z",
+				commentIds: ["finding-0"],
+			},
+		};
+		await mkdir(join(dataDir, "sessions", "worktree"), { recursive: true });
+		await writeFile(
+			join(dataDir, "sessions", "worktree", "review.json"),
+			JSON.stringify(legacy),
+		);
+
+		const loaded = await store.loadReview("worktree");
+
+		expect(loaded?.findingEdits).toEqual({
+			"finding-0": { body: "the reader's wording" },
+		});
+		expect(loaded?.published?.findingIds).toEqual(["finding-0"]);
 	});
 
 	it("returns null for a session that was never saved", async () => {
@@ -80,18 +109,17 @@ describe("SessionStore", () => {
 			headSha: null,
 			pass: PASS,
 			residue: [],
-			commentEdits: {},
+			findingEdits: {},
 			published: null,
 		};
 		const second: StoredReview = { ...first, createdAt: "t2" };
 		await store.saveReview(first);
 		await store.saveReview(second);
 		await store.flush();
-
 		expect((await store.loadReview("worktree"))?.createdAt).toBe("t2");
 	});
 
-	it("defaults commentEdits and published for a review.json written before TASK-046/050", async () => {
+	it("defaults findingEdits and published for a review.json written before either existed", async () => {
 		const sessionDir = join(dataDir, "sessions", "worktree");
 		await mkdir(sessionDir, { recursive: true });
 		await writeFile(
@@ -106,15 +134,14 @@ describe("SessionStore", () => {
 		);
 		const store = new SessionStore({ dataDir });
 		const loaded = await store.loadReview("worktree");
-		expect(loaded?.commentEdits).toEqual({});
+		expect(loaded?.findingEdits).toEqual({});
 		expect(loaded?.published).toBeNull();
 	});
 
 	it("still loads a pass that predates a tightened length budget", async () => {
 		const sessionDir = join(dataDir, "sessions", "worktree");
 		await mkdir(sessionDir, { recursive: true });
-		// written when the ceiling was 1500; lowering it must not retroactively
-		// corrupt a session that was within budget the day it was recorded
+
 		const overview = "x".repeat(1220);
 		await writeFile(
 			join(sessionDir, "review.json"),

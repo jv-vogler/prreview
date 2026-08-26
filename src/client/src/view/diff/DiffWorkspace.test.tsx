@@ -1,13 +1,11 @@
 import type { ChangesetDto, FileDiffDto } from "@dto/ChangesetDto";
-import type { ExplanationDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type { ExplanationDto, ReviewFindingDto } from "@dto/ReviewDto";
 import type { CodeViewDiffItem } from "@pierre/diffs";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { CommentActions } from "../review/CommentActions";
+import type { FindingActions } from "../review/findings/FindingActions";
 import { DiffWorkspace } from "./DiffWorkspace";
 
-// the real CodeView needs a highlight worker pool; the seam under test is
-// what DiffWorkspace hands it, so a recorder is the whole mock
 const renderedItems: CodeViewDiffItem<unknown>[][] = [];
 vi.mock("@pierre/diffs/react", () => ({
 	CodeView: (props: { items: CodeViewDiffItem<unknown>[] }) => {
@@ -67,7 +65,7 @@ const EXPLANATION: ExplanationDto = {
 	placement: { kind: "exact", fileId: "file-1", side: "new", line: 2 },
 };
 
-const ACTIONS: CommentActions = {
+const ACTIONS: FindingActions = {
 	onEdit: () => {},
 	onDelete: () => {},
 	onRestore: () => {},
@@ -89,9 +87,9 @@ function workspace(overrides: {
 			foldedFileIds={new Set()}
 			onToggleFold={() => {}}
 			handleRef={{ current: null }}
-			comments={[] as readonly ReviewCommentDto[]}
-			expandedCommentIds={new Set()}
-			onToggleComment={() => {}}
+			findings={[] as readonly ReviewFindingDto[]}
+			expandedFindingIds={new Set()}
+			onToggleFinding={() => {}}
 			actions={ACTIONS}
 			explanationsMode="chips"
 			{...overrides}
@@ -105,11 +103,6 @@ function lastVersion(): number {
 	return (items[0] as { version: number }).version;
 }
 
-/**
- * Pierre reuses a file's whole rendered record — annotations included —
- * until `version` moves; if new explanations or the toggle do not bump it,
- * new prose silently never renders.
- */
 describe("DiffWorkspace version counter", () => {
 	it("moves when the explanations change and when the toggle flips", () => {
 		const { rerender } = render(

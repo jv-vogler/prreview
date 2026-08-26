@@ -1,8 +1,3 @@
-/*
- * One grid row, animated between 0fr and 1fr: the only way to animate to a
- * height nobody has measured. The way out is quicker than the way in, which
- * is what keeps a close from feeling like a wait.
- */
 @keyframes region-open {
 	from {
 		grid-template-rows: 0fr;

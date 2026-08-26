@@ -61,7 +61,7 @@ function testApp(
 }
 
 describe("POST /api/review", () => {
-	it("answers 503 agent-missing when no agent is on PATH (REQ-009)", async () => {
+	it("answers 503 agent-missing when no agent is on PATH", async () => {
 		const { app } = testApp(null);
 		const response = await app.request("/api/review", { method: "POST" });
 		expect(response.status).toBe(503);
@@ -159,7 +159,7 @@ describe("GET /api/review", () => {
 		});
 	});
 
-	it("surfaces residue left behind by a successful run (SEC-003/TASK-030)", async () => {
+	it("surfaces residue left behind by a successful run", async () => {
 		const engine = new FakeEngine();
 		engine.events = [
 			{
@@ -190,7 +190,7 @@ describe("GET /api/review", () => {
 		expect(body.pass?.residue).toEqual(["scratch-test.ts"]);
 	});
 
-	it("places each finding against the diff on screen (TASK-041)", async () => {
+	it("places each finding against the diff on screen", async () => {
 		const file: FileDiff = {
 			id: "file-1",
 			path: "src/greeting.ts",
@@ -263,9 +263,9 @@ describe("GET /api/review", () => {
 
 		const response = await app.request("/api/review");
 		const body = (await response.json()) as {
-			pass: { comments: { path: string; placement: { kind: string } }[] };
+			pass: { findings: { path: string; placement: { kind: string } }[] };
 		};
-		expect(body.pass.comments).toEqual([
+		expect(body.pass.findings).toEqual([
 			expect.objectContaining({
 				path: "src/greeting.ts",
 				placement: { kind: "exact", fileId: "file-1", side: "new", line: 1 },
@@ -286,7 +286,6 @@ describe("DELETE /api/review/run", () => {
 	});
 });
 
-/** Seeds one finding by running a review pass to completion (a fresh FakeEngine). */
 async function appWithOneFinding(
 	options: {
 		source?: CurrentChangeset["ref"]["source"];
@@ -338,7 +337,7 @@ async function appWithOneFinding(
 	return { app, container, githubService };
 }
 
-describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
+describe("PATCH /api/review/comments/:id", () => {
 	it("overwrites the body and answers the recomputed pass", async () => {
 		const { app } = await appWithOneFinding();
 		const response = await app.request("/api/review/comments/finding-0", {
@@ -348,9 +347,9 @@ describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
 		});
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as {
-			comments: { id: string; body: string; edited: boolean }[];
+			findings: { id: string; body: string; edited: boolean }[];
 		};
-		expect(body.comments).toEqual([
+		expect(body.findings).toEqual([
 			expect.objectContaining({
 				id: "finding-0",
 				body: "reworded body",
@@ -359,7 +358,7 @@ describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
 		]);
 	});
 
-	it("answers 404 for a comment id that does not exist", async () => {
+	it("answers 404 for a finding id that does not exist", async () => {
 		const { app } = await appWithOneFinding();
 		const response = await app.request("/api/review/comments/finding-9", {
 			method: "PATCH",
@@ -380,17 +379,17 @@ describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
 	});
 });
 
-describe("DELETE /api/review/comments/:id and .../restore (TASK-046, TASK-047)", () => {
-	it("marks a comment deleted rather than removing it, then restore clears that", async () => {
+describe("DELETE /api/review/comments/:id and .../restore", () => {
+	it("marks a finding deleted rather than removing it, then restore clears that", async () => {
 		const { app } = await appWithOneFinding();
 		const deleted = await app.request("/api/review/comments/finding-0", {
 			method: "DELETE",
 		});
 		expect(deleted.status).toBe(200);
 		const deletedBody = (await deleted.json()) as {
-			comments: { id: string; deleted: boolean }[];
+			findings: { id: string; deleted: boolean }[];
 		};
-		expect(deletedBody.comments).toEqual([
+		expect(deletedBody.findings).toEqual([
 			expect.objectContaining({ id: "finding-0", deleted: true }),
 		]);
 
@@ -400,15 +399,15 @@ describe("DELETE /api/review/comments/:id and .../restore (TASK-046, TASK-047)",
 		);
 		expect(restored.status).toBe(200);
 		const body = (await restored.json()) as {
-			comments: { id: string; deleted: boolean }[];
+			findings: { id: string; deleted: boolean }[];
 		};
-		expect(body.comments).toEqual([
+		expect(body.findings).toEqual([
 			expect.objectContaining({ id: "finding-0", deleted: false }),
 		]);
 	});
 });
 
-describe("POST /api/review/comments/:id/rework (TASK-048)", () => {
+describe("POST /api/review/comments/:id/rework", () => {
 	it("starts a run and answers 202 with a runId", async () => {
 		const { app } = await appWithOneFinding();
 		const response = await app.request(
@@ -466,8 +465,8 @@ const GREETING_FILE: FileDiff = {
 	],
 };
 
-describe("POST /api/review/publish (TASK-050, TASK-053)", () => {
-	it("publishes the review-lane comments and answers the recomputed pass", async () => {
+describe("POST /api/review/publish", () => {
+	it("publishes the review-lane findings and answers the recomputed pass", async () => {
 		const { app, githubService } = await appWithOneFinding({
 			source: PR_SOURCE,
 			files: [GREETING_FILE],
@@ -477,10 +476,10 @@ describe("POST /api/review/publish (TASK-050, TASK-053)", () => {
 		});
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as {
-			published: { reviewId: number; commentIds: string[] } | null;
+			published: { reviewId: number; findingIds: string[] } | null;
 		};
 		expect(body.published).toEqual(
-			expect.objectContaining({ reviewId: 1, commentIds: ["finding-0"] }),
+			expect.objectContaining({ reviewId: 1, findingIds: ["finding-0"] }),
 		);
 		expect(githubService?.createdReviews).toHaveLength(1);
 	});

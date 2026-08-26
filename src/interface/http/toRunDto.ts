@@ -1,8 +1,7 @@
-import type { Run } from "../../domain/review/Run";
-import type { RunProgress } from "../../domain/review/RunProgress";
+import type { Run } from "../../domain/run/Run";
+import type { RunProgress } from "../../domain/run/RunProgress";
 import type { RunDto, RunProgressDto } from "./dto/RunDto";
 
-/** A run as the wire describes it — everything passes straight through. */
 export function toRunDto(run: Run): RunDto {
 	return {
 		id: run.id,
@@ -16,7 +15,7 @@ export function toRunDto(run: Run): RunDto {
 		...(run.startedAt === undefined ? {} : { startedAt: run.startedAt }),
 		...(run.endedAt === undefined ? {} : { endedAt: run.endedAt }),
 		...(run.error === undefined ? {} : { error: run.error }),
-		...(run.commentId === undefined ? {} : { commentId: run.commentId }),
+		...(run.findingId === undefined ? {} : { findingId: run.findingId }),
 		...(run.result === undefined ? {} : { result: run.result }),
 	};
 }

@@ -1,25 +1,19 @@
 import type { Git } from "../../application/ports/Git";
+import type { GithubService } from "../../application/ports/GithubService";
 import type {
-	GithubService,
 	PendingReview,
 	PrInfo,
 	PrReviewCommentInfo,
 	ReviewInput,
-} from "../../application/ports/GithubService";
+} from "../../domain/githubReview/GithubReview";
 import type { Toolchain } from "../../domain/session/Toolchain";
 import { exec } from "../git/exec";
 
-/** Probes must answer fast and never touch the network. */
 const PROBE_TIMEOUT_MS = 2000;
 
 const PR_VIEW_JSON_FIELDS =
 	"title,body,baseRefName,headRefName,headRefOid,url,state";
 
-/**
- * `{owner}` and `{repo}` are filled in by the real `gh` binary from the git
- * remote of `cwd` — never resolved here, so nothing about a repo slug is
- * parsed or interpolated by prreview itself.
- */
 const REVIEWS_ENDPOINT = (pr: number) =>
 	`repos/{owner}/{repo}/pulls/${pr}/reviews`;
 const REVIEW_ENDPOINT = (pr: number, id: number) =>
@@ -30,7 +24,7 @@ const REVIEW_COMMENTS_ENDPOINT = (pr: number) =>
 
 const PENDING_STATE = "PENDING";
 
-interface RawReviewComment {
+interface RawGithubComment {
 	id: number;
 	in_reply_to_id?: number;
 	path: string;
@@ -45,11 +39,6 @@ interface RawReview {
 	state: string;
 }
 
-/**
- * Full-capability GithubService over the `gh` CLI, which inherits the
- * user's login including GHES hosts. Failures of gh itself are thrown raw —
- * the use-cases upstairs decide what a failure means.
- */
 export class GhCliGithubService implements GithubService {
 	private readonly git: Git;
 	private readonly cwd: string;
@@ -59,11 +48,6 @@ export class GhCliGithubService implements GithubService {
 		this.cwd = cwd;
 	}
 
-	/**
-	 * Can this backend work here? Requires gh to exist and to hold a token —
-	 * both checked locally with tight timeouts, no network. A failed probe is
-	 * an answer, not an error.
-	 */
 	async probe(): Promise<Toolchain["github"]> {
 		try {
 			await this.gh(["--version"], { timeoutMs: PROBE_TIMEOUT_MS });
@@ -85,7 +69,6 @@ export class GhCliGithubService implements GithubService {
 		return JSON.parse(json) as PrInfo;
 	}
 
-	/** The PR belonging to the checked-out branch: `gh pr view` with no number. */
 	async getCurrentBranchPr(): Promise<PrInfo> {
 		const json = await this.gh(["pr", "view", "--json", PR_VIEW_JSON_FIELDS]);
 		return JSON.parse(json) as PrInfo;
@@ -99,7 +82,6 @@ export class GhCliGithubService implements GithubService {
 		return this.git.fetchPrHead(number);
 	}
 
-	/** `--paginate`: a busy PR's comments span pages, and a partial read would lie. */
 	async listPrReviewComments(pr: number): Promise<PrReviewCommentInfo[]> {
 		const json = await this.gh([
 			"api",
@@ -107,22 +89,17 @@ export class GhCliGithubService implements GithubService {
 			"--slurp",
 			REVIEW_COMMENTS_ENDPOINT(pr),
 		]);
-		const pages = JSON.parse(json) as RawReviewComment[][];
-		return pages.flat().map((comment) => ({
-			id: comment.id,
-			inReplyToId: comment.in_reply_to_id ?? null,
-			path: comment.path,
-			line: comment.line,
-			author: comment.user?.login ?? "unknown",
-			body: comment.body,
+		const pages = JSON.parse(json) as RawGithubComment[][];
+		return pages.flat().map((finding) => ({
+			id: finding.id,
+			inReplyToId: finding.in_reply_to_id ?? null,
+			path: finding.path,
+			line: finding.line,
+			author: finding.user?.login ?? "unknown",
+			body: finding.body,
 		}));
 	}
 
-	/**
-	 * Scans the PR's reviews for one in PENDING state. GitHub allows at most
-	 * one pending review per user per PR (docs/github-review-notes.md,
-	 * TASK-014), so the first match is the only possible match.
-	 */
 	async findPendingReview(pr: number): Promise<PendingReview | null> {
 		const json = await this.gh(["api", REVIEWS_ENDPOINT(pr)]);
 		const reviews = JSON.parse(json) as RawReview[];
@@ -130,13 +107,6 @@ export class GhCliGithubService implements GithubService {
 		return pending === undefined ? null : toPendingReview(pending);
 	}
 
-	/**
-	 * `event` is always omitted from the payload — the one thing that makes
-	 * GitHub create the review as PENDING rather than submitting it
-	 * (docs/github-review-notes.md, TASK-014). GitHub validates `comments[]`
-	 * atomically: one unresolvable comment 422s the whole call and creates
-	 * nothing (TASK-016) — callers must pre-validate before reaching here.
-	 */
 	async createPendingReview(
 		pr: number,
 		input: ReviewInput,
@@ -149,7 +119,6 @@ export class GhCliGithubService implements GithubService {
 		return toPendingReview(JSON.parse(json) as RawReview);
 	}
 
-	/** Only a still-pending review can be deleted this way — a submitted one cannot. */
 	async deletePendingReview(pr: number, id: number): Promise<void> {
 		await this.gh(["api", REVIEW_ENDPOINT(pr, id), "-X", "DELETE"]);
 	}
@@ -170,7 +139,6 @@ function toPendingReview(review: RawReview): PendingReview {
 	return { id: review.id, htmlUrl: review.html_url, state: review.state };
 }
 
-/** camelCase port shape → the snake_case body GitHub's REST API expects. */
 function toWirePayload(input: ReviewInput): {
 	body?: string;
 	comments?: {
@@ -184,20 +152,20 @@ function toWirePayload(input: ReviewInput): {
 } {
 	return {
 		...(input.body === undefined ? {} : { body: input.body }),
-		...(input.comments === undefined
+		...(input.findings === undefined
 			? {}
 			: {
-					comments: input.comments.map((comment) => ({
-						path: comment.path,
-						line: comment.line,
-						side: comment.side,
-						...(comment.startLine === undefined
+					comments: input.findings.map((finding) => ({
+						path: finding.path,
+						line: finding.line,
+						side: finding.side,
+						...(finding.startLine === undefined
 							? {}
-							: { start_line: comment.startLine }),
-						...(comment.startSide === undefined
+							: { start_line: finding.startLine }),
+						...(finding.startSide === undefined
 							? {}
-							: { start_side: comment.startSide }),
-						body: comment.body,
+							: { start_side: finding.startSide }),
+						body: finding.body,
 					})),
 				}),
 	};

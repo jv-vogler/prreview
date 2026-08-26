@@ -82,4 +82,18 @@ describe("execBuffer", () => {
 		const output = await execBuffer("sh", ["-c", "printf '\\000\\001\\377'"]);
 		expect([...output]).toEqual([0, 1, 0xff]);
 	});
+
+	it("clears an inherited variable when its value is undefined", async () => {
+		process.env.PRREVIEW_EXEC_PROBE = "leaked";
+		try {
+			const output = await exec(
+				process.execPath,
+				["-e", "process.stdout.write(String(process.env.PRREVIEW_EXEC_PROBE))"],
+				{ env: { PRREVIEW_EXEC_PROBE: undefined } },
+			);
+			expect(output.trim()).toBe("undefined");
+		} finally {
+			delete process.env.PRREVIEW_EXEC_PROBE;
+		}
+	});
 });

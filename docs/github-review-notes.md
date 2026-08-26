@@ -9,7 +9,7 @@ three separated hunks (two single-line edits and one deletion) so ranges could b
 real hunk boundaries. Re-verify before trusting these against a GitHub Enterprise install or a
 materially different API version.
 
-## Pending reviews (TASK-014)
+## Pending reviews
 
 - **`POST /repos/{owner}/{repo}/pulls/{n}/reviews` with `event` omitted creates a review in
   `state: "PENDING"`.** Confirmed visible to its own author immediately, both via
@@ -25,19 +25,20 @@ materially different API version.
   omitted) cannot be deleted through the API; the six range/edge-case probes below that needed
   ground truth were therefore submitted with `event: "COMMENT"` rather than left pending, which is
   why the throwaway PR carries visible comments rather than a lingering pending review.
-- Not independently re-verified but assumed true (ASSUMPTION-002): a pending review created
-  through the *user's own* `gh` auth is the same review their own browser session would see and
-  can submit — `gh pr view --json reviews` reading it back as the same PENDING review is strong
-  evidence, since that command hits the same API surface the web UI is built on.
+- Not independently re-verified but assumed true: a pending review created through the *user's
+  own* `gh` auth is the same review their own browser session would see and can submit —
+  `gh pr view --json reviews` reading it back as the same PENDING review is strong evidence,
+  since that command hits the same API surface the web UI is built on.
 
-## Comment anchoring (TASK-015) — the central finding contradicts RISK-001
+## Comment anchoring
 
 **Every one of the line-range cases below succeeded.** GitHub's REST API does not reject a
 multi-line comment whose range spans hunk boundaries or crosses large stretches of unchanged
-code. RISK-001's fear — that the "Lines 109-193" shape is likely a 422 — is not borne out by this
-API version; TASK-019's contingency (single-line anchors with the range as display metadata only)
-is **not required**. Comments carry a genuine `start_line`/`line` range, both resolvable through
-the public `GET /repos/{owner}/{repo}/pulls/{n}/comments` endpoint once the review is submitted.
+code. The fear these probes were run to test — that the "Lines 109-193" shape is likely a 422,
+and that comments would have to fall back to single-line anchors carrying the range as display
+metadata only — is not borne out by this API version. Comments carry a genuine
+`start_line`/`line` range, both resolvable through the public
+`GET /repos/{owner}/{repo}/pulls/{n}/comments` endpoint once the review is submitted.
 
 One API quirk cost real time here and is worth recording: **the review-scoped comment listing
 (`GET .../pulls/{n}/reviews/{review_id}/comments`) never returns `line`/`side`/`start_line`/
@@ -46,8 +47,8 @@ One API quirk cost real time here and is worth recording: **the review-scoped co
 review is submitted and the comment is read back through `GET .../pulls/{n}/comments`. Don't
 conclude "range not honored" from a pending-review read — submit (or read `diff_hunk`) to check.
 
-Per-case results, all against the fixture's hunks (`docs/probe-fixture.md`, hunk 1 = lines 5-9,
-hunk 2 = line 22, hunk 3 = lines 33-38 with line 35 deleted, on the head commit's line numbering):
+Per-case results, all against the fixture's hunks (hunk 1 = lines 5-9, hunk 2 = line 22,
+hunk 3 = lines 33-38 with line 35 deleted, on the head commit's line numbering):
 
 | Case | Request | Result |
 | --- | --- | --- |
@@ -59,13 +60,16 @@ hunk 2 = line 22, hunk 3 = lines 33-38 with line 35 deleted, on the head commit'
 | (f) `side: LEFT` on a deleted line | `line: 37, side: LEFT` (the deleted line's line number in the base file) | **201.** Anchors as a single-line comment on the base side; `start_line`/`start_side` come back `null` (not a range — expected, deleted lines are single points). |
 | (g) a path not in the PR at all | `path: "docs/does-not-exist.md"` | **422** `"Path could not be resolved"`. |
 
-Consequence for the data model: **`placeComment` (TASK-040) does not need a `clamped` fallback
-for the multi-hunk-span case** — only for a path or line genuinely absent from the diff, which is
-already the `unplaceable` case. A finding's natural `startLine`/`endLine` can be sent through
-as-is whenever both endpoints resolve to real lines in the file; only a range naming a file not in
-the diff, or endpoints outside the file's line count, needs clamping or unplaceable treatment.
+**What prreview does with this is narrower than what GitHub allows.** `placeOnDiff` calls a range
+`exact` only when *every* line between `startLine` and `endLine` appears in the file's line index,
+and `publishReview` sends `start_line`/`start_side` only for an `exact` placement. A range like
+case (c) or (d), whose middle lines sit in unchanged code no hunk contains, therefore clamps to the
+nearest rendered line and publishes as a single-line comment, even though the probes show GitHub
+would have accepted the whole span. Cases (e) and (g) are the `unplaceable` path. Widening `exact`
+to "both endpoints resolve" is available whenever the narrower anchor proves annoying in practice;
+it was measured as safe, not adopted.
 
-## Batch failure mode (TASK-016)
+## Batch failure mode
 
 **One bad comment 422s the entire request; nothing is created, not even the good comments.**
 Tested with a two-comment `comments[]` array — one resolvable (`line: 7`), one not (`line: 101`,
@@ -73,12 +77,13 @@ the same "Line could not be resolved" case as (e) above). The response was the s
 with the same error message, and a follow-up check of `GET .../pulls/{n}/reviews` showed no
 pending review at all — the valid comment was not kept.
 
-Consequence: **`publishReview` (TASK-050) must pre-validate every comment before sending the
-batch.** There is no partial-success path to rely on; a single unplaceable or malformed comment
-in the outgoing payload would otherwise silently drop every comment in that publish, including
-the good ones, behind one opaque 422.
+Consequence: **`publishReview` must pre-validate every comment before sending the batch.** There
+is no partial-success path to rely on; a single unplaceable or malformed comment in the outgoing
+payload would otherwise silently drop every comment in that publish, including the good ones,
+behind one opaque 422. It does this in `buildPublishPayload`, which splits findings into
+`included` and `excluded` before any request is made.
 
-## Out-of-diff findings (TASK-017)
+## Out-of-diff findings
 
 Both candidate homes for "Related findings (pre-existing)" and anything `unplaceable` work:
 
@@ -90,13 +95,5 @@ Both candidate homes for "Related findings (pre-existing)" and anything `unplace
   context at all.
 
 Either is viable; a review-body paragraph reads as part of the same review the placed comments
-belong to, which is the better fit for REQ-011's "own lane" — an issue comment is a separate
-timeline entry with no visual association to the review.
-
-## Decision (TASK-019)
-
-**Not taken.** TASK-015's results show multi-line ranges are broadly *accepted*, not broadly
-rejected, so the single-line-anchor contingency plan is unnecessary. `placeComment` should carry
-a finding's full `startLine`/`endLine` through to `start_line`/`line` whenever the path and both
-line numbers resolve in the diff, and reserve `unplaceable` for what TASK-015 actually found
-unplaceable: a path absent from the diff, or a line number the file doesn't have.
+belong to, which is the better fit for a pre-existing finding keeping its own lane — an issue
+comment is a separate timeline entry with no visual association to the review.

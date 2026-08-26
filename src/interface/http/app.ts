@@ -2,6 +2,13 @@ import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Container } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
+import type { ChangesetErrorReason } from "../../domain/errors/ChangesetError";
+import type { EngineErrorReason } from "../../domain/errors/EngineError";
+import type { FindingErrorReason } from "../../domain/errors/FindingError";
+import type { GithubErrorReason } from "../../domain/errors/GithubError";
+import type { PublishErrorReason } from "../../domain/errors/PublishError";
+import type { StoreErrorReason } from "../../domain/errors/StoreError";
+import type { ValidationErrorReason } from "../../domain/errors/ValidationError";
 import { deriveFeatureFlags } from "../../domain/session/deriveFeatureFlags";
 import type { ErrorDto } from "./dto/ErrorDto";
 import type { SessionDto } from "./dto/SessionDto";
@@ -14,12 +21,16 @@ import { eventsRoute } from "./routes/events";
 import { reviewRoute } from "./routes/review";
 import { registerStatic } from "./static";
 
-/**
- * The one place an AppError becomes an HTTP status. Anything not listed here
- * — and anything that is not an AppError — is a 500 `internal` whose stack
- * stays in the server log and never reaches the response.
- */
-const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
+type AppErrorReason =
+	| ChangesetErrorReason
+	| EngineErrorReason
+	| FindingErrorReason
+	| GithubErrorReason
+	| PublishErrorReason
+	| StoreErrorReason
+	| ValidationErrorReason;
+
+const STATUS_BY_REASON: Record<string, ContentfulStatusCode | undefined> = {
 	validation: 400,
 	"branch-not-found": 404,
 	"pr-not-found": 404,
@@ -31,22 +42,19 @@ const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	"not-a-pull-request": 400,
 	"no-github": 503,
 	"nothing-publishable": 400,
-};
+} satisfies Partial<Record<AppErrorReason, ContentfulStatusCode>>;
 
 export interface AppDeps {
 	container: Container;
 	state: ReviewState;
 	runner: ReviewRunner;
 	hub: SseHub;
-	/** absolute repo toplevel — the WORKING blob containment root (SEC-002) */
 	repoRoot: string;
-	/** built client directory; null skips static serving (--dev, tests) */
 	clientDir: string | null;
-	/** test seam; defaults to console.error */
+
 	logError?: (error: unknown) => void;
 }
 
-/** The Hono app: routes plus the one onError — nothing else catches. */
 export function createApp(deps: AppDeps): Hono {
 	const logError = deps.logError ?? ((error: unknown) => console.error(error));
 	const app = new Hono();

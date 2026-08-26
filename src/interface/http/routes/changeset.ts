@@ -9,11 +9,6 @@ export interface ChangesetRouteDeps {
 	runner: ReviewRunner;
 }
 
-/**
- * `GET /api/changeset` — the resolved ref, its announcement, and files.
- * `POST /api/changeset/refresh` — the same, resolved from git again, with
- * the review status read against the snapshot that just landed.
- */
 export function changesetRoute(deps: ChangesetRouteDeps): Hono {
 	const route = new Hono();
 
@@ -36,8 +31,7 @@ export function changesetRoute(deps: ChangesetRouteDeps): Hono {
 function toChangesetDto(changeset: CurrentChangeset): ChangesetDto {
 	return {
 		ref: changeset.ref,
-		// the CLI's own override hint stays in the terminal: the page
-		// cannot be typed into, so usage text there is noise
+
 		announce: { resolved: changeset.announce.resolved },
 		files: changeset.files,
 	};

@@ -1,54 +1,48 @@
-import type { ChangesetId } from "../../domain/changeset/ChangesetId";
-import type { ChangesetSource } from "../../domain/changeset/ChangesetSource";
-import type { FileDiff } from "../../domain/changeset/FileDiff";
-import { diffStatusResidue } from "../../domain/review/diffStatusResidue";
 import {
-	describeToolActivity,
-	type RunProgressUpdate,
-} from "../../domain/review/RunProgress";
-import {
-	commentIdAt,
-	reviewCommentId,
-} from "../../domain/review/reviewCommentId";
-import type { Engine, EngineResultEvent } from "../ports/Engine";
-import type { Git } from "../ports/Git";
-import type { GithubService } from "../ports/GithubService";
-import type { RunContext, RunOutcome } from "../ports/RunManager";
-import type {
-	CommentEdit,
-	PublishedRecord,
-	SessionStore,
-	StoredReview,
-} from "../ports/SessionStore";
-import { effectiveBody, isDeleted } from "./commentEdits";
-import { REVIEW_IDLE_TIMEOUT_MS, REVIEW_MAX_TURNS } from "./limits";
-import type { ReusePlan } from "./reusePlan";
-import { checkpointOf, planReuse } from "./reusePlan";
-import { reviewContract } from "./reviewContract";
+	REVIEW_IDLE_TIMEOUT_MS,
+	REVIEW_MAX_TURNS,
+} from "../../domain/agentTask/limits";
+import { reviewContract } from "../../domain/agentTask/reviewContract";
 import type {
 	PreviousReviewInput,
 	ReusePromptInput,
 	UnchangedExplanationInput,
-} from "./reviewPrompt";
-import { buildReviewPrompt } from "./reviewPrompt";
-import type { ReviewPass } from "./reviewSchema";
-import { reviewPassSchema } from "./reviewSchema";
-import { assertSchemaFitsArgv, toJsonSchema } from "./toJsonSchema";
+} from "../../domain/agentTask/reviewPrompt";
+import { buildReviewPrompt } from "../../domain/agentTask/reviewPrompt";
+import {
+	assertSchemaFitsArgv,
+	toJsonSchema,
+} from "../../domain/agentTask/toJsonSchema";
+import type { ChangesetId } from "../../domain/changeset/ChangesetId";
+import type { ChangesetSource } from "../../domain/changeset/ChangesetSource";
+import type { FileDiff } from "../../domain/changeset/FileDiff";
+import { effectiveBody, isDeleted } from "../../domain/finding/curation";
+import { findingId, findingIdAt } from "../../domain/finding/findingId";
+import type { ReviewPass } from "../../domain/pass/ReviewPass";
+import { reviewOutputSchema } from "../../domain/pass/ReviewPass";
+import type { ReusePlan } from "../../domain/pass/reusePlan";
+import { checkpointOf, planReuse } from "../../domain/pass/reusePlan";
+import type {
+	FindingEdit,
+	PublishedRecord,
+	StoredReview,
+} from "../../domain/pass/StoredReview";
+import { diffStatusResidue } from "../../domain/run/diffStatusResidue";
+import type { RunContext, RunOutcome } from "../../domain/run/Run";
+import type { RunProgressUpdate } from "../../domain/run/RunProgress";
+import type { Engine } from "../ports/Engine";
+import type { Git } from "../ports/Git";
+import type { GithubService } from "../ports/GithubService";
+import type { SessionStore } from "../ports/SessionStore";
+import { runEngineTask } from "./runEngineTask";
 
 export interface RunReviewInput {
 	changesetId: ChangesetId;
 	announce: string;
 	files: readonly FileDiff[];
-	/** what the change is measured against */
 	baseSha: string;
-	/** the changeset's head commit; null for worktree */
 	headSha: string | null;
 	source: ChangesetSource;
-	/**
-	 * The reader asked for the whole change to be looked at again. Cross-file
-	 * invalidation cannot be made sound, so this is the way out of a delta
-	 * pass — never a fallback the code takes on its own.
-	 */
 	full: boolean;
 }
 
@@ -56,30 +50,18 @@ export interface RunReviewDeps {
 	engine: Engine;
 	git: Git;
 	sessionStore: SessionStore;
-	/** null = no GitHub backend; a re-review then runs without the conversation */
 	githubService: GithubService | null;
-	/** the manager's own report(), captured so the job can call back into it */
+
 	report: (runId: string, update: RunProgressUpdate) => void;
-	/** test seam; defaults to console.warn */
+
 	logWarning?: (message: string) => void;
 }
 
-/**
- * Builds the job the run manager runs: spends one `Engine.runTask` call on
- * the vendored review prompt, reports every tool call as progress, and on
- * success saves the pass to the session store — after checking, per
- * SEC-003/TASK-030, whether the run left anything behind on the tree.
- *
- * A re-review over a pass that recorded a checkpoint costs what moved
- * rather than the size of the change: the files whose diffs are identical
- * byte for byte are named instead of rendered, and what the previous pass
- * said about them is merged back in afterwards.
- */
 export function buildReviewJob(
 	deps: RunReviewDeps,
 	input: RunReviewInput,
 ): (context: RunContext) => Promise<RunOutcome> {
-	const jsonSchema = toJsonSchema(reviewPassSchema);
+	const jsonSchema = toJsonSchema(reviewOutputSchema);
 	assertSchemaFitsArgv(jsonSchema);
 
 	const task = {
@@ -87,7 +69,7 @@ export function buildReviewJob(
 		maxTurns: REVIEW_MAX_TURNS,
 		idleTimeoutMs: REVIEW_IDLE_TIMEOUT_MS,
 		systemContract: reviewContract(),
-		outputSchema: reviewPassSchema,
+		outputSchema: reviewOutputSchema,
 	};
 	return async (context) => {
 		const stored = await deps.sessionStore.loadReview(input.changesetId);
@@ -104,75 +86,39 @@ export function buildReviewJob(
 				: { reuse: reusePromptInput(plan, stored) }),
 		});
 		const before = await deps.git.statusPorcelain();
-		const onAbort = () => {
-			void deps.engine.stop();
-		};
-		// covers both a cancel arriving mid-run and one that raced ahead of it
-		context.signal.addEventListener("abort", onAbort);
-		if (context.signal.aborted) {
-			onAbort();
+		const result = await runEngineTask(
+			deps,
+			context,
+			task,
+			{ prompt, workspaceDir: await deps.git.repoRoot() },
+			{
+				noResult: "The review ended with no result.",
+				failed: "The review run failed.",
+			},
+		);
+		if (!result.ok) {
+			return result.outcome;
 		}
 
-		try {
-			let terminal: EngineResultEvent | null = null;
-			for await (const event of deps.engine.runTask(task, {
-				prompt,
-				workspaceDir: await deps.git.repoRoot(),
-			})) {
-				if (event.type === "tool") {
-					deps.report(context.runId, {
-						kind: "activity",
-						activity: describeToolActivity(event.name, event.target),
-					});
-				} else if (event.type === "plan") {
-					deps.report(context.runId, { kind: "itinerary", steps: event.steps });
-				} else if (event.type === "result") {
-					terminal = event;
-				}
-			}
-
-			if (terminal === null) {
-				return {
-					ok: false,
-					reason: "crashed",
-					message: "The review ended with no result.",
-				};
-			}
-			if (!terminal.ok) {
-				return {
-					ok: false,
-					reason: terminal.reason,
-					message: terminal.stderrTail || "The review run failed.",
-				};
-			}
-
-			const after = await deps.git.statusPorcelain();
-			const answered = reviewPassSchema.parse(terminal.structuredOutput);
-			await deps.sessionStore.saveReview({
-				changesetId: input.changesetId,
-				createdAt: new Date().toISOString(),
-				headSha: input.headSha,
-				residue: diffStatusResidue(before, after),
-				checkpoint: checkpointOf(
-					{ baseSha: input.baseSha, files: input.files },
-					input.headSha,
-				),
-				...(plan === null || stored === null
-					? freshArtifact(answered, stored)
-					: mergedArtifact(deps, plan, answered, stored)),
-			});
-			return { ok: true };
-		} finally {
-			context.signal.removeEventListener("abort", onAbort);
-		}
+		const after = await deps.git.statusPorcelain();
+		const answered = reviewOutputSchema.parse(result.structuredOutput);
+		await deps.sessionStore.saveReview({
+			changesetId: input.changesetId,
+			createdAt: new Date().toISOString(),
+			headSha: input.headSha,
+			residue: diffStatusResidue(before, after),
+			checkpoint: checkpointOf(
+				{ baseSha: input.baseSha, files: input.files },
+				input.headSha,
+			),
+			...(plan === null || stored === null
+				? freshArtifact(answered, stored)
+				: mergedArtifact(deps, plan, answered, stored)),
+		});
+		return { ok: true };
 	};
 }
 
-/**
- * Null means the full pass: no checkpoint to read the changeset against, the
- * reader asked for everything again, or nothing at all is reusable, where a
- * delta pass and a full one are the same run with extra framing.
- */
 function reusePlanFor(
 	stored: StoredReview | null,
 	input: RunReviewInput,
@@ -188,13 +134,12 @@ function reusePlanFor(
 	return plan.unchanged.length === 0 ? null : plan;
 }
 
-/** What the artifact carries beyond the run's own facts. */
 interface ReviewArtifact {
 	pass: ReviewPass;
 	findingIds: string[];
 	nextFindingId: number;
 	carriedFindingIds: string[];
-	commentEdits: Record<string, CommentEdit>;
+	findingEdits: Record<string, FindingEdit>;
 	published: PublishedRecord | null;
 }
 
@@ -208,23 +153,13 @@ function freshArtifact(
 		findingIds: mintIds(firstId, answered.findings.length),
 		nextFindingId: firstId + answered.findings.length,
 		carriedFindingIds: [],
-		// a fresh pass replaces the curation (ASSUMPTION-003): every finding
-		// here was minted with an id no earlier one carried, so nothing the
-		// reader edited or dismissed is about any of them
-		commentEdits: {},
-		// but a pending review the old pass left on GitHub is still out there
-		// — its id must survive so the next publish replaces it instead of
-		// 422ing. commentIds is emptied for the same reason as the edits:
-		// nothing in THIS pass has been published.
-		published: withCommentIds(stored?.published ?? null, []),
+
+		findingEdits: {},
+
+		published: withFindingIds(stored?.published ?? null, []),
 	};
 }
 
-/**
- * The carried findings the run did not resolve, then the ones it wrote.
- * Ids come across untouched, which is what keeps the reader's edits and the
- * publish record attached to the findings they were always about.
- */
 function mergedArtifact(
 	deps: RunReviewDeps,
 	plan: ReusePlan,
@@ -255,8 +190,7 @@ function mergedArtifact(
 				...survivors.map((carried) => carried.finding),
 				...answered.findings,
 			],
-			// the unchanged files are not in the diff this run saw, so their
-			// accounts can only come from the pass that did see them
+
 			explanations: [
 				...stored.pass.explanations.filter((explanation) =>
 					unchanged.has(explanation.path),
@@ -266,17 +200,16 @@ function mergedArtifact(
 		},
 		findingIds,
 		nextFindingId: firstId + answered.findings.length,
-		// a survivor the run answered nothing about was never looked at, and
-		// the reader is told so rather than left to assume it was
+
 		carriedFindingIds: survivors
 			.filter((carried) => !verdicts.has(carried.id))
 			.map((carried) => carried.id),
-		commentEdits: Object.fromEntries(
-			Object.entries(stored.commentEdits).filter(([id]) => kept.has(id)),
+		findingEdits: Object.fromEntries(
+			Object.entries(stored.findingEdits).filter(([id]) => kept.has(id)),
 		),
-		published: withCommentIds(
+		published: withFindingIds(
 			stored.published,
-			(stored.published?.commentIds ?? []).filter((id) => kept.has(id)),
+			(stored.published?.findingIds ?? []).filter((id) => kept.has(id)),
 		),
 	};
 }
@@ -291,7 +224,7 @@ function reportUnknownVerdicts(
 	if (unknown.length === 0) {
 		return;
 	}
-	// never a reason to throw the pass away: the findings it wrote are good
+
 	const log = deps.logWarning ?? ((message: string) => console.warn(message));
 	log(
 		`prreview: ignoring carried verdicts for ${unknown.join(", ")} — no such finding in this pass`,
@@ -300,22 +233,17 @@ function reportUnknownVerdicts(
 
 function mintIds(firstId: number, count: number): string[] {
 	return Array.from({ length: count }, (_unused, offset) =>
-		reviewCommentId(firstId + offset),
+		findingId(firstId + offset),
 	);
 }
 
-function withCommentIds(
+function withFindingIds(
 	published: PublishedRecord | null,
-	commentIds: string[],
+	findingIds: string[],
 ): PublishedRecord | null {
-	return published === null ? null : { ...published, commentIds };
+	return published === null ? null : { ...published, findingIds };
 }
 
-/**
- * The stored pass, curation applied, as the prompt's prior notes — plus the
- * PR's inline conversation when there is one to read. Conversation reading
- * is best-effort: a re-review must run offline exactly like a first pass.
- */
 async function previousReviewInput(
 	deps: RunReviewDeps,
 	source: ChangesetSource,
@@ -329,9 +257,9 @@ async function previousReviewInput(
 		createdAt: stored.createdAt,
 		overview: stored.pass.overview,
 		verdict: stored.pass.verdict,
-		comments: stored.pass.findings.map((finding, index) => {
-			const id = commentIdAt(stored, index);
-			const edit = stored.commentEdits[id];
+		findings: stored.pass.findings.map((finding, index) => {
+			const id = findingIdAt(stored, index);
+			const edit = stored.findingEdits[id];
 			const carried = carriedById.get(id);
 			return {
 				id,
@@ -357,7 +285,6 @@ async function previousReviewInput(
 	};
 }
 
-/** The unchanged files, each with what the previous pass already said about it. */
 function reusePromptInput(
 	plan: ReusePlan,
 	stored: StoredReview,
@@ -417,13 +344,13 @@ async function prConversation(
 		return null;
 	}
 	try {
-		const comments = await githubService.listPrReviewComments(source.number);
-		return comments.map((comment) => ({
-			author: comment.author,
-			path: comment.path,
-			line: comment.line,
-			body: comment.body,
-			isReply: comment.inReplyToId !== null,
+		const findings = await githubService.listPrReviewComments(source.number);
+		return findings.map((finding) => ({
+			author: finding.author,
+			path: finding.path,
+			line: finding.line,
+			body: finding.body,
+			isReply: finding.inReplyToId !== null,
 		}));
 	} catch {
 		return null;

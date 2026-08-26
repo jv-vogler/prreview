@@ -1,10 +1,3 @@
-/*
- * Primer's font-stack tokens list "Mona Sans VF" first but ship no font
- * file, so without this every browser fell through to the system fallback.
- * Vendored from github/mona-sans (OFL-1.1, see public/fonts/MonaSans-OFL.txt)
- * rather than a CDN, so a fresh install renders the same offline. Roman-only
- * variable instance — italic text synthesizes an oblique instead.
- */
 @font-face {
 	font-family: "Mona Sans VF";
 	src:
@@ -16,26 +9,6 @@
 	font-display: swap;
 }
 
-/*
- * Source Serif 4 (OFL-1.1, see public/fonts/SourceSerif4-OFL.txt), for prose
- * and nothing else: the overview and verdict read as writing, the diff and
- * every control stay Mona Sans so they still look like GitHub.
- *
- * Two files rather than one because Mona Sans is roman-only and the verdict
- * is set in italic — a synthesized oblique is a sheared roman, and it shows.
- * The Latin slice of Google's variable build: characters outside Latin-1 and
- * General Punctuation fall back to Mona Sans per glyph, which for
- * English prose about code has yet to come up.
- *
- * `size-adjust` is why the prose can be set in Primer's own size tokens
- * instead of an off-scale value. Measured off the two files at 400px, Mona
- * Sans's cap height is 0.734em against Source Serif's 0.672em, so the serif
- * needs 109.3% to set at the same apparent size. Both faces take the same
- * number: their cap heights are identical to five decimals. Matching
- * x-heights instead would want 117.2%, which overshoots, because Source
- * Serif hangs a much deeper descender (0.266em against 0.172em) and the
- * block then reads larger than the sans beside it.
- */
 @font-face {
 	font-family: "Source Serif 4 VF";
 	src:
@@ -59,10 +32,6 @@
 	font-display: swap;
 }
 
-/*
- * Primer ships no serif stack, so this is ours. The fallbacks are the faces a
- * machine without the vendored file is most likely to already have.
- */
 :root {
 	--fontStack-prose:
 		"Source Serif 4 VF", ui-serif, Charter, "Iowan Old Style", Georgia,

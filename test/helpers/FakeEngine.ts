@@ -1,15 +1,8 @@
-import type {
-	AgentInfo,
-	Engine,
-	EngineEvent,
-	TaskInput,
-	TaskSpec,
-} from "../../src/application/ports/Engine";
+import type { Engine } from "../../src/application/ports/Engine";
+import type { TaskInput, TaskSpec } from "../../src/domain/agentTask/TaskSpec";
+import type { EngineEvent } from "../../src/domain/run/EngineEvent";
+import type { AgentInfo } from "../../src/domain/session/Toolchain";
 
-/**
- * In-memory Engine fake: events are scripted per test, `stop()` is recorded
- * so a cancellation test can assert the engine was actually told to die.
- */
 export class FakeEngine implements Engine {
 	events: EngineEvent[] = [];
 	stopped = false;

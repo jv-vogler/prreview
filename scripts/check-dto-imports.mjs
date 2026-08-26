@@ -2,14 +2,6 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/**
- * The wire-contract purity gate (CON-002, ARCHITECTURE §2): every file under
- * src/interface/http/dto may import nothing but zod — plus siblings inside
- * the folder itself, which keeps shared sub-schemas in one place while the
- * transitive closure still reaches only zod. This is what makes the folder
- * safe for the browser bundle to import at runtime through the @dto alias.
- * Any violation fails `npm run lint` (and with it the build gate in CI).
- */
 const DTO_DIR = resolve(
 	dirname(fileURLToPath(import.meta.url)),
 	"../src/interface/http/dto",
@@ -17,8 +9,6 @@ const DTO_DIR = resolve(
 const ALLOWED_BARE_SPECIFIER = "zod";
 const SOURCE_FILE_PATTERN = /\.(?:ts|tsx|js|mjs|cjs)$/;
 
-// every syntax that can pull a module in: static import/export-from,
-// dynamic import(), and require()
 const SPECIFIER_PATTERNS = [
 	/\bfrom\s*["']([^"']+)["']/g,
 	/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
@@ -28,7 +18,6 @@ const SPECIFIER_PATTERNS = [
 
 const violations = [];
 if (!existsSync(DTO_DIR)) {
-	// mid-rewrite: the wire contract doesn't exist yet — nothing to violate
 	console.log(
 		"dto import rule: src/interface/http/dto does not exist yet — skipped",
 	);
@@ -66,7 +55,7 @@ function isAllowed(specifier, filePath) {
 
 if (violations.length > 0) {
 	console.error(
-		"The wire contract (src/interface/http/dto) may import nothing but zod (CON-002):",
+		"The wire contract (src/interface/http/dto) may import nothing but zod:",
 	);
 	for (const violation of violations) {
 		console.error(`  ${violation}`);

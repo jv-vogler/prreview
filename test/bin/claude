@@ -1,27 +1,12 @@
 #!/usr/bin/env node
-// Fake claude CLI: replays a captured `claude -p --output-format stream-json
-// --verbose` event stream from a fixture, byte-faithful per line, then exits
-// with the recorded exit code. CJS on purpose — extensionless scripts load
-// as CJS regardless of the root "type": "module".
-//
-// Two real-CLI contracts are reproduced unconditionally, with no knob to
-// disable them, because each one is a way a run fails in production while
-// the suite stays green: `-p --output-format stream-json` requires
-// `--verbose` (CON-001), and `--json-schema` must survive Ajv 8 draft-07
-// validation (CON-002).
-//
-// Knobs (all test-only, never read by src/):
-//   FAKE_CLAUDE_VERSION      stdout for `claude --version` (default below)
-//   FAKE_CLAUDE_EXIT         non-zero → forced failure with that exit code
-//   FAKE_CLAUDE_FIXTURE      capture .jsonl to replay
-//   FAKE_CLAUDE_LOG          append one JSON line per invocation:
-//                            {pid, argv, cwd, stdinBytes, stdinSha256} — the
-//                            pid is how a test proves the child is gone
-//   FAKE_CLAUDE_DELAY_MS     sleep between emitted lines (cancel/timeout tests)
-//   FAKE_CLAUDE_TRAP_SIGTERM survive SIGTERM and log {event} lifecycle records
-//                            ({"event":"sigterm"} on the signal,
-//                            {"event":"completed"} if the replay ever ends) —
-//                            the only way to observe SEC-002's SIGKILL escalation
+const KNOBS = {
+	version: process.env.FAKE_CLAUDE_VERSION,
+	forcedExitCode: process.env.FAKE_CLAUDE_EXIT,
+	fixturePath: process.env.FAKE_CLAUDE_FIXTURE,
+	invocationLogPath: process.env.FAKE_CLAUDE_LOG,
+	perLineDelayMs: process.env.FAKE_CLAUDE_DELAY_MS,
+	trapSigterm: process.env.FAKE_CLAUDE_TRAP_SIGTERM,
+};
 
 const { appendFileSync, existsSync, readFileSync } = require("node:fs");
 const { createHash } = require("node:crypto");
@@ -29,9 +14,9 @@ const { setTimeout: sleep } = require("node:timers/promises");
 
 const DEFAULT_VERSION = "2.1.239 (Claude Code)";
 const MISSING_FIXTURE_EXIT_CODE = 2;
-// The real CLI rejects a bad --json-schema before it spawns anything (CON-002).
+
 const BAD_SCHEMA_EXIT_CODE = 1;
-// A trailing non-JSON control line "#exit <code>" sets the exit code.
+
 const EXIT_CONTROL_PREFIX = "#exit ";
 
 const argv = process.argv.slice(2);
@@ -42,9 +27,8 @@ main().catch((error) => {
 });
 
 async function main() {
-	// Forced failure wins over --version: the knob simulates a broken binary,
-	// and the toolchain probe must see `claude --version` itself fail.
-	const forcedExitCode = Number(process.env.FAKE_CLAUDE_EXIT ?? 0);
+
+	const forcedExitCode = Number(KNOBS.forcedExitCode ?? 0);
 	if (forcedExitCode !== 0) {
 		appendInvocationLog("");
 		process.stderr.write("fake claude: forced failure\n");
@@ -53,11 +37,10 @@ async function main() {
 
 	if (argv.includes("--version") || argv.includes("-v")) {
 		appendInvocationLog("");
-		process.stdout.write(`${process.env.FAKE_CLAUDE_VERSION ?? DEFAULT_VERSION}\n`);
+		process.stdout.write(`${KNOBS.version ?? DEFAULT_VERSION}\n`);
 		process.exit(0);
 	}
 
-	// Real CLI contract (CON-001).
 	if (
 		argv.includes("-p") &&
 		flagValue("--output-format") === "stream-json" &&
@@ -70,8 +53,6 @@ async function main() {
 		process.exit(1);
 	}
 
-	// CON-002: argv validation happens before any work, so this sits above the
-	// stdin read exactly as the --verbose contract above it does.
 	const schemaFailure = jsonSchemaFailure(flagValue("--json-schema"));
 	if (schemaFailure !== null) {
 		appendInvocationLog("");
@@ -82,7 +63,7 @@ async function main() {
 	const stdinContent = readStdinToEnd();
 	appendInvocationLog(stdinContent);
 
-	const fixturePath = process.env.FAKE_CLAUDE_FIXTURE;
+	const fixturePath = KNOBS.fixturePath;
 	if (fixturePath === undefined || !existsSync(fixturePath)) {
 		process.stderr.write(
 			`fake claude: no fixture for this invocation (FAKE_CLAUDE_FIXTURE=${fixturePath ?? ""})\n`,
@@ -92,7 +73,7 @@ async function main() {
 
 	trapSigtermWhenAsked();
 
-	const delayMs = Number(process.env.FAKE_CLAUDE_DELAY_MS ?? 0);
+	const delayMs = Number(KNOBS.perLineDelayMs ?? 0);
 	const lines = readFileSync(fixturePath, "utf8").split("\n").filter(Boolean);
 	let exitCode = 0;
 	for (const line of lines) {
@@ -109,17 +90,6 @@ async function main() {
 	process.exit(exitCode);
 }
 
-/**
- * CON-002: the real CLI validates `--json-schema` with **Ajv 8 in draft-07
- * mode** before it spawns anything, so a schema Ajv cannot even compile
- * fails the run at argv time with nothing on stdout.
- *
- * Doing the validation here is what makes that class of bug (a schema built
- * at `target: "draft-2020-12"`, whose `$schema` URI Ajv 8 has no meta-schema
- * for) unit-test-visible instead of a silent hole in the suite.
- *
- * Returns null when the flag is absent or the schema is fine.
- */
 function jsonSchemaFailure(raw) {
 	if (raw === undefined) {
 		return null;
@@ -130,8 +100,7 @@ function jsonSchemaFailure(raw) {
 	} catch (error) {
 		return `--json-schema is not valid JSON: ${error.message}`;
 	}
-	// ajv is a devDependency of the repo this fake ships in, pinned to the 8.x
-	// the CLI validates with; resolution walks up to the root node_modules.
+
 	const Ajv = require("ajv");
 	const ajv = new Ajv({ strict: false });
 	try {
@@ -144,12 +113,8 @@ function jsonSchemaFailure(raw) {
 	return null;
 }
 
-/**
- * Only a child that refuses to die on SIGTERM can prove the adapter escalates
- * to SIGKILL, so this behavior is opt-in and off by default.
- */
 function trapSigtermWhenAsked() {
-	if (!process.env.FAKE_CLAUDE_TRAP_SIGTERM) {
+	if (!KNOBS.trapSigterm) {
 		return;
 	}
 	process.on("SIGTERM", () => {
@@ -158,19 +123,18 @@ function trapSigtermWhenAsked() {
 }
 
 function appendLifecycleEvent(event) {
-	const logPath = process.env.FAKE_CLAUDE_LOG;
-	if (!process.env.FAKE_CLAUDE_TRAP_SIGTERM || !logPath) {
+	const logPath = KNOBS.invocationLogPath;
+	if (!KNOBS.trapSigterm || !logPath) {
 		return;
 	}
 	appendFileSync(logPath, `${JSON.stringify({ event })}\n`);
 }
 
-/** stdin is how the prompt arrives; EOF-blocking read */
 function readStdinToEnd() {
 	try {
 		return readFileSync(0, "utf8");
 	} catch {
-		// stdin closed or not a readable fd — an argv-only invocation
+
 		return "";
 	}
 }
@@ -181,7 +145,7 @@ function flagValue(flag) {
 }
 
 function appendInvocationLog(stdinContent) {
-	const logPath = process.env.FAKE_CLAUDE_LOG;
+	const logPath = KNOBS.invocationLogPath;
 	if (logPath === undefined || logPath === "") {
 		return;
 	}

@@ -53,7 +53,6 @@ function passWith(...titles: string[]) {
 	};
 }
 
-/** One completed pass over the same changeset, into the same store. */
 async function runPassProducing(
 	pass: unknown,
 	sessionStore: FakeSessionStore,
@@ -204,11 +203,10 @@ describe("buildReviewJob", () => {
 			},
 		);
 		await job(context());
-
 		expect(sessionStore.saved[0]?.headSha).toBe("abc123");
 	});
 
-	it("carries a previous publish record forward, with its commentIds emptied", async () => {
+	it("carries a previous publish record forward, with its findingIds emptied", async () => {
 		const sessionStore = new FakeSessionStore();
 		await sessionStore.saveReview({
 			changesetId: "pr-7",
@@ -216,12 +214,12 @@ describe("buildReviewJob", () => {
 			headSha: "old",
 			pass: PASS,
 			residue: [],
-			commentEdits: { "finding-0": { deleted: true } },
+			findingEdits: { "finding-0": { deleted: true } },
 			published: {
 				reviewId: 99,
 				htmlUrl: "https://example.com/r/99",
 				publishedAt: "2026-08-02T00:00:00.000Z",
-				commentIds: ["finding-0"],
+				findingIds: ["finding-0"],
 			},
 		});
 		sessionStore.saved.length = 0;
@@ -249,16 +247,14 @@ describe("buildReviewJob", () => {
 		await job(context());
 
 		const saved = sessionStore.saved[0];
-		// the pending review's id survives so the next publish replaces it,
-		// but nothing in the fresh pass has been published — and the ids are
-		// positional, so the old list must not bleed onto new comments
+
 		expect(saved?.published).toEqual({
 			reviewId: 99,
 			htmlUrl: "https://example.com/r/99",
 			publishedAt: "2026-08-02T00:00:00.000Z",
-			commentIds: [],
+			findingIds: [],
 		});
-		expect(saved?.commentEdits).toEqual({});
+		expect(saved?.findingEdits).toEqual({});
 	});
 
 	it("feeds the previous pass and the PR conversation into the prompt on a re-review", async () => {
@@ -296,7 +292,7 @@ describe("buildReviewJob", () => {
 				],
 			},
 			residue: [],
-			commentEdits: { "finding-0": { body: "reader wording" } },
+			findingEdits: { "finding-0": { body: "reader wording" } },
 			published: null,
 		});
 		const githubService = new FakeGithubService({
@@ -340,7 +336,7 @@ describe("buildReviewJob", () => {
 		expect(prompt).toContain("Greeting drops the name");
 		expect(prompt).toContain("reader wording");
 		expect(prompt).toContain("alice on src/greeting.ts:2");
-		// a prior question has no tier to print, and says so where the tier goes
+
 		expect(prompt).toContain(
 			"2. [finding-1] (question) Why greet by first name only",
 		);
@@ -354,7 +350,7 @@ describe("buildReviewJob", () => {
 			headSha: "old",
 			pass: PASS,
 			residue: [],
-			commentEdits: {},
+			findingEdits: {},
 			published: null,
 		});
 		const engine = new FakeEngine();
@@ -385,7 +381,7 @@ describe("buildReviewJob", () => {
 		expect(prompt).not.toContain("### Conversation on GitHub");
 	});
 
-	it("reports the run's own residue (TASK-030)", async () => {
+	it("reports the run's own residue", async () => {
 		const engine = new FakeEngine();
 		engine.events = [
 			{
@@ -417,7 +413,6 @@ describe("buildReviewJob", () => {
 			},
 		);
 		await job(context());
-
 		expect(sessionStore.saved[0]?.residue).toEqual(["scratch-test.ts"]);
 	});
 
@@ -564,7 +559,6 @@ const FILE_B: FileDiff = {
 	newBlob: { kind: "odb", oid: "b2" },
 };
 
-/** `src/a.ts` after one more commit; `src/b.ts` has not been touched. */
 const FILE_A_MOVED: FileDiff = {
 	...FILE_A,
 	newBlob: { kind: "odb", oid: "a3" },
@@ -617,7 +611,6 @@ async function runPass(options: {
 	return { prompt: engine.lastInput?.prompt ?? "" };
 }
 
-/** A first pass over both files, with one finding anchored in each. */
 async function seedTwoFindings(sessionStore: FakeSessionStore): Promise<void> {
 	await runPass({
 		files: [FILE_A, FILE_B],
@@ -661,12 +654,12 @@ describe("buildReviewJob over a pass with a checkpoint", () => {
 		}
 		await sessionStore.saveReview({
 			...seeded,
-			commentEdits: { "finding-1": { body: "the reader's wording" } },
+			findingEdits: { "finding-1": { body: "the reader's wording" } },
 			published: {
 				reviewId: 1,
 				htmlUrl: "https://example.com/r/1",
 				publishedAt: "2026-08-22T00:00:00.000Z",
-				commentIds: ["finding-0", "finding-1"],
+				findingIds: ["finding-0", "finding-1"],
 			},
 		});
 
@@ -682,12 +675,11 @@ describe("buildReviewJob over a pass with a checkpoint", () => {
 			"about b",
 			"about a again",
 		]);
-		expect(merged?.commentEdits).toEqual({
+		expect(merged?.findingEdits).toEqual({
 			"finding-1": { body: "the reader's wording" },
 		});
-		expect(merged?.published?.commentIds).toEqual(["finding-1"]);
-		// the unchanged file was never in this run's diff, so its account can
-		// only come from the pass that did see it
+		expect(merged?.published?.findingIds).toEqual(["finding-1"]);
+
 		expect(merged?.pass.explanations.map((entry) => entry.path)).toEqual([
 			"src/b.ts",
 		]);

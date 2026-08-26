@@ -10,12 +10,12 @@ import type { ReviewState } from "../reviewState";
 import { validatedQuery } from "../validate";
 
 const MAX_BLOB_BYTES = 2 * 1024 * 1024;
-/** git's own binary heuristic: a NUL in the first 8000 bytes */
+
 const BINARY_SNIFF_BYTES = 8000;
 
 const WORKING_REF = "WORKING";
 const INDEX_REF = "INDEX";
-/** full sha1 or sha256 — the only committed-ref spellings the client ever holds */
+
 const COMMIT_SHA_PATTERN = /^([0-9a-f]{40}|[0-9a-f]{64})$/;
 
 export interface BlobRouteDeps {
@@ -24,14 +24,6 @@ export interface BlobRouteDeps {
 	repoRoot: string;
 }
 
-/**
- * `GET /api/blob?ref=&path=` — context expansion for the diff renderer,
- * under SEC-002's containment rules: only paths the changeset's files
- * mention are servable; committed refs go through `git show <sha>:<path>`
- * (git enforces tree membership); WORKING resolves the realpath and checks
- * the repo-root prefix after symlink resolution; absolute paths, `..`,
- * backslashes, and NUL are rejected outright; over 2MB is 413; binary is 415.
- */
 export function blobRoute(deps: BlobRouteDeps): Hono {
 	const route = new Hono();
 
@@ -103,15 +95,12 @@ function rejectUnknownRef(ref: string): void {
 	const isKnownForm =
 		ref === WORKING_REF || ref === INDEX_REF || COMMIT_SHA_PATTERN.test(ref);
 	if (!isKnownForm) {
-		// anything else could smuggle git arguments; the client only ever
-		// holds full SHAs (from the changeset ref and the diff's index lines)
 		throw new ValidationError(
 			"Blob refs must be WORKING, INDEX, or a full commit sha.",
 		);
 	}
 }
 
-/** Only files the changeset names (old or new side) are servable (SEC-002). */
 function changesetAllowsPath(state: ReviewState, path: string): boolean {
 	return state
 		.current()
@@ -125,9 +114,7 @@ async function readBlobContent(
 	if (request.ref === WORKING_REF) {
 		return readWorkingFile(deps.repoRoot, request.path);
 	}
-	// expected-failure conversion at the edge: a validated, allowlisted read
-	// that git still refuses (path absent at that sha, sha gc'd) is a 404,
-	// never a 500
+
 	try {
 		const content =
 			request.ref === INDEX_REF

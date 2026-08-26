@@ -1,0 +1,11 @@
+# git runs a hook with GIT_DIR and friends set, and they leak into every git
+# the tests spawn: a fixture repo then gets operated on as if it were this
+# one. Clear them before anything else runs.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+
+# Format and autofix what is staged, then check the whole repo: a staged-only
+# check misses breakage in the files that depend on what changed.
+npx lint-staged
+npm run typecheck
+npm run lint
+npm test

@@ -20,7 +20,7 @@ function run(
 }
 
 describe("test/bin/claude", () => {
-	it("refuses -p --output-format stream-json missing --verbose (CON-001)", () => {
+	it("refuses -p --output-format stream-json missing --verbose", () => {
 		const result = run(["-p", "--output-format", "stream-json"]);
 		expect(result.code).toBe(1);
 		expect(result.stderr).toContain("requires --verbose");
@@ -43,7 +43,7 @@ describe("test/bin/claude", () => {
 		expect(result.stdout).toContain("sess-success");
 	});
 
-	it("refuses a draft-2020-12 --json-schema (CON-002)", () => {
+	it("refuses a draft-2020-12 --json-schema", () => {
 		const schema = JSON.stringify({
 			$schema: "https://json-schema.org/draft/2020-12/schema",
 			type: "object",

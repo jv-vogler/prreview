@@ -31,7 +31,6 @@ function fileNamed(path: string): FileDiff {
 	};
 }
 
-/** The full app, so the AppError -> ErrorDto onError edge is in effect (production behavior). */
 async function fixtureApp(files: FileDiff[]) {
 	const repo = await createFixtureRepo();
 	disposables.push(repo);

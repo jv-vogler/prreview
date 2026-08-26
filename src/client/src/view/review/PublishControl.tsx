@@ -1,7 +1,7 @@
-import type { PublishedRecordDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type { PublishedRecordDto, ReviewFindingDto } from "@dto/ReviewDto";
 import { useMemo } from "react";
-import type { PublishExclusionReason } from "../../domain/review/publishSummary";
-import { summarizePublish } from "../../domain/review/publishSummary";
+import type { PublishExclusionReason } from "../../domain/finding/publishSummary";
+import { summarizePublish } from "../../domain/finding/publishSummary";
 import styles from "./PublishControl.module.css";
 
 const EXCLUSION_COPY: Record<PublishExclusionReason, string> = {
@@ -10,30 +10,23 @@ const EXCLUSION_COPY: Record<PublishExclusionReason, string> = {
 };
 
 export interface PublishControlProps {
-	comments: readonly ReviewCommentDto[];
+	findings: readonly ReviewFindingDto[];
 	published: PublishedRecordDto | null;
 	publishing: boolean;
 	error: string | null;
 	onPublish: () => void;
 }
 
-/**
- * States, before sending, exactly what a publish will do (TASK-052): the
- * count going up and every comment left behind, with its reason — a
- * publish that silently drops a finding is the failure this control exists
- * to prevent. Sending is one click away, not behind a second confirm step;
- * the summary below is always on screen, never hidden until asked for.
- */
 export function PublishControl({
-	comments,
+	findings,
 	published,
 	publishing,
 	error,
 	onPublish,
 }: PublishControlProps) {
 	const { publishable, excluded } = useMemo(
-		() => summarizePublish(comments),
-		[comments],
+		() => summarizePublish(findings),
+		[findings],
 	);
 	return (
 		<div className={styles.panel}>
@@ -46,9 +39,9 @@ export function PublishControl({
 			</p>
 			{excluded.length > 0 && (
 				<ul className={styles.excludedList}>
-					{excluded.map(({ comment, reason }) => (
-						<li key={comment.id}>
-							{comment.title} — {EXCLUSION_COPY[reason]}
+					{excluded.map(({ finding, reason }) => (
+						<li key={finding.id}>
+							{finding.title} — {EXCLUSION_COPY[reason]}
 						</li>
 					))}
 				</ul>

@@ -1,13 +1,13 @@
 import type { ChangesetDto } from "@dto/ChangesetDto";
 import type {
 	ExplanationDto,
-	ReviewCommentDto,
+	ReviewFindingDto,
 	ReworkInstructionDto,
 } from "@dto/ReviewDto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { sortExplanationsByDiff } from "../domain/review/explanationOrder";
-import { topicColorsFor } from "../domain/review/topicColors";
-import { type Topic, topicsFor } from "../domain/review/topics";
+import { sortExplanationsByDiff } from "../domain/explanation/explanationOrder";
+import { topicColorsFor } from "../domain/explanation/topicColors";
+import { type Topic, topicsFor } from "../domain/explanation/topics";
 import {
 	getChangeset,
 	refreshChangeset,
@@ -15,13 +15,12 @@ import {
 import { getSession } from "../infrastructure/endpoints/getSession";
 import { publishReview } from "../infrastructure/endpoints/publishReview";
 import {
-	deleteComment,
-	editComment,
-	restoreComment,
-	reworkComment,
-} from "../infrastructure/endpoints/reviewComments";
+	deleteFinding,
+	editFinding,
+	restoreFinding,
+	reworkFinding,
+} from "../infrastructure/endpoints/reviewFindings";
 import { createApiClient } from "../infrastructure/httpClients/apiClient";
-import { ChangesetHeading } from "../view/diff/ChangesetHeading";
 import {
 	DiffWorkspace,
 	type DiffWorkspaceHandle,
@@ -33,44 +32,33 @@ import {
 	REVIEW_PANEL,
 	usePanelWidth,
 } from "../view/layout/usePanelWidth";
-import type {
-	CommentActions,
-	ReworkProposal,
-} from "../view/review/CommentActions";
-import type { ExplanationsMode } from "../view/review/DiffExplanationAnnotation";
-import { HighlightedExplanationsContext } from "../view/review/highlightedExplanations";
+import type { ExplanationsMode } from "../view/review/explanations/DiffExplanationAnnotation";
+import {
+	HighlightedExplanationsContext,
+	NO_HIGHLIGHTED_EXPLANATIONS,
+} from "../view/review/explanations/highlightedExplanations";
+import type { FindingActions } from "../view/review/findings/FindingActions";
+import { reworkProposalFor } from "../view/review/findings/FindingActions";
 import { OverviewPanel } from "../view/review/OverviewPanel";
 import { PublishControl } from "../view/review/PublishControl";
 import { ReReviewDialog } from "../view/review/ReReviewDialog";
 import { ReviewSidebar } from "../view/review/ReviewSidebar";
-import { RunStatusBar } from "../view/review/RunStatusBar";
-import { REVIEW_FAILURE_COPY } from "../view/review/reviewFailureCopy";
-import { useReviewRun } from "../view/review/useReviewRun";
+import { RunStatusBar } from "../view/review/run/RunStatusBar";
+import type { ReviewRunState } from "../view/review/run/useReviewRun";
+import { useReviewRun } from "../view/review/run/useReviewRun";
+import { ReviewHeader } from "./ReviewHeader";
 import styles from "./ReviewPage.module.css";
 
 const api = createApiClient();
 
-const NO_HIGHLIGHT: ReadonlySet<string> = new Set();
-
-/**
- * Two candidate presentations for change explanations, side by side while
- * the design settles: folded chips by default, `?explanations=margin` for
- * always-open cards pinned to the right edge. Read once at module scope —
- * the page has no router, so the URL never changes underneath it.
- */
 const EXPLANATIONS_MODE: ExplanationsMode =
 	new URLSearchParams(window.location.search).get("explanations") === "margin"
 		? "margin"
 		: "chips";
 
-/**
- * The one screen (REQ-001): a GitHub-style diff of whatever changeset the
- * server resolved at boot. No tabs, no routes beyond this one.
- */
 export function ReviewPage() {
 	const [changeset, setChangeset] = useState<ChangesetDto | null>(null);
-	// null = not yet known; the AI surface stays absent, not disabled, until
-	// the session answers (REQ-009) — never assume availability while waiting
+
 	const [aiAvailable, setAiAvailable] = useState(false);
 	const [githubAvailable, setGithubAvailable] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
@@ -96,9 +84,7 @@ export function ReviewPage() {
 					setGithubAvailable(session.featureFlags.githubAvailable);
 				}
 			},
-			() => {
-				// the diff still works with no agent surface; nothing to recover
-			},
+			() => {},
 		);
 		return () => {
 			cancelled = true;
@@ -128,7 +114,6 @@ function ResolvedReview({
 	githubAvailable,
 }: {
 	changeset: ChangesetDto;
-	/** adopts a changeset the server re-resolved, so the diff matches the pass */
 	onChangeset(changeset: ChangesetDto): void;
 	aiAvailable: boolean;
 	githubAvailable: boolean;
@@ -141,22 +126,19 @@ function ResolvedReview({
 	);
 	const handleRef = useRef<DiffWorkspaceHandle>(null);
 	const review = useReviewRun(api);
-	const [expandedCommentIds, setExpandedCommentIds] = useState<
+	const [expandedFindingIds, setExpandedFindingIds] = useState<
 		ReadonlySet<string>
 	>(() => new Set());
 	const [curationError, setCurationError] = useState<string | null>(null);
 	const [publishing, setPublishing] = useState(false);
 	const [publishError, setPublishError] = useState<string | null>(null);
-	// once accepted or discarded, a rework's proposal never reappears for its
-	// run, however long that run stays the "current" one on screen
+
 	const [dismissedRunId, setDismissedRunId] = useState<string | null>(null);
-	const comments = useMemo<readonly ReviewCommentDto[]>(
-		() => review.pass?.comments ?? [],
+	const findings = useMemo<readonly ReviewFindingDto[]>(
+		() => review.pass?.findings ?? [],
 		[review.pass],
 	);
-	// in the diff's own order, not the order the agent thought of them: the
-	// sidebar's read-through, the topic colors and the scroll all follow one
-	// sequence (explanationOrder.ts)
+
 	const explanations = useMemo<readonly ExplanationDto[]>(
 		() =>
 			sortExplanationsByDiff(
@@ -165,17 +147,14 @@ function ResolvedReview({
 			),
 		[review.pass, changeset.files],
 	);
-	// shown by default; one toggle drops or restores all of them
+
 	const [showExplanations, setShowExplanations] = useState(true);
-	// a Review click over a stored pass always confirms first: the run
-	// replaces that pass, and destructive never rides on a bare click
+
 	const [confirmingReReview, setConfirmingReReview] = useState(false);
-	// the re-resolution a Review click starts with, and its own failure —
-	// a target that has vanished says so here, not by starting a run
+
 	const [reResolving, setReResolving] = useState(false);
 	const [reResolveError, setReResolveError] = useState<string | null>(null);
-	// folded by default so the diff keeps the screen; a run finishing live
-	// unfolds it once, because that is the moment the account is news
+
 	const [overviewFolded, setOverviewFolded] = useState(true);
 	const previousRunStatus = useRef<string | null>(null);
 	useEffect(() => {
@@ -187,17 +166,10 @@ function ResolvedReview({
 		previousRunStatus.current = status;
 		if (status === "succeeded" && (was === "running" || was === "queued")) {
 			setOverviewFolded(false);
-			// the pass was computed against whatever the server resolved when
-			// the run started, which a refresh may have moved: re-read the
-			// changeset so the diff on screen carries the placements the pass
-			// was anchored to
 			getChangeset(api).then(onChangeset, noop);
 		}
 	}, [review.run, onChangeset]);
 
-	// Review never runs against the snapshot taken at boot: it re-resolves
-	// the target first, so the dialog's commit count is true at click time
-	// and the run reviews the commits that are actually there.
 	const onReviewPressed = useCallback(() => {
 		setReResolving(true);
 		setReResolveError(null);
@@ -218,32 +190,31 @@ function ResolvedReview({
 			},
 		);
 	}, [onChangeset, review.applyStatus, review.start]);
-	const activeComments = useMemo(
-		() => comments.filter((comment) => !comment.deleted),
-		[comments],
+	const activeFindings = useMemo(
+		() => findings.filter((finding) => !finding.deleted),
+		[findings],
 	);
-	// what the sidebar's jumps and topic chips light up on the diff; never
-	// part of the renderer's version, so highlighting folds nothing
+
 	const [highlighted, setHighlighted] = useState<{
 		key: string;
 		ids: ReadonlySet<string>;
 	} | null>(null);
 
-	const onToggleComment = useCallback((commentId: string) => {
-		setExpandedCommentIds((current) => {
+	const onToggleFinding = useCallback((findingId: string) => {
+		setExpandedFindingIds((current) => {
 			const next = new Set(current);
-			if (next.has(commentId)) {
-				next.delete(commentId);
+			if (next.has(findingId)) {
+				next.delete(findingId);
 			} else {
-				next.add(commentId);
+				next.add(findingId);
 			}
 			return next;
 		});
 	}, []);
 
-	const onJumpToComment = useCallback((comment: ReviewCommentDto) => {
-		setExpandedCommentIds((current) => new Set(current).add(comment.id));
-		handleRef.current?.scrollToComment(comment);
+	const onJumpToFinding = useCallback((finding: ReviewFindingDto) => {
+		setExpandedFindingIds((current) => new Set(current).add(finding.id));
+		handleRef.current?.scrollToFinding(finding);
 	}, []);
 
 	const onJumpToExplanation = useCallback((explanation: ExplanationDto) => {
@@ -277,27 +248,27 @@ function ResolvedReview({
 		[topics, onToggleTopic],
 	);
 
-	const onEditComment = useCallback(
-		(commentId: string, body: string) => {
-			editComment(api, commentId, body).then(review.applyPass, (cause) => {
+	const onEditFinding = useCallback(
+		(findingId: string, body: string) => {
+			editFinding(api, findingId, body).then(review.applyPass, (cause) => {
 				setCurationError(describeError(cause));
 			});
 		},
 		[review.applyPass],
 	);
 
-	const onDeleteComment = useCallback(
-		(commentId: string) => {
-			deleteComment(api, commentId).then(review.applyPass, (cause) => {
+	const onDeleteFinding = useCallback(
+		(findingId: string) => {
+			deleteFinding(api, findingId).then(review.applyPass, (cause) => {
 				setCurationError(describeError(cause));
 			});
 		},
 		[review.applyPass],
 	);
 
-	const onRestoreComment = useCallback(
-		(commentId: string) => {
-			restoreComment(api, commentId).then(review.applyPass, (cause) => {
+	const onRestoreFinding = useCallback(
+		(findingId: string) => {
+			restoreFinding(api, findingId).then(review.applyPass, (cause) => {
 				setCurationError(describeError(cause));
 			});
 		},
@@ -319,14 +290,12 @@ function ResolvedReview({
 		);
 	}, [review.applyPass]);
 
-	// absent, not disabled (REQ-009's treatment, mirrored here): no publish
-	// control at all without a GitHub backend or without a PR to publish to
 	const canPublish = githubAvailable && changeset.ref.source.kind === "pr";
 
 	const onRework = useCallback(
-		(commentId: string, instruction: ReworkInstructionDto) => {
+		(findingId: string, instruction: ReworkInstructionDto) => {
 			setDismissedRunId(null);
-			reworkComment(api, commentId, instruction).then(
+			reworkFinding(api, findingId, instruction).then(
 				(result) => {
 					if (result.kind === "conflict") {
 						setCurationError(result.message);
@@ -345,70 +314,32 @@ function ResolvedReview({
 	}, [review.run]);
 
 	const onAcceptRework = useCallback(
-		(commentId: string, body: string) => {
+		(findingId: string, body: string) => {
 			dismissRework();
-			onEditComment(commentId, body);
+			onEditFinding(findingId, body);
 		},
-		[dismissRework, onEditComment],
+		[dismissRework, onEditFinding],
 	);
 
-	// at most one rework in flight at a time (it shares the review's own
-	// one-run-at-a-time lane) — derived straight off the same run state
-	// RunStatusBar reads, just filtered to this one comment (TASK-049)
-	const reworkProposal = useMemo<ReworkProposal | null>(() => {
-		const run = review.run;
-		if (
-			run === null ||
-			run.kind !== "rework" ||
-			run.commentId === undefined ||
-			run.id === dismissedRunId
-		) {
-			return null;
-		}
-		if (run.status === "queued" || run.status === "running") {
-			return { commentId: run.commentId, status: "running" };
-		}
-		if (run.status === "succeeded" && run.result !== undefined) {
-			return {
-				commentId: run.commentId,
-				status: "succeeded",
-				proposedBody: run.result,
-			};
-		}
-		if (run.status === "failed" || run.status === "timed-out") {
-			return {
-				commentId: run.commentId,
-				status: "failed",
-				errorMessage:
-					run.error !== undefined
-						? REVIEW_FAILURE_COPY[run.error.reason]
-						: "The rework did not finish.",
-			};
-		}
-		if (run.status === "cancelled") {
-			return {
-				commentId: run.commentId,
-				status: "failed",
-				errorMessage: "The rework was cancelled.",
-			};
-		}
-		return null;
-	}, [review.run, dismissedRunId]);
+	const reworkProposal = useMemo(
+		() => reworkProposalFor(review.run, dismissedRunId),
+		[review.run, dismissedRunId],
+	);
 
-	const actions = useMemo<CommentActions>(
+	const actions = useMemo<FindingActions>(
 		() => ({
-			onEdit: onEditComment,
-			onDelete: onDeleteComment,
-			onRestore: onRestoreComment,
+			onEdit: onEditFinding,
+			onDelete: onDeleteFinding,
+			onRestore: onRestoreFinding,
 			onRework: aiAvailable ? onRework : undefined,
 			reworkProposal,
 			onAcceptRework,
 			onDismissRework: dismissRework,
 		}),
 		[
-			onEditComment,
-			onDeleteComment,
-			onRestoreComment,
+			onEditFinding,
+			onDeleteFinding,
+			onRestoreFinding,
 			onRework,
 			reworkProposal,
 			onAcceptRework,
@@ -417,8 +348,6 @@ function ResolvedReview({
 		],
 	);
 
-	// files without hunks (binary, mode-only, pure renames) have no rows to
-	// render; they stay in the tree but not in the code view
 	const renderedFiles = useMemo(
 		() => changeset.files.filter((file) => file.hunks.length > 0),
 		[changeset.files],
@@ -449,14 +378,14 @@ function ResolvedReview({
 
 	return (
 		<HighlightedExplanationsContext.Provider
-			value={highlighted?.ids ?? NO_HIGHLIGHT}
+			value={highlighted?.ids ?? NO_HIGHLIGHTED_EXPLANATIONS}
 		>
 			{confirmingReReview && (
 				<ReReviewDialog
 					freshness={review.freshness}
 					worktree={changeset.ref.source.kind === "worktree"}
-					editedCount={activeComments.filter((c) => c.edited).length}
-					dismissedCount={comments.filter((c) => c.deleted).length}
+					editedCount={activeFindings.filter((c) => c.edited).length}
+					dismissedCount={findings.filter((c) => c.deleted).length}
 					pendingReviewUrl={review.pass?.published?.htmlUrl ?? null}
 					onConfirm={(options) => {
 						setConfirmingReReview(false);
@@ -481,57 +410,18 @@ function ResolvedReview({
 				<div className={styles.main}>
 					{aiAvailable && <RunStatusBar review={review} />}
 					<div className={styles.overview}>
-						<div className={styles.headerRow}>
-							<div className={styles.headerSubject}>
-								<ChangesetHeading
-									source={changeset.ref.source}
-									resolved={changeset.announce.resolved}
-									prUrl={changeset.ref.prUrl}
-								/>
-							</div>
-							<div className={styles.controls}>
-								{explanations.length > 0 && (
-									<button
-										type="button"
-										className={styles.explanationsToggle}
-										aria-pressed={showExplanations}
-										onClick={() => setShowExplanations((current) => !current)}
-									>
-										{showExplanations
-											? "Hide explanations"
-											: "Show explanations"}
-									</button>
-								)}
-								{aiAvailable && (
-									<button
-										type="button"
-										className={styles.reviewButton}
-										disabled={
-											review.starting ||
-											reResolving ||
-											review.run?.status === "queued" ||
-											review.run?.status === "running"
-										}
-										onClick={onReviewPressed}
-									>
-										Review
-									</button>
-								)}
-							</div>
-						</div>
-						{review.startError !== null && (
-							<p className={styles.startError}>{review.startError}</p>
-						)}
-						{reResolveError !== null && (
-							<p className={styles.startError} role="alert">
-								{reResolveError}
-							</p>
-						)}
-						{curationError !== null && (
-							<p className={styles.startError} role="alert">
-								{curationError}
-							</p>
-						)}
+						<ReviewHeader
+							changeset={changeset}
+							aiAvailable={aiAvailable}
+							explanationCount={explanations.length}
+							showExplanations={showExplanations}
+							onToggleExplanations={() =>
+								setShowExplanations((current) => !current)
+							}
+							reviewDisabled={reviewBusy(review, reResolving)}
+							onReview={onReviewPressed}
+							errors={[review.startError, reResolveError, curationError]}
+						/>
 						{review.pass !== null && (
 							<OverviewPanel
 								pass={review.pass}
@@ -553,9 +443,9 @@ function ResolvedReview({
 								foldedFileIds={foldedFileIds}
 								onToggleFold={onToggleFold}
 								handleRef={handleRef}
-								comments={activeComments}
-								expandedCommentIds={expandedCommentIds}
-								onToggleComment={onToggleComment}
+								findings={activeFindings}
+								expandedFindingIds={expandedFindingIds}
+								onToggleFinding={onToggleFinding}
 								actions={actions}
 								explanations={explanations}
 								showExplanations={showExplanations}
@@ -565,7 +455,7 @@ function ResolvedReview({
 					)}
 				</div>
 				{review.pass !== null &&
-					(comments.length > 0 || explanations.length > 0) && (
+					(findings.length > 0 || explanations.length > 0) && (
 						<>
 							<PanelResizer
 								spec={REVIEW_PANEL}
@@ -574,18 +464,18 @@ function ResolvedReview({
 							/>
 							<ReviewSidebar
 								width={reviewPanel.width}
-								comments={comments}
+								findings={findings}
 								explanations={explanations}
-								expandedCommentIds={expandedCommentIds}
-								onJumpToComment={onJumpToComment}
-								onCollapseComment={onToggleComment}
+								expandedFindingIds={expandedFindingIds}
+								onJumpToFinding={onJumpToFinding}
+								onCollapseFinding={onToggleFinding}
 								actions={actions}
 								onJumpToExplanation={onJumpToExplanation}
 								onToggleTopic={onToggleTopic}
 								publishControl={
 									canPublish && review.pass !== null ? (
 										<PublishControl
-											comments={activeComments}
+											findings={activeFindings}
 											published={review.pass.published}
 											publishing={publishing}
 											error={publishError}
@@ -598,6 +488,15 @@ function ResolvedReview({
 					)}
 			</div>
 		</HighlightedExplanationsContext.Provider>
+	);
+}
+
+function reviewBusy(review: ReviewRunState, reResolving: boolean): boolean {
+	return (
+		review.starting ||
+		reResolving ||
+		review.run?.status === "queued" ||
+		review.run?.status === "running"
 	);
 }
 

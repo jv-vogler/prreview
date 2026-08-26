@@ -1,7 +1,18 @@
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "vitest";
 import { createPathShim, type PathShim } from "../../../test/helpers/shimPath";
-import type { EngineEvent } from "../../application/ports/Engine";
+import type { EngineEvent } from "../../domain/run/EngineEvent";
 import { ClaudeEngine } from "./ClaudeEngine";
 
 const FIXTURES_DIR = fileURLToPath(
@@ -20,6 +31,23 @@ const OUTPUT_SCHEMA = {
 		return value;
 	},
 };
+
+const KILL_GRACE_MS = 30;
+const REPLAY_LONGER_THAN_THE_TEST_MS = 5000;
+const LOG_POLL_MS = 5;
+const LOG_WAIT_LIMIT_MS = 2000;
+
+async function waitForLine(path: string): Promise<void> {
+	const deadline = Date.now() + LOG_WAIT_LIMIT_MS;
+	while (Date.now() < deadline) {
+		const seen = await readFile(path, "utf8").catch(() => "");
+		if (seen.includes("\n")) {
+			return;
+		}
+		await new Promise((settle) => setTimeout(settle, LOG_POLL_MS));
+	}
+	throw new Error(`the fake never wrote to ${path}`);
+}
 
 const TASK = {
 	jsonSchema: '{"type":"object"}',
@@ -48,16 +76,25 @@ describe("ClaudeEngine", () => {
 	let shim: PathShim;
 	let originalPath: string | undefined;
 
-	beforeEach(async () => {
+	beforeAll(async () => {
 		shim = await createPathShim();
+	});
+
+	afterAll(async () => {
+		await shim.dispose();
+	});
+
+	beforeEach(() => {
 		originalPath = process.env.PATH;
 	});
 
-	afterEach(async () => {
+	afterEach(() => {
 		process.env.PATH = originalPath;
 		delete process.env.FAKE_CLAUDE_FIXTURE;
 		delete process.env.FAKE_CLAUDE_EXIT;
-		await shim.dispose();
+		delete process.env.FAKE_CLAUDE_LOG;
+		delete process.env.FAKE_CLAUDE_TRAP_SIGTERM;
+		delete process.env.FAKE_CLAUDE_DELAY_MS;
 	});
 
 	it("probes the fake binary's version", async () => {
@@ -184,7 +221,7 @@ describe("ClaudeEngine", () => {
 		});
 	});
 
-	it("delivers the prompt on stdin, never as an argv member (SEC-002)", async () => {
+	it("delivers the prompt on stdin, never as an argv member", async () => {
 		withFixture(shim, "success.jsonl");
 		const logPath = `${FIXTURES_DIR}../claude-invocation.log`;
 		process.env.FAKE_CLAUDE_LOG = logPath;
@@ -207,5 +244,36 @@ describe("ClaudeEngine", () => {
 		} finally {
 			delete process.env.FAKE_CLAUDE_LOG;
 		}
+	});
+
+	it("kills a child that refuses to die on SIGTERM", async () => {
+		withFixture(shim, "success.jsonl");
+		const logPath = join(
+			await mkdtemp(join(tmpdir(), "prreview-kill-")),
+			"log",
+		);
+		process.env.FAKE_CLAUDE_LOG = logPath;
+		process.env.FAKE_CLAUDE_TRAP_SIGTERM = "1";
+		process.env.FAKE_CLAUDE_DELAY_MS = String(REPLAY_LONGER_THAN_THE_TEST_MS);
+
+		const engine = new ClaudeEngine({ killGraceMs: KILL_GRACE_MS });
+		const events = engine
+			.runTask(TASK, {
+				prompt: "review this",
+				workspaceDir: "/tmp",
+			})
+			[Symbol.asyncIterator]();
+		const running = events.next().catch(() => undefined);
+
+		await waitForLine(logPath);
+		await engine.stop();
+		await running;
+
+		const lifecycle = (await readFile(logPath, "utf8"))
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line));
+		expect(lifecycle).toContainEqual({ event: "sigterm" });
+		expect(lifecycle).not.toContainEqual({ event: "completed" });
 	});
 });

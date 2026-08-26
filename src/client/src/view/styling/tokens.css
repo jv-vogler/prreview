@@ -1,16 +1,3 @@
-/*
- * GitHub's published design tokens: base size, typography and motion,
- * functional size/border/typography/motion, and the six functional themes.
- * Dark only: index.html stamps the scheme attributes Primer's dark.css is
- * scoped under, so there is no mode to resolve and no light theme to load.
- *
- * The base layer is not optional decoration under the functional one: every
- * functional token is literally `var(--base-…)`, so a missing base import
- * does not degrade a value, it deletes it. A `transition` or `animation`
- * shorthand whose duration fails to substitute is invalid at computed-value
- * time and is thrown away whole — the property computes to its initial
- * `all 0s` and the motion silently never plays.
- */
 @import "@primer/primitives/dist/css/base/size/size.css";
 @import "@primer/primitives/dist/css/base/typography/typography.css";
 @import "@primer/primitives/dist/css/base/motion/motion.css";

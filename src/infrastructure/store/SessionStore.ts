@@ -1,27 +1,18 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type {
-	SessionStore as SessionStorePort,
-	StoredReview,
-} from "../../application/ports/SessionStore";
+import type { SessionStore as SessionStorePort } from "../../application/ports/SessionStore";
 import type { ChangesetId } from "../../domain/changeset/ChangesetId";
 import { StoreError } from "../../domain/errors/StoreError";
+import type { StoredReview } from "../../domain/pass/StoredReview";
 import { storedReviewSchema } from "./schemas";
 import { sessionKeyFor } from "./sessionKey";
 
-/**
- * Write-through with a short batching window: the first save schedules a
- * write, later saves inside the window just refresh the data, so crash
- * safety never depends on a clean shutdown.
- */
 const DEFAULT_DEBOUNCE_MS = 500;
 
 const GIT_EXCLUDE_ENTRY = ".prreview/";
 
 export interface SessionStoreOptions {
-	/** absolute path to the `.prreview/` directory */
 	dataDir: string;
-	/** test seam only — production uses the default window */
 	debounceMs?: number;
 }
 
@@ -33,12 +24,6 @@ interface PendingWrite {
 	reject: (error: unknown) => void;
 }
 
-/**
- * The `.prreview/` JSON store: plain files a user can grep, written
- * atomically via temp+rename, debounced. Throws raw fs errors except for
- * the store-owned exceptions: an unreadable or invalid `review.json` is
- * `StoreError('corrupt')`, and a live pidfile is `StoreError('locked')`.
- */
 export class SessionStore implements SessionStorePort {
 	private readonly dataDir: string;
 	private readonly debounceMs: number;
@@ -63,16 +48,10 @@ export class SessionStore implements SessionStorePort {
 		return parsed.data;
 	}
 
-	/** Debounced; resolves when the artifact is on disk. */
 	saveReview(review: StoredReview): Promise<void> {
 		return this.scheduleWrite(this.reviewPath(review.changesetId), review);
 	}
 
-	/**
-	 * Registers `.prreview/` in `<gitCommonDir>/info/exclude` — never in the
-	 * user's own .gitignore (SEC-003). Idempotent; creates info/exclude when
-	 * the repo has none.
-	 */
 	async ensureExcluded(gitCommonDir: string): Promise<void> {
 		const excludePath = join(gitCommonDir, "info", "exclude");
 		const existing = await readTextFileIfPresent(excludePath);
@@ -82,26 +61,14 @@ export class SessionStore implements SessionStorePort {
 		if (alreadyRegistered) {
 			return;
 		}
-		const base =
-			existing === undefined || existing === ""
-				? ""
-				: existing.endsWith("\n")
-					? existing
-					: `${existing}\n`;
+		const base = newlineTerminated(existing);
 		await this.writeFileAtomic(excludePath, `${base}${GIT_EXCLUDE_ENTRY}\n`);
 	}
 
-	/**
-	 * Writes everything still sitting in the debounce window, now. The
-	 * shutdown path calls this before exit; tests call it instead of
-	 * waiting.
-	 */
 	async flush(): Promise<void> {
 		const scheduled = [...this.pendingWrites.keys()];
 		await Promise.all(scheduled.map((path) => this.performWrite(path)));
 	}
-
-	// ── internals ─────────────────────────────────────────────────────────
 
 	private scheduleWrite(absolutePath: string, payload: unknown): Promise<void> {
 		const data = `${JSON.stringify(payload, null, "\t")}\n`;
@@ -118,8 +85,7 @@ export class SessionStore implements SessionStorePort {
 			resolve = res;
 			reject = rej;
 		});
-		// A caller may fire-and-forget; the rejection still reaches anyone who
-		// awaits, but must never become an unhandled-rejection crash.
+
 		promise.catch(() => {});
 
 		const timer = setTimeout(() => {
@@ -164,8 +130,6 @@ export class SessionStore implements SessionStorePort {
 	}
 
 	private async readJsonFile(absolutePath: string): Promise<unknown> {
-		// A read that ignored the debounce window would see the previous
-		// contents rather than what a caller just scheduled.
 		const pending = this.pendingWrites.get(absolutePath);
 		const text =
 			pending === undefined
@@ -212,4 +176,11 @@ async function readTextFileIfPresent(
 		}
 		throw error;
 	}
+}
+
+function newlineTerminated(existing: string | undefined): string {
+	if (existing === undefined || existing === "") {
+		return "";
+	}
+	return existing.endsWith("\n") ? existing : `${existing}\n`;
 }

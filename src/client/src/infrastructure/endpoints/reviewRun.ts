@@ -8,7 +8,6 @@ import {
 import type { ApiClient } from "../httpClients/apiClient";
 import { HttpError } from "../httpClients/HttpError";
 
-/** `GET /api/review`, validated at the boundary. */
 export async function getReviewRun(api: ApiClient): Promise<ReviewStatusDto> {
 	return reviewStatusDtoSchema.parse(await api.get("/api/review"));
 }
@@ -18,14 +17,9 @@ export type PostReviewResult =
 	| { kind: "conflict"; existingRunId: string; message: string };
 
 export interface PostReviewOptions {
-	/** look at the whole change again, not only what moved since the pass */
 	full?: boolean;
 }
 
-/**
- * `POST /api/review`. A 409 conflict is an ordinary answer, not a thrown
- * error — the caller decides what "already running" means on screen.
- */
 export async function postReviewRun(
 	api: ApiClient,
 	options: PostReviewOptions = {},
@@ -50,7 +44,6 @@ export async function postReviewRun(
 	}
 }
 
-/** `DELETE /api/review/run`; false when there was nothing to cancel. */
 export async function cancelReviewRun(api: ApiClient): Promise<boolean> {
 	try {
 		await api.delete("/api/review/run");

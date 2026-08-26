@@ -1,12 +1,12 @@
 import { Hono } from "hono";
-import { applyCommentOps } from "../../../application/applyCommentOps";
+import { applyFindingOps } from "../../../application/applyFindingOps";
 import type { GithubService } from "../../../application/ports/GithubService";
 import type { SessionStore } from "../../../application/ports/SessionStore";
 import { publishReview } from "../../../application/publishReview";
 import { changesetIdFor } from "../../../domain/changeset/ChangesetId";
 import { EngineError } from "../../../domain/errors/EngineError";
 import {
-	editCommentRequestDtoSchema,
+	editFindingRequestDtoSchema,
 	reviewRunRequestDtoSchema,
 	reworkRequestDtoSchema,
 } from "../dto/ReviewDto";
@@ -21,26 +21,9 @@ export interface ReviewRouteDeps {
 	runner: ReviewRunner;
 	state: ReviewState;
 	sessionStore: SessionStore;
-	/** null = no GitHub backend at all (REQ-009's treatment, mirrored for publish) */
 	githubService: GithubService | null;
 }
 
-/**
- * `POST /api/review` starts a run, `GET /api/review` answers the current
- * one (also the 8-second poll's fallback, TASK-037), `DELETE
- * /api/review/run` cancels it. One run at a time (TASK-033): a second
- * `POST` while one is active answers 409, never a queue.
- *
- * `PATCH`/`DELETE`/`.../restore` on one comment (TASK-046, TASK-047) all
- * answer the same way: the recomputed `ReviewPassDto`, so the client's
- * optimistic local edit reconciles against the server-authoritative
- * artifact in the same round trip rather than a second `GET`.
- * `.../rework` (TASK-048) instead starts a run, the same way `POST /` does
- * — its answer arrives through the same run status the client already
- * polls and subscribes to. `POST /publish` (TASK-050, TASK-053) answers the
- * same recomputed `ReviewPassDto` too — publishing only ever adds a
- * `published` record, it never clears the artifact.
- */
 export function reviewRoute(deps: ReviewRouteDeps): Hono {
 	const route = new Hono();
 
@@ -75,29 +58,29 @@ export function reviewRoute(deps: ReviewRouteDeps): Hono {
 	});
 
 	route.patch("/comments/:id", async (context) => {
-		const request = await validatedJson(context, editCommentRequestDtoSchema);
-		const stored = await applyCommentOps(
+		const request = await validatedJson(context, editFindingRequestDtoSchema);
+		const stored = await applyFindingOps(
 			{ sessionStore: deps.sessionStore },
 			currentChangesetId(deps.state),
-			{ kind: "edit", commentId: context.req.param("id"), body: request.body },
+			{ kind: "edit", findingId: context.req.param("id"), body: request.body },
 		);
 		return context.json(toReviewPassDto(stored, deps.state.current().files));
 	});
 
 	route.delete("/comments/:id", async (context) => {
-		const stored = await applyCommentOps(
+		const stored = await applyFindingOps(
 			{ sessionStore: deps.sessionStore },
 			currentChangesetId(deps.state),
-			{ kind: "delete", commentId: context.req.param("id") },
+			{ kind: "delete", findingId: context.req.param("id") },
 		);
 		return context.json(toReviewPassDto(stored, deps.state.current().files));
 	});
 
 	route.post("/comments/:id/restore", async (context) => {
-		const stored = await applyCommentOps(
+		const stored = await applyFindingOps(
 			{ sessionStore: deps.sessionStore },
 			currentChangesetId(deps.state),
-			{ kind: "restore", commentId: context.req.param("id") },
+			{ kind: "restore", findingId: context.req.param("id") },
 		);
 		return context.json(toReviewPassDto(stored, deps.state.current().files));
 	});

@@ -24,7 +24,9 @@ jobs:
       # Harmless when falling back to an NPM_TOKEN secret instead.
       - run: npm install -g npm@^11.5.1
       - run: npm ci
-      - run: npm test
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run coverage
       - run: npm run build
       - run: scripts/verify-pack.sh
       - run: npm publish --provenance --access public

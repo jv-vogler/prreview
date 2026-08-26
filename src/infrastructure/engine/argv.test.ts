@@ -32,7 +32,7 @@ describe("buildTaskArgv", () => {
 		]);
 	});
 
-	it("includes --verbose, without which the real CLI exits 1 (CON-001)", () => {
+	it("includes --verbose, without which the real CLI exits 1", () => {
 		expect(buildTaskArgv(TASK_OPTIONS)).toContain("--verbose");
 	});
 
@@ -40,7 +40,7 @@ describe("buildTaskArgv", () => {
 		expect(buildTaskArgv(TASK_OPTIONS)).not.toContain("--model");
 	});
 
-	it("keeps Bash, Write and Edit available so findings stay verifiable (SEC-003)", () => {
+	it("keeps Bash, Write and Edit available so findings stay verifiable", () => {
 		const argv = buildTaskArgv(TASK_OPTIONS);
 		const allowed = (valueAfter(argv, "--allowedTools") ?? "").split(",");
 		for (const tool of ["Bash", "Read", "Write", "Edit"]) {
@@ -58,12 +58,12 @@ describe("buildTaskArgv", () => {
 		}
 	});
 
-	it("passes the schema inline, never as a file or @file (CON-003)", () => {
+	it("passes the schema inline, never as a file or @file", () => {
 		const argv = buildTaskArgv(TASK_OPTIONS);
 		expect(valueAfter(argv, "--json-schema")).toBe('{"type":"object"}');
 	});
 
-	it("keeps the prompt out of argv (SEC-002, CON-004)", () => {
+	it("keeps the prompt out of argv", () => {
 		const argv = buildTaskArgv(TASK_OPTIONS);
 		expect(
 			argv.some((member) => member.includes("numbered unified diff")),

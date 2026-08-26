@@ -1,52 +1,29 @@
 import type { Git } from "../../src/application/ports/Git";
 
-/**
- * Knobs for the in-memory Git fake. Everything is optional; the defaults
- * describe a clean checkout of `main` with one commit. Mutate `state` inside
- * a test to simulate the repo moving.
- */
 export interface FakeGitState {
-	/** ref or revision name → commit sha (verifyRef's lookup table) */
 	refs?: Record<string, string>;
-	/** bare SHAs that exist in the object database (PR head presence checks) */
 	objects?: string[];
 	branches?: string[];
-	/** null = detached HEAD */
 	currentBranch?: string | null;
-	/** null = defaultBranch() throws (no origin/HEAD, no main/master) */
 	defaultBranch?: string | null;
 	dirty?: boolean;
-	/** raw `git status --porcelain` text (statusPorcelain's answer) */
 	statusPorcelain?: string;
-	/**
-	 * Successive answers to `statusPorcelain()` calls, one per call in order
-	 * (the last entry repeats once exhausted) — for tests that need a
-	 * before/after difference. Takes precedence over `statusPorcelain`.
-	 */
 	statusPorcelainSequence?: string[];
 	fingerprint?: string;
-	/** `${aSha}..${bSha}` → merge-base sha; absent pairs fall back to aSha (linear history) */
 	mergeBases?: Record<string, string>;
-	/** `${from}..${to}` → commit count; absent pairs reject like unknown shas */
 	commitCounts?: Record<string, number>;
-	/** `${baseSha}..${headSha}` → diff text; absent pairs yield an empty diff */
 	diffs?: Record<string, string>;
 	worktreeDiff?: string;
 	remotes?: Record<string, string>;
 	gitCommonDir?: string;
-	/** `${ref}:${path}` → committed blob content (readBlob's lookup table) */
 	blobs?: Record<string, string | Buffer>;
-	/** path → staged blob content (readIndexBlob's lookup table) */
 	indexBlobs?: Record<string, string | Buffer>;
-	/** oid → blob content (readObject's lookup table) */
 	objectContents?: Record<string, string | Buffer>;
-	/** repo-relative path → working-tree content (readWorkingFile's table) */
 	workingFiles?: Record<string, string | Buffer>;
 }
 
 const DEFAULT_HEAD_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
-/** One recorded `git worktree` call, so tests can assert the lifecycle. */
 export interface FakeWorktreeCall {
 	action: "add" | "remove" | "prune";
 	dir?: string;
@@ -55,7 +32,7 @@ export interface FakeWorktreeCall {
 
 export class FakeGit implements Git {
 	state: FakeGitState;
-	/** every worktree call in order */
+
 	readonly worktrees: FakeWorktreeCall[] = [];
 	private statusPorcelainCallCount = 0;
 

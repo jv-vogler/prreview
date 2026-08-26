@@ -1,0 +1,58 @@
+.anchor {
+	position: relative;
+	height: 0;
+	width: 100%;
+}
+
+.chip {
+	position: absolute;
+	top: calc(-1 * var(--base-size-20));
+	right: var(--base-size-8);
+	display: flex;
+	align-items: center;
+	gap: var(--base-size-4);
+	height: var(--base-size-20);
+	padding: 0 var(--base-size-6);
+	border: var(--borderWidth-thin) solid var(--borderColor-accent-muted);
+	border-radius: var(--borderRadius-full);
+	background: var(--bgColor-accent-muted);
+	color: var(--fgColor-accent);
+	cursor: pointer;
+	transition:
+		border-color var(--motion-transition-hover),
+		color var(--motion-transition-hover);
+}
+
+.chip:hover,
+.chip[aria-expanded="true"] {
+	border-color: var(--borderColor-accent-emphasis);
+	color: var(--fgColor-default);
+}
+
+.count {
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+}
+
+.floating {
+	position: fixed;
+	z-index: 10;
+
+	visibility: hidden;
+	display: flex;
+	flex-direction: column;
+	gap: var(--base-size-8);
+	width: 340px;
+	max-width: 40vw;
+	animation: floating-open var(--motion-duration-short)
+		var(--motion-easing-enter) both;
+}
+
+@keyframes floating-open {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}

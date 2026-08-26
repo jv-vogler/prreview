@@ -43,9 +43,11 @@
 		"unlink": "npm unlink -g @jv-vogler/prreview",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
-		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input && node scripts/check-dto-imports.mjs",
+		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input && node scripts/check-dto-imports.mjs && node scripts/check-layering.mjs && node scripts/check-comments.mjs",
 		"typecheck": "tsc -b",
-		"prepack": "npm run build"
+		"prepack": "npm run build",
+		"prepare": "husky",
+		"coverage": "vitest run --coverage"
 	},
 	"dependencies": {
 		"@hono/node-server": "^2.1.1",
@@ -77,14 +79,25 @@
 		"@types/react": "^19.2.18",
 		"@types/react-dom": "^19.2.4",
 		"@vitejs/plugin-react": "^6.0.5",
+		"@vitest/coverage-v8": "^4.1.11",
 		"ajv": "8.20.0",
 		"concurrently": "^10.0.5",
+		"husky": "^9.1.7",
 		"jsdom": "^29.1.1",
+		"lint-staged": "^17.3.0",
 		"stylelint": "^17.14.1",
 		"tsdown": "^0.22.14",
 		"tsx": "^4.23.12",
 		"typescript": "^7.0.2",
+		"unrun": "^0.3.1",
 		"vite": "^8.2.1",
 		"vitest": "^4.1.10"
+	},
+	"lint-staged": {
+		"*.{ts,tsx,js,mjs,cjs,json,jsonc}": "biome check --write --no-errors-on-unmatched",
+		"*.css": [
+			"biome check --write --no-errors-on-unmatched",
+			"stylelint --fix"
+		]
 	}
 }

@@ -1,41 +1,33 @@
-import type { ExplanationDto, ReviewCommentDto } from "@dto/ReviewDto";
+import type { ExplanationDto, ReviewFindingDto } from "@dto/ReviewDto";
 import { type ReactNode, useState } from "react";
-import type { Topic } from "../../domain/review/topics";
-import type { CommentActions } from "./CommentActions";
-import { CommentWorklist } from "./CommentWorklist";
-import { ExplanationsPanel } from "./ExplanationsPanel";
+import type { Topic } from "../../domain/explanation/topics";
+import { ExplanationsPanel } from "./explanations/ExplanationsPanel";
+import type { FindingActions } from "./findings/FindingActions";
+import { FindingWorklist } from "./findings/FindingWorklist";
 import styles from "./ReviewSidebar.module.css";
 
 type SidebarTab = "comments" | "explanations";
 
 export interface ReviewSidebarProps {
-	/** the reader's own width for this panel, dragged on the seam beside it */
 	width: number;
-	comments: readonly ReviewCommentDto[];
+	findings: readonly ReviewFindingDto[];
 	explanations: readonly ExplanationDto[];
-	expandedCommentIds: ReadonlySet<string>;
-	onJumpToComment(comment: ReviewCommentDto): void;
-	onCollapseComment(commentId: string): void;
-	actions: CommentActions;
+	expandedFindingIds: ReadonlySet<string>;
+	onJumpToFinding(finding: ReviewFindingDto): void;
+	onCollapseFinding(findingId: string): void;
+	actions: FindingActions;
 	onJumpToExplanation(explanation: ExplanationDto): void;
 	onToggleTopic(topic: Topic): void;
-	/** the publish control docks at the panel's foot, under either tab */
 	publishControl?: ReactNode;
 }
 
-/**
- * The right panel, two readings of the same pass: Comments is the worklist
- * to act on (TASK-044, REQ-005), Explanations is the PR's story to read.
- * One tab bar instead of stacked sections, because the two are different
- * modes — triaging and orienting — and never wanted on screen together.
- */
 export function ReviewSidebar({
 	width,
-	comments,
+	findings,
 	explanations,
-	expandedCommentIds,
-	onJumpToComment,
-	onCollapseComment,
+	expandedFindingIds,
+	onJumpToFinding,
+	onCollapseFinding,
 	actions,
 	onJumpToExplanation,
 	onToggleTopic,
@@ -53,7 +45,7 @@ export function ReviewSidebar({
 				<div className={styles.tabs} role="tablist">
 					<Tab
 						label="Comments"
-						count={comments.length}
+						count={findings.length}
 						selected={active === "comments"}
 						onSelect={() => setTab("comments")}
 					/>
@@ -69,11 +61,11 @@ export function ReviewSidebar({
 			)}
 			<div className={styles.content} role="tabpanel">
 				{active === "comments" ? (
-					<CommentWorklist
-						comments={comments}
-						expandedCommentIds={expandedCommentIds}
-						onJumpTo={onJumpToComment}
-						onCollapse={onCollapseComment}
+					<FindingWorklist
+						findings={findings}
+						expandedFindingIds={expandedFindingIds}
+						onJumpTo={onJumpToFinding}
+						onCollapse={onCollapseFinding}
 						actions={actions}
 					/>
 				) : (

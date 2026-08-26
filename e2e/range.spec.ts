@@ -10,20 +10,11 @@ import {
 	stopServer,
 } from "./helpers/prreviewServer";
 
-/**
- * A commit range is a first-class target, not a lesser one: the agent runs,
- * the pass lands, comments and explanations place themselves exactly as on a
- * PR. Only publishing is absent, because there is no pull request to publish
- * a pending review to (REQ-007's treatment: absent, never a disabled button
- * with a tooltip).
- */
-
 const TEST_TIMEOUT_MS = 120_000;
 const RUN_SETTLE_TIMEOUT_MS = 30_000;
 
 test.describe("commit range", () => {
 	test.setTimeout(TEST_TIMEOUT_MS);
-
 	let repo: FixtureRepo;
 	let shim: PathShim;
 	const servers: RunningServer[] = [];
@@ -52,12 +43,9 @@ test.describe("commit range", () => {
 			args: ["HEAD~1..HEAD", "--no-open"],
 		});
 		servers.push(server);
-
 		await page.goto(server.url);
 		expect(server.stdout()).toContain("commit range HEAD~1..HEAD");
 
-		// the agent surface is the agent's, not the PR's: a range gets the
-		// same Review button
 		const review = page.getByRole("button", { name: "Review", exact: true });
 		await expect(review).toBeVisible();
 		await review.click();
@@ -65,10 +53,9 @@ test.describe("commit range", () => {
 		await expect(
 			page.getByText("Reviewed 1 file(s) with the mock agent"),
 		).toBeVisible({ timeout: RUN_SETTLE_TIMEOUT_MS });
-		await expect(page.locator("[data-comment-marker]").first()).toBeVisible();
-		await expect(page.locator("[data-comment-row]").first()).toBeVisible();
+		await expect(page.locator("[data-finding-marker]").first()).toBeVisible();
+		await expect(page.locator("[data-finding-row]").first()).toBeVisible();
 
-		// no pull request, so no publish control at all
 		await expect(page.getByRole("button", { name: /Send review/ })).toHaveCount(
 			0,
 		);

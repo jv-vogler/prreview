@@ -1,15 +1,7 @@
-/*
- * A hit area much wider than the line it draws.
- *
- * The visible seam is one pixel because that is what a seam should look like;
- * the target is twelve, because a one-pixel target is a game rather than a
- * control. The strip is pulled half its width into the diff with a negative
- * margin so the line still sits exactly on the boundary.
- */
 .resizer {
 	flex: 0 0 auto;
 	width: var(--base-size-12);
-	/* an hr brings a border and block margins; none of them belong here */
+
 	border: none;
 	margin-block: 0;
 	margin-inline: calc(var(--base-size-12) / -2);
@@ -37,7 +29,6 @@
 	background: var(--borderColor-accent-emphasis);
 }
 
-/* the ring belongs on the seam, not on the invisible twelve-pixel strip */
 .resizer:focus-visible {
 	outline: none;
 }

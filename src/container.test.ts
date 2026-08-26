@@ -18,7 +18,7 @@ describe("the container shape", () => {
 		expect(container.resolveChangeset).toBeTypeOf("function");
 	});
 
-	it("uses an injected fake clock as-is (CON-013)", () => {
+	it("uses an injected fake clock as-is", () => {
 		const fixedInstant = new Date("2026-08-21T00:00:00.000Z");
 		const fakeClock: Clock = { now: () => fixedInstant };
 		const container = buildContainer(
@@ -66,7 +66,7 @@ describe("GithubService selection by toolchain", () => {
 	});
 });
 
-describe("Engine selection by toolchain (REQ-009)", () => {
+describe("Engine selection by toolchain", () => {
 	it('agent "claude" builds a real ClaudeEngine', () => {
 		const container = buildContainer(
 			{ repoRoot: "/repo" },

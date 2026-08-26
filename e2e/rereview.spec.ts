@@ -10,21 +10,12 @@ import {
 	stopServer,
 } from "./helpers/prreviewServer";
 
-/**
- * The delta re-review, against the BUILT artifact: review a two-file working
- * tree, edit one comment, change one of the two files, and press Review
- * again. The untouched file's comment has to come back with the reader's
- * wording intact and marked as not re-checked; the file that moved has to
- * get a comment the second run wrote.
- */
-
 const TEST_TIMEOUT_MS = 120_000;
 const RUN_SETTLE_TIMEOUT_MS = 30_000;
 const EDITED_BODY = "The reader rewrote this one by hand.";
 
 test.describe("re-review", () => {
 	test.setTimeout(TEST_TIMEOUT_MS);
-
 	let repo: FixtureRepo;
 	let shim: PathShim;
 	const servers: RunningServer[] = [];
@@ -53,56 +44,46 @@ test.describe("re-review", () => {
 			pathValue: shim.withMockAgent,
 		});
 		servers.push(server);
-
 		await page.goto(server.url);
 		await page.getByRole("button", { name: "Review", exact: true }).click();
 		await expect(
 			page.getByText("Reviewed 2 file(s) with the mock agent"),
 		).toBeVisible({ timeout: RUN_SETTLE_TIMEOUT_MS });
 
-		// the reader rewrites the comment anchored in the file that will not
-		// move, which is what the delta pass has to hand back untouched
-		const row = page.locator("[data-comment-row]", {
+		const row = page.locator("[data-finding-row]", {
 			hasText: "Mock finding on src/alpha.ts",
 		});
 		await row.click();
-		const balloon = page.locator("[data-comment-id='finding-0']").first();
+		const balloon = page.locator("[data-finding-id='finding-0']").first();
 		await expect(balloon).toBeVisible();
 		await balloon.getByRole("button", { name: "Edit comment" }).click();
 		const editor = balloon.locator("textarea");
 		await editor.fill(EDITED_BODY);
 		await editor.blur();
 		await expect(balloon).toContainText(EDITED_BODY);
-
-		// only beta moves
 		await repo.write("src/beta.ts", MOVED_BETA);
-
 		await page.getByRole("button", { name: "Review", exact: true }).click();
 		const dialog = page.getByRole("dialog", { name: "Review again?" });
 		await expect(dialog).toBeVisible();
 		await dialog.getByRole("button", { name: "Review what changed" }).click();
 
-		// the second run saw one file, not two
 		await expect(
 			page.getByText("Re-reviewed 1 moved file(s) with the mock agent"),
 		).toBeVisible({ timeout: RUN_SETTLE_TIMEOUT_MS });
 
-		// the untouched file's comment kept its id and the reader's wording
-		const carriedRow = page.locator("[data-comment-row='finding-0']");
+		const carriedRow = page.locator("[data-finding-row='finding-0']");
 		await expect(carriedRow).toBeVisible();
 		await carriedRow.click();
-		const carried = page.locator("[data-comment-id='finding-0']").first();
+		const carried = page.locator("[data-finding-id='finding-0']").first();
 		await expect(carried).toContainText(EDITED_BODY);
 		await expect(carried).toContainText("This run did not look at it again.");
 
-		// and the file that moved got a comment this run actually wrote
 		await expect(
-			page.locator("[data-comment-row]", {
+			page.locator("[data-finding-row]", {
 				hasText: "Mock delta finding on src/beta.ts",
 			}),
 		).toBeVisible();
 
-		// both are counted: the carried blocker and the fresh should-fix
 		await expect(page.getByText("1 Blocker", { exact: true })).toBeVisible();
 		await expect(page.getByText("1 Should fix", { exact: true })).toBeVisible();
 	});

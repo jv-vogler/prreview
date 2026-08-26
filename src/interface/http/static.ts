@@ -3,11 +3,6 @@ import { extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Hono } from "hono";
 
-/**
- * Where `dist/client` sits relative to THIS module: inside the published
- * bundle everything is inlined into `dist/cli.js`, so `client/` is a sibling;
- * running from source (tsx) this file lives three levels under `src/`.
- */
 const CLIENT_DIR_CANDIDATES = ["client/", "../../../dist/client/"];
 
 const SPA_FALLBACK_FILE = "index.html";
@@ -27,7 +22,6 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
-/** The built client's directory, or null when it has not been built. */
 export async function resolveClientDir(): Promise<string | null> {
 	for (const candidate of CLIENT_DIR_CANDIDATES) {
 		const dir = fileURLToPath(new URL(candidate, import.meta.url));
@@ -38,11 +32,6 @@ export async function resolveClientDir(): Promise<string | null> {
 	return null;
 }
 
-/**
- * Registered after the API routes, skipped entirely under `--dev` (Vite
- * serves the client there): static files out of `dist/client`, with the SPA
- * fallback to index.html for client-side routes.
- */
 export function registerStatic(app: Hono, clientDir: string): void {
 	const rootDir = resolve(clientDir);
 
@@ -65,7 +54,6 @@ export function registerStatic(app: Hono, clientDir: string): void {
 	});
 }
 
-/** Resolves the URL path inside the client dir; anything that escapes is null. */
 function containedFilePath(rootDir: string, urlPath: string): string | null {
 	let decoded: string;
 	try {

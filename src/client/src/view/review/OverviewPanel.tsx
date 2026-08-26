@@ -4,21 +4,13 @@ import { useMemo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Collapsible } from "../layout/Collapsible";
+import {
+	linkTopicMentions,
+	topicFromHref,
+} from "./explanations/overviewTopicMentions";
+import { TopicChip } from "./explanations/TopicChip";
 import styles from "./OverviewPanel.module.css";
-import { linkTopicMentions, topicFromHref } from "./overviewTopicMentions";
-import { TopicChip } from "./TopicChip";
 
-/**
- * The pass's lede, above the diff (TASK-042, REQ-003): the business-level
- * prose first, then the verdict as the closing line under it, colored by
- * the scope check's outcome so the conclusion reads at a glance. Read once,
- * then folded away — the diff is the workspace, so the whole account
- * collapses to a single line that keeps the verdict visible.
- *
- * The overview is markdown, not text. The agent writes paragraphs separated
- * by blank lines and backticks around names worth going to look for, and
- * without a renderer both arrive as literal characters in a single wall.
- */
 export function OverviewPanel({
 	pass,
 	topicColors,
@@ -27,16 +19,11 @@ export function OverviewPanel({
 	onToggleFold,
 }: {
 	pass: ReviewPassDto;
-	/** each topic label's palette slot (topicColors.ts) */
 	topicColors: ReadonlyMap<string, number>;
-	/** an inline topic chip toggles the highlight on its balloons */
 	onToggleTopic(label: string): void;
 	folded: boolean;
 	onToggleFold(): void;
 }) {
-	// the prompt asks the agent to mention each topic label verbatim; the
-	// mention renders as that topic's colored chip, tying the summary to
-	// the balloons wearing the same color on the diff
 	const overview = useMemo(
 		() => linkTopicMentions(pass.overview, [...topicColors.keys()]),
 		[pass.overview, topicColors],

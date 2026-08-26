@@ -3,12 +3,11 @@ import { devNull, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { exec } from "../../src/infrastructure/git/exec";
 
-/**
- * Env for every git command a fixture runs: user config is blanked so the
- * machine's gitconfig cannot shape fixture content, and identity comes from
- * env so commits work on a bare CI runner.
- */
 const FIXTURE_GIT_ENV = {
+	GIT_DIR: undefined,
+	GIT_WORK_TREE: undefined,
+	GIT_INDEX_FILE: undefined,
+	GIT_PREFIX: undefined,
 	GIT_CONFIG_GLOBAL: devNull,
 	GIT_CONFIG_SYSTEM: devNull,
 	GIT_AUTHOR_NAME: "Fixture",
@@ -20,30 +19,20 @@ const FIXTURE_GIT_ENV = {
 
 export interface FixtureRepo {
 	readonly root: string;
-	/** run git inside the repo with the fixture env; returns stdout */
 	git(args: readonly string[]): Promise<string>;
 	write(relativePath: string, content: string | Buffer): Promise<void>;
 	remove(relativePath: string): Promise<void>;
-	/** `git add -A` + commit; returns the new head sha */
 	commitAll(message: string): Promise<string>;
 	headSha(): Promise<string>;
-	/** clone this repo into a fresh temp dir (sets origin and origin/HEAD) */
 	clone(): Promise<FixtureRepo>;
 	dispose(): Promise<void>;
 }
 
 export interface FixtureRepoOptions {
-	/** branch name for `git init -b`; default "main" */
 	defaultBranch?: string;
-	/** create the initial README commit; default true */
 	initialCommit?: boolean;
 }
 
-/**
- * A real git repository in a temp directory — the adapter tests' ground
- * truth. Compose commits, branches, renames, binary files, and dirty state
- * through the returned handle.
- */
 export async function createFixtureRepo(
 	options: FixtureRepoOptions = {},
 ): Promise<FixtureRepo> {
@@ -57,7 +46,7 @@ export async function createFixtureRepo(
 	const repo = makeHandle(root);
 	if (options.initialCommit !== false) {
 		await repo.write("README.md", "# fixture\n");
-		await repo.commitAll("initial commit");
+		await commitEverything(root, "initial commit");
 	}
 	return repo;
 }
@@ -77,12 +66,11 @@ function makeHandle(root: string): FixtureRepo {
 		remove: (relativePath) => unlink(join(root, relativePath)),
 
 		commitAll: async (message) => {
-			await runGit(root, ["add", "-A"]);
-			await runGit(root, ["commit", "--quiet", "-m", message]);
-			return repo.headSha();
+			await commitEverything(root, message);
+			return readHeadSha(root);
 		},
 
-		headSha: async () => (await runGit(root, ["rev-parse", "HEAD"])).trim(),
+		headSha: () => readHeadSha(root),
 
 		clone: async () => {
 			const cloneRoot = await mkdtemp(join(tmpdir(), "prreview-fixture-"));
@@ -95,6 +83,15 @@ function makeHandle(root: string): FixtureRepo {
 		dispose: () => rm(root, { recursive: true, force: true }),
 	};
 	return repo;
+}
+
+async function commitEverything(root: string, message: string): Promise<void> {
+	await runGit(root, ["add", "-A"]);
+	await runGit(root, ["commit", "--quiet", "-m", message]);
+}
+
+async function readHeadSha(root: string): Promise<string> {
+	return (await runGit(root, ["rev-parse", "HEAD"])).trim();
 }
 
 function runGit(cwd: string, args: readonly string[]): Promise<string> {
