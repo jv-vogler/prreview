@@ -18,10 +18,10 @@ import { effectiveBody, isDeleted } from "../../domain/finding/curation";
 import { findingIndexFor } from "../../domain/finding/findingId";
 import type { ReviewFinding } from "../../domain/pass/ReviewPass";
 import type { FindingEdit } from "../../domain/pass/StoredReview";
+import type { RunContext, RunJob, RunOutcome } from "../../domain/run/Run";
 import type { RunProgressUpdate } from "../../domain/run/RunProgress";
 import type { Engine } from "../ports/Engine";
 import type { Git } from "../ports/Git";
-import type { RunContext, RunJob, RunOutcome } from "../ports/RunManager";
 import type { SessionStore } from "../ports/SessionStore";
 import { runEngineTask } from "./runEngineTask";
 

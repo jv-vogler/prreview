@@ -1,9 +1,9 @@
 import type { TaskInput, TaskSpec } from "../../domain/agentTask/TaskSpec";
 import type { EngineEvent } from "../../domain/run/EngineEvent";
+import type { RunContext, RunOutcome } from "../../domain/run/Run";
 import type { RunProgressUpdate } from "../../domain/run/RunProgress";
 import { describeToolActivity } from "../../domain/run/RunProgress";
 import type { Engine } from "../ports/Engine";
-import type { RunContext, RunOutcome } from "../ports/RunManager";
 
 export interface EngineTaskDeps {
 	engine: Engine;

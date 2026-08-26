@@ -46,3 +46,22 @@ export interface RunEvent {
 	type: RunEventType;
 	run: Run;
 }
+
+export type RunJob = (context: RunContext) => Promise<RunOutcome>;
+
+export interface RunContext {
+	runId: string;
+	signal: AbortSignal;
+}
+
+export type RunOutcome =
+	| { ok: true; result?: string }
+	| ({ ok: false } & RunFailure);
+
+export type RunMeta =
+	| { kind: "review" }
+	| { kind: "rework"; findingId: string };
+
+export type StartResult =
+	| { kind: "started"; runId: string }
+	| { kind: "conflict"; existingRunId: string };

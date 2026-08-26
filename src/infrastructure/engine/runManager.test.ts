@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { RunJob, RunManager } from "../../application/ports/RunManager";
-import type { RunEvent } from "../../domain/run/Run";
+import type { RunManager } from "../../application/ports/RunManager";
+import type { RunEvent, RunJob } from "../../domain/run/Run";
 import { createRunManager } from "./runManager";
 
 function deferred<T>(): {

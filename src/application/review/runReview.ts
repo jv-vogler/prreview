@@ -28,11 +28,11 @@ import type {
 	StoredReview,
 } from "../../domain/pass/StoredReview";
 import { diffStatusResidue } from "../../domain/run/diffStatusResidue";
+import type { RunContext, RunOutcome } from "../../domain/run/Run";
 import type { RunProgressUpdate } from "../../domain/run/RunProgress";
 import type { Engine } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { GithubService } from "../ports/GithubService";
-import type { RunContext, RunOutcome } from "../ports/RunManager";
 import type { SessionStore } from "../ports/SessionStore";
 import { runEngineTask } from "./runEngineTask";
 

@@ -1,4 +1,4 @@
-import type { Run, RunFailure } from "../../domain/run/Run";
+import type { Run, RunJob, RunMeta, StartResult } from "../../domain/run/Run";
 import type { RunProgressUpdate } from "../../domain/run/RunProgress";
 
 export interface RunManager {
@@ -9,22 +9,3 @@ export interface RunManager {
 	get(runId: string): Run | undefined;
 	current(): Run | null;
 }
-
-export type RunJob = (context: RunContext) => Promise<RunOutcome>;
-
-export interface RunContext {
-	runId: string;
-	signal: AbortSignal;
-}
-
-export type RunOutcome =
-	| { ok: true; result?: string }
-	| ({ ok: false } & RunFailure);
-
-export type RunMeta =
-	| { kind: "review" }
-	| { kind: "rework"; findingId: string };
-
-export type StartResult =
-	| { kind: "started"; runId: string }
-	| { kind: "conflict"; existingRunId: string };
