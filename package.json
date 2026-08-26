@@ -20,7 +20,7 @@
 		"url": "git+https://github.com/jv-vogler/prreview.git"
 	},
 	"license": "MIT",
-	"author": "Jo\u00e3o Vogler",
+	"author": "João Vogler",
 	"type": "module",
 	"bin": {
 		"prreview": "./dist/cli.js"
@@ -43,7 +43,7 @@
 		"unlink": "npm unlink -g @jv-vogler/prreview",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
-		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input && node scripts/check-dto-imports.mjs",
+		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input && node scripts/check-dto-imports.mjs && node scripts/check-layering.mjs",
 		"typecheck": "tsc -b",
 		"prepack": "npm run build",
 		"prepare": "husky",
