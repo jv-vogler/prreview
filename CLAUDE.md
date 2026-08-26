@@ -9,26 +9,85 @@ workspace on localhost for PRs, branches, commit ranges, and working-tree change
 intelligence comes from the user's own `claude` CLI, driven as a short-lived child process —
 never a raw API call — so the agent does its own repo grounding.
 
-**Currently mid-rewrite.** The previous implementation (three tabs: Understanding, Diff,
-Suggested comments) is being redesigned from a fresh mental model, and `src/` is presently empty.
-The old implementation is preserved for reference only, on disk, in the gitignored `legacy/`
-directory (mirrors this repo's old root: `legacy/src`, `legacy/test`, `legacy/docs`, old
-`PRODUCT.md`/`ARCHITECTURE.md`/`README.md`, etc.), and in full at the `pre-rewrite` git tag. Copy
-specific files out of `legacy/` deliberately when something there is worth keeping — do not let
-its patterns leak into new code by proximity, and do not treat anything under `legacy/` as
-current design or as a source of conventions to follow.
+## Where a file goes
 
-## Architecture (carries forward)
+**A module lives in `application/` if and only if it takes a port. No port, no I/O → `domain/`.**
+Ports declare behaviour, never data shapes: the nouns live in `domain/`, and a port method
+returns one.
 
-Layering, on both server (`src/`) and client (`src/client/src/`): `domain/` is pure — no I/O, no
-child processes, no React; `application/` holds one use-case per file orchestrating domain code
-through `ports/` (interfaces only); `infrastructure/` implements those ports; `interface/`
-(server: CLI + HTTP) / `view/` + `pages/` (client) are the only ways in, and the only places
-errors are handled. No `types/` folder anywhere — types live with the layer that owns them.
+`domain/` is organised by the thing it describes, not by the feature that uses it. "Review" is a
+context, not an entity — a folder named for it collects everything and explains nothing.
+
+| Folder | Holds |
+| --- | --- |
+| `domain/changeset/` | the diff: parsing, ids, line index, blob refs, placing a range on it |
+| `domain/finding/` | one finding: its id, its curation, its effective form |
+| `domain/explanation/` | one explanation: its id, its effective form, its topic |
+| `domain/pass/` | the stored artifact: the pass shape, the checkpoint, the reuse plan |
+| `domain/run/` | one agent execution: progress, itinerary, residue |
+| `domain/agentTask/` | how we ask an agent for a pass: prompt, contract, output schema, budgets |
+| `application/ports/` | interfaces only |
+| `application/` | one use-case per file, orchestrating domain code through ports |
+| `infrastructure/` | port implementations |
+| `interface/` (server), `view/` + `pages/` (client) | the only ways in, and the only places errors are handled |
+
+`domain/agentTask/` is pure and exists only because the `Engine` port does. That is a third
+category, not a use-case: it constructs a request, it never issues one.
+
+The client mirrors this. `client/src/domain/` splits by the same entities; `view/review/` splits
+by feature (`comments/`, `explanations/`, `run/`). A component moves to a `shared/` folder when a
+second feature actually imports it, never in anticipation — two things with the same noun in
+their name are usually not the same thing.
+
+No `types/` folder anywhere; types live with the layer that owns them.
 
 `src/interface/http/dto/` is the only shared code between server and client: zod schemas +
-`z.infer` types, importing nothing but zod (and in-folder siblings). Enforced by
-`scripts/check-dto-imports.mjs` in `npm run lint`.
+`z.infer` types, importing nothing but zod (and in-folder siblings).
+
+Enforced by `scripts/check-layering.mjs` and `scripts/check-dto-imports.mjs` in `npm run lint`.
+If a rule here is not in one of those scripts, it is because it could not be mechanised — not
+because it is optional.
+
+## Copy these
+
+Precedent beats prose. When shape is in question, follow the file, not the paragraph:
+
+- a pure domain module: `src/domain/changeset/placeOnDiff.ts`
+- a use-case that takes ports: `src/application/review/runReview.ts`
+- a port implementation: `src/infrastructure/store/SessionStore.ts`
+- an enforcement script: `scripts/check-dto-imports.mjs`
+
+## How code is written
+
+- **Comments say why.** A comment narrating the line below it is noise, and the fix is a better
+  name. Keep named constants, drop restatement.
+- **One name per concept**, everywhere it appears — domain, wire, and UI.
+- **Return early.** Guard clauses over nesting. Never nest ternaries.
+- **No magic numbers**, but a literal inside an already-named constant is not one, and neither is
+  an HTTP status code. Deliberately not linted: biome's `noMagicNumbers` flags about twenty of
+  those for every four real ones, and a rule that cries wolf gets ignored wholesale.
+- **Keep a function under 15 cognitive complexity.** Enforced by biome's
+  `noExcessiveCognitiveComplexity`.
+- **Tests are colocated** (`x.test.ts` beside `x.ts`) and named for the behaviour, not the
+  function.
+
+## Practices
+
+- Commit small and green. Pre-commit formats what is staged, then runs `typecheck`, `lint` and
+  the whole suite over the whole repo (~6s). CI runs the same plus coverage and e2e.
+- Coverage has a floor that only moves up (`vitest.config.ts`). Lowering it is not a fix.
+- Never `--no-verify`. If a hook is wrong, fix the hook.
+- A change that both moves a file and edits it is unreviewable. Moves are their own commit.
+- Delete on sight: dead code, stale docs, obsolete plans. There is no archive folder.
+
+## When this file and the code disagree
+
+Match the surrounding code, **and say so in one sentence.** Silent conformity is how every rule
+above got broken the first time: a plan named a path, the code followed it, and the next session
+read the code instead of this file. Flagging costs one line and is never wrong.
+
+The same applies to a plan or task list that assigns a file to a layer. That assignment is an
+architecture decision; check it against the table above before implementing it, not after.
 
 ## Commands
 

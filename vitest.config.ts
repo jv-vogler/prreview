@@ -3,6 +3,23 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	test: {
+		coverage: {
+			provider: "v8",
+			include: ["src/**"],
+			exclude: [
+				"src/**/*.test.{ts,tsx}",
+				"src/client/src/main.tsx",
+				"src/client/src/vite-env.d.ts",
+			],
+			// a ratchet, not a target: these are the numbers the suite already
+			// hits, so they can only ever be raised
+			thresholds: {
+				statements: 73,
+				branches: 63,
+				functions: 70,
+				lines: 73,
+			},
+		},
 		projects: [
 			{
 				test: {
