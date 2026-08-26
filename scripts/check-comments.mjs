@@ -97,8 +97,14 @@ function comments(text, css) {
 	return found;
 }
 
+function rootConfigFiles() {
+	return readdirSync(ROOT, { withFileTypes: true })
+		.filter((entry) => entry.isFile() && SOURCE_FILE.test(entry.name))
+		.map((entry) => join(ROOT, entry.name));
+}
+
 function sourceFiles() {
-	const found = [];
+	const found = rootConfigFiles();
 	for (const root of ROOTS) {
 		for (const entry of readdirSync(join(ROOT, root), {
 			recursive: true,
