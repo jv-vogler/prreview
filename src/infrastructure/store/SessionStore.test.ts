@@ -119,7 +119,7 @@ describe("SessionStore", () => {
 		expect((await store.loadReview("worktree"))?.createdAt).toBe("t2");
 	});
 
-	it("defaults findingEdits and published for a review.json written before TASK-046/050", async () => {
+	it("defaults findingEdits and published for a review.json written before either existed", async () => {
 		const sessionDir = join(dataDir, "sessions", "worktree");
 		await mkdir(sessionDir, { recursive: true });
 		await writeFile(

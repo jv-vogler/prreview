@@ -89,7 +89,7 @@ describe("RunStatusBar", () => {
 		expect(screen.getByRole("button", { name: /try again/i })).toBeTruthy();
 	});
 
-	it("shows residue left behind by a successful run (SEC-003/TASK-030)", () => {
+	it("shows residue left behind by a successful run", () => {
 		const run: RunDto = {
 			id: "run-1",
 			kind: "review",

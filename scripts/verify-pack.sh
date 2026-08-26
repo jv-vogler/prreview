@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Packaging verification (TASK-054): prove the tarball npm would publish
+# Packaging verification: prove the tarball npm would publish
 # contains exactly what it should, installs cleanly, and actually serves.
 #
 #   1. npm pack (runs prepack = full build)

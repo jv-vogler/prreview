@@ -1,5 +1,11 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import {
+	closeSync,
+	openSync,
+	readdirSync,
+	readFileSync,
+	readSync,
+} from "node:fs";
+import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -16,6 +22,22 @@ const DIRECTIVES = [
 ];
 
 const REGEX_PRECEDERS = new Set("(,=:[!&|?{};+-*%~^<>".split(""));
+
+const NODE_SHEBANG = "#!/usr/bin/env node";
+
+function isNodeScript(path) {
+	if (extname(path) !== "") {
+		return false;
+	}
+	const handle = openSync(path, "r");
+	try {
+		const head = Buffer.alloc(NODE_SHEBANG.length);
+		readSync(handle, head, 0, head.length, 0);
+		return head.toString("utf8") === NODE_SHEBANG;
+	} finally {
+		closeSync(handle);
+	}
+}
 
 function endOfQuoted(text, start, quote) {
 	let at = start + 1;
@@ -110,10 +132,12 @@ function sourceFiles() {
 			recursive: true,
 			withFileTypes: true,
 		})) {
-			const mock =
-				entry.name === "claude" && entry.parentPath.includes("mock-agent");
-			if (entry.isFile() && (SOURCE_FILE.test(entry.name) || mock)) {
-				found.push(join(entry.parentPath, entry.name));
+			if (!entry.isFile()) {
+				continue;
+			}
+			const path = join(entry.parentPath, entry.name);
+			if (SOURCE_FILE.test(entry.name) || isNodeScript(path)) {
+				found.push(path);
 			}
 		}
 	}

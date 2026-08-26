@@ -14,7 +14,7 @@ export function assertSchemaFitsArgv(json: string): void {
 	const bytes = Buffer.byteLength(json, "utf8");
 	if (bytes > ARGV_SAFE_SCHEMA_BYTES) {
 		throw new Error(
-			`inline --json-schema is ${bytes} bytes, over the ${ARGV_SAFE_SCHEMA_BYTES}-byte argv budget (CON-003)`,
+			`inline --json-schema is ${bytes} bytes, over the ${ARGV_SAFE_SCHEMA_BYTES}-byte argv budget`,
 		);
 	}
 }

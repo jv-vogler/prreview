@@ -36,7 +36,7 @@ function actions(overrides: Partial<FindingActions> = {}): FindingActions {
 }
 
 describe("FindingBalloon", () => {
-	it("commits an edit on blur (TASK-047)", () => {
+	it("commits an edit on blur", () => {
 		const onEdit = vi.fn();
 		render(
 			<FindingBalloon
@@ -110,7 +110,7 @@ describe("FindingBalloon", () => {
 		expect(screen.queryByText("Nitpick")).toBeNull();
 	});
 
-	it("hides the rework control entirely when no agent is available (REQ-009)", () => {
+	it("hides the rework control entirely when no agent is available", () => {
 		render(
 			<FindingBalloon
 				finding={COMMENT}

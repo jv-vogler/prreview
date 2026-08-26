@@ -55,7 +55,7 @@ function isAllowed(specifier, filePath) {
 
 if (violations.length > 0) {
 	console.error(
-		"The wire contract (src/interface/http/dto) may import nothing but zod (CON-002):",
+		"The wire contract (src/interface/http/dto) may import nothing but zod:",
 	);
 	for (const violation of violations) {
 		console.error(`  ${violation}`);

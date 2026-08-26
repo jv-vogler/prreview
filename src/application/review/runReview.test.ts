@@ -381,7 +381,7 @@ describe("buildReviewJob", () => {
 		expect(prompt).not.toContain("### Conversation on GitHub");
 	});
 
-	it("reports the run's own residue (TASK-030)", async () => {
+	it("reports the run's own residue", async () => {
 		const engine = new FakeEngine();
 		engine.events = [
 			{

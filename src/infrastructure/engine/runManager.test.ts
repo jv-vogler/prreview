@@ -27,7 +27,7 @@ describe("createRunManager", () => {
 		expect(events[0]).toMatchObject({ type: "run.queued" });
 	});
 
-	it("rejects a second start while one run is active (TASK-033)", () => {
+	it("rejects a second start while one run is active", () => {
 		const manager = createRunManager({ publish: () => {} });
 		const gate = deferred<void>();
 		const job: RunJob = () => gate.promise.then(() => ({ ok: true }));

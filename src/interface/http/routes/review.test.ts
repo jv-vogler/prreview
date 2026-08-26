@@ -61,7 +61,7 @@ function testApp(
 }
 
 describe("POST /api/review", () => {
-	it("answers 503 agent-missing when no agent is on PATH (REQ-009)", async () => {
+	it("answers 503 agent-missing when no agent is on PATH", async () => {
 		const { app } = testApp(null);
 		const response = await app.request("/api/review", { method: "POST" });
 		expect(response.status).toBe(503);
@@ -159,7 +159,7 @@ describe("GET /api/review", () => {
 		});
 	});
 
-	it("surfaces residue left behind by a successful run (SEC-003/TASK-030)", async () => {
+	it("surfaces residue left behind by a successful run", async () => {
 		const engine = new FakeEngine();
 		engine.events = [
 			{
@@ -190,7 +190,7 @@ describe("GET /api/review", () => {
 		expect(body.pass?.residue).toEqual(["scratch-test.ts"]);
 	});
 
-	it("places each finding against the diff on screen (TASK-041)", async () => {
+	it("places each finding against the diff on screen", async () => {
 		const file: FileDiff = {
 			id: "file-1",
 			path: "src/greeting.ts",
@@ -337,7 +337,7 @@ async function appWithOneFinding(
 	return { app, container, githubService };
 }
 
-describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
+describe("PATCH /api/review/comments/:id", () => {
 	it("overwrites the body and answers the recomputed pass", async () => {
 		const { app } = await appWithOneFinding();
 		const response = await app.request("/api/review/comments/finding-0", {
@@ -379,7 +379,7 @@ describe("PATCH /api/review/comments/:id (TASK-046, TASK-047)", () => {
 	});
 });
 
-describe("DELETE /api/review/comments/:id and .../restore (TASK-046, TASK-047)", () => {
+describe("DELETE /api/review/comments/:id and .../restore", () => {
 	it("marks a comment deleted rather than removing it, then restore clears that", async () => {
 		const { app } = await appWithOneFinding();
 		const deleted = await app.request("/api/review/comments/finding-0", {
@@ -407,7 +407,7 @@ describe("DELETE /api/review/comments/:id and .../restore (TASK-046, TASK-047)",
 	});
 });
 
-describe("POST /api/review/comments/:id/rework (TASK-048)", () => {
+describe("POST /api/review/comments/:id/rework", () => {
 	it("starts a run and answers 202 with a runId", async () => {
 		const { app } = await appWithOneFinding();
 		const response = await app.request(
@@ -465,7 +465,7 @@ const GREETING_FILE: FileDiff = {
 	],
 };
 
-describe("POST /api/review/publish (TASK-050, TASK-053)", () => {
+describe("POST /api/review/publish", () => {
 	it("publishes the review-lane comments and answers the recomputed pass", async () => {
 		const { app, githubService } = await appWithOneFinding({
 			source: PR_SOURCE,

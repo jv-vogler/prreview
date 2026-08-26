@@ -198,7 +198,7 @@ describe("ClaudeEngine", () => {
 		});
 	});
 
-	it("delivers the prompt on stdin, never as an argv member (SEC-002)", async () => {
+	it("delivers the prompt on stdin, never as an argv member", async () => {
 		withFixture(shim, "success.jsonl");
 		const logPath = `${FIXTURES_DIR}../claude-invocation.log`;
 		process.env.FAKE_CLAUDE_LOG = logPath;

@@ -15,3 +15,9 @@ Re-verify after a major bump of either.
   wipes all of `dist/` — measured with a marker file in `dist/client/`, which survives the narrow
   clean and does not survive the default one. The ordering inside `npm run build` hides this;
   running `npx tsdown` on its own after a client build is where it bites.
+
+- **An extensionless script loads as CommonJS whatever `package.json` says.** The root sets
+  `"type": "module"`, but Node decides module kind from the file extension, and a file with no
+  extension has none to read — so `test/bin/claude` and `scripts/mock-agent/claude` are `require`
+  files on purpose, not by oversight. Giving either a `.js` name would flip it to ESM and break it;
+  `.cjs` would work but then the file could not be the bare `claude` a PATH shim needs.
