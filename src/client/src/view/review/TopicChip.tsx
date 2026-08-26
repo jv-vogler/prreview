@@ -10,16 +10,20 @@ export function TopicChip({
 	label,
 	color,
 	pressed,
+	wrap,
 	onToggle,
 }: {
 	label: string;
 	color?: number;
 	pressed?: boolean;
+	/** a label is a clause, so anywhere with room lets it take a second line */
+	wrap?: boolean;
 	onToggle?(): void;
 }) {
+	const className = wrap ? `${styles.chip} ${styles.wrapped}` : styles.chip;
 	if (onToggle === undefined) {
 		return (
-			<span className={styles.chip} data-topic-color={color}>
+			<span className={className} data-topic-color={color}>
 				{label}
 			</span>
 		);
@@ -27,7 +31,7 @@ export function TopicChip({
 	return (
 		<button
 			type="button"
-			className={styles.chip}
+			className={className}
 			data-topic-color={color}
 			aria-pressed={pressed}
 			onClick={onToggle}

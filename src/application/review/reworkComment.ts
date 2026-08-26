@@ -5,7 +5,7 @@ import {
 	describeToolActivity,
 	type RunProgressUpdate,
 } from "../../domain/review/RunProgress";
-import { findingIndexForCommentId } from "../../domain/review/reviewCommentId";
+import { findingIndexForComment } from "../../domain/review/reviewCommentId";
 import type { Engine, EngineResultEvent } from "../ports/Engine";
 import type { Git } from "../ports/Git";
 import type { RunContext, RunJob, RunOutcome } from "../ports/RunManager";
@@ -69,7 +69,7 @@ export function buildReworkJob(
 		if (stored === null) {
 			throw new Error("no review pass exists for this changeset yet");
 		}
-		const index = findingIndexForCommentId(input.commentId);
+		const index = findingIndexForComment(stored, input.commentId);
 		const finding: ReviewFinding | undefined =
 			index === null ? undefined : stored.pass.findings[index];
 		if (finding === undefined) {
@@ -165,7 +165,7 @@ function buildReworkPrompt(input: ReworkPromptInput): string {
 		"## The comment as it stands",
 		"",
 		`Path: ${input.finding.path}, lines ${input.finding.startLine}-${input.finding.endLine}`,
-		`Tier: ${input.finding.tier}`,
+		`Tier: ${input.finding.kind === "question" ? "none (this comment is a question, not a defect)" : input.finding.tier}`,
 		`Title: ${input.finding.title}`,
 		`Current body: ${input.currentBody}`,
 		...(input.finding.evidence === undefined
@@ -180,6 +180,6 @@ function buildReworkPrompt(input: ReworkPromptInput): string {
 		"",
 		REWORK_INSTRUCTION_PROMPT[input.instruction],
 		"",
-		"Re-check the finding is still accurate against the code above before rewriting; if it no longer holds, say so plainly in the reworded body rather than silently softening it. Keep the same pasteable discipline as the original review: the alert block plus at most two sentences, ≤500 characters, never hard-wrapped. Return only the reworded `body`.",
+		"Re-check the finding is still accurate against the code above before rewriting; if it no longer holds, say so plainly in the reworded body rather than silently softening it. Keep the same pasteable discipline as the original review: a defect keeps its alert block plus at most two sentences, a question keeps the question itself and no alert block, and either way it stays ≤500 characters and is never hard-wrapped. Return only the reworded `body`.",
 	].join("\n");
 }

@@ -1,5 +1,11 @@
+/*
+ * The last line of the last file should not end flush against the window:
+ * the reader is usually looking at a card or a balloon anchored to it, and
+ * both need room under them to be read.
+ */
 .codeView {
 	height: 100%;
 	overflow: auto;
+	padding-bottom: var(--base-size-48);
 	background: var(--bgColor-default);
 }

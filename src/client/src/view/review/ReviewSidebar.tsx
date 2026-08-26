@@ -9,6 +9,8 @@ import styles from "./ReviewSidebar.module.css";
 type SidebarTab = "comments" | "explanations";
 
 export interface ReviewSidebarProps {
+	/** the reader's own width for this panel, dragged on the seam beside it */
+	width: number;
 	comments: readonly ReviewCommentDto[];
 	explanations: readonly ExplanationDto[];
 	expandedCommentIds: ReadonlySet<string>;
@@ -28,6 +30,7 @@ export interface ReviewSidebarProps {
  * modes — triaging and orienting — and never wanted on screen together.
  */
 export function ReviewSidebar({
+	width,
 	comments,
 	explanations,
 	expandedCommentIds,
@@ -41,7 +44,11 @@ export function ReviewSidebar({
 	const [tab, setTab] = useState<SidebarTab>("comments");
 	const active: SidebarTab = explanations.length === 0 ? "comments" : tab;
 	return (
-		<aside className={styles.panel} aria-label="Review sidebar">
+		<aside
+			className={styles.panel}
+			style={{ width }}
+			aria-label="Review sidebar"
+		>
 			{explanations.length > 0 ? (
 				<div className={styles.tabs} role="tablist">
 					<Tab

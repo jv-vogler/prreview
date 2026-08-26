@@ -20,6 +20,7 @@ function storedReview(): StoredReview {
 					path: "src/a.ts",
 					startLine: 1,
 					endLine: 1,
+					kind: "defect",
 					tier: "nitpick",
 					title: "t",
 					body: "original body",
@@ -112,5 +113,37 @@ describe("applyCommentOps", () => {
 				commentId: "finding-0",
 			}),
 		).rejects.toMatchObject({ reason: "no-review" });
+	});
+
+	it("edits the finding a stored id names, not the one at that position", async () => {
+		const store = new FakeSessionStore();
+		const stored = storedReview();
+		const carried = { ...stored.pass.findings[0], body: "the carried one" };
+		await store.saveReview({
+			...stored,
+			pass: { ...stored.pass, findings: [stored.pass.findings[0], carried] },
+			findingIds: ["finding-3", "finding-0"],
+		});
+
+		const updated = await applyCommentOps(
+			{ sessionStore: store },
+			CHANGESET_ID,
+			{ kind: "edit", commentId: "finding-0", body: "reworded" },
+		);
+
+		expect(updated.commentEdits).toEqual({ "finding-0": { body: "reworded" } });
+	});
+
+	it("rejects a position that a pass carrying its own ids never named", async () => {
+		const store = new FakeSessionStore();
+		const stored = storedReview();
+		await store.saveReview({ ...stored, findingIds: ["finding-3"] });
+
+		await expect(
+			applyCommentOps({ sessionStore: store }, CHANGESET_ID, {
+				kind: "delete",
+				commentId: "finding-0",
+			}),
+		).rejects.toMatchObject({ reason: "comment-not-found" });
 	});
 });

@@ -11,6 +11,28 @@ import { z } from "zod";
 const TIER = ["blocker", "should-fix", "suggestion", "nitpick"] as const;
 
 /**
+ * A finding either claims something is wrong or asks the author why. A
+ * question carries no `tier` because the ladder measures how bad something
+ * is, and a question has no badness; the union below is what keeps those two
+ * facts from drifting apart. A finding that names no kind at all reads as a
+ * defect, which is every pass written before questions existed.
+ */
+const KIND = ["defect", "question"] as const;
+
+/**
+ * Whether an explanation's reason was read or reconstructed. Never
+ * rendered: it exists to mark where an explanation stops and a question
+ * starts, and is stored on the pass so it stays minable later.
+ */
+const GROUNDING = ["code", "inferred"] as const;
+
+/**
+ * What a re-checked carried finding came back as. `resolved` drops it from
+ * the pass and credits the fix; `stands` keeps it, re-verified.
+ */
+const CARRIED_VERDICT = ["stands", "resolved"] as const;
+
+/**
  * `review` findings are feedback on this change; `pre-existing` findings
  * predate it. The split is a schema field, not a flag, because it has to
  * survive every downstream step: a pre-existing finding must never become a
@@ -47,8 +69,11 @@ const TICKET_MAX = 300;
 const MAX_FINDINGS = 40;
 const SAYS_LINE_MAX = 160;
 const SAYS_LINES_MAX = 3;
-const TOPIC_MAX = 60;
+/** a clause, not a category: enough for "Questions get their own count and are never tiered" */
+const TOPIC_MAX = 110;
 const MAX_EXPLANATIONS = 120;
+/** one clause saying why a carried finding no longer holds, not a second review */
+const CARRIED_WHY_MAX = 240;
 
 /**
  * The lengths are a budget the engine is held to as it writes a pass, not an
@@ -64,12 +89,21 @@ function bounded(max: number, enforce: boolean) {
 	return enforce ? z.string().max(max) : z.string();
 }
 
+/**
+ * A union on `kind`, not one object with a rule bolted on afterwards. The
+ * shape reaches the CLI as `oneOf` in `--json-schema`, so a tier-less defect
+ * or a tiered question is caught where the CLI still has a turn to fix it,
+ * rather than at `parse` time after the run, where the only outcome left is
+ * discarding the whole pass.
+ *
+ * A finding with no `kind` at all reads as a defect: that is every pass
+ * written before questions existed, and it must keep loading off disk.
+ */
 function buildFindingSchema(enforce: boolean) {
-	return z.object({
+	const shared = {
 		path: z.string().min(1),
 		startLine: z.int().min(1),
 		endLine: z.int().min(1),
-		tier: z.enum(TIER),
 		/** plain-language scan aid for the reviewer's list; never published */
 		title: bounded(TITLE_MAX, enforce),
 		/** the alert block plus the pasteable paragraph — never restates the diff */
@@ -81,7 +115,32 @@ function buildFindingSchema(enforce: boolean) {
 		/** true when `proof` describes something actually run, not inferred */
 		verified: z.boolean(),
 		lane: z.enum(LANE),
-	});
+		/**
+		 * The other files opened to convince yourself this finding is real.
+		 * A later pass re-checks a carried finding only when one of these has
+		 * moved, so a finding that names none has to be re-checked from
+		 * scratch every time.
+		 */
+		dependsOn: z.array(z.string()).optional(),
+	};
+	return z.preprocess(
+		defaultToDefect,
+		z.discriminatedUnion("kind", [
+			z.object({
+				kind: z.literal("defect"),
+				tier: z.enum(TIER),
+				...shared,
+			}),
+			z.object({ kind: z.literal("question"), ...shared }),
+		]),
+	);
+}
+
+function defaultToDefect(finding: unknown): unknown {
+	if (typeof finding !== "object" || finding === null || "kind" in finding) {
+		return finding;
+	}
+	return { ...finding, kind: "defect" };
 }
 
 /**
@@ -98,8 +157,10 @@ function buildExplanationSchema(enforce: boolean) {
 		endLine: z.int().min(1),
 		/** one sentence per entry — what the diff cannot say on its own */
 		says: enforce ? says.max(SAYS_LINES_MAX) : says,
-		/** short plain-language label; explanations sharing a label form one topic */
+		/** a clause saying what changed; explanations sharing a label form one topic */
 		topic: bounded(TOPIC_MAX, enforce).optional(),
+		/** read the reason, or reconstructed it — never rendered, see GROUNDING */
+		grounding: z.enum(GROUNDING).default("inferred"),
 	});
 }
 
@@ -122,6 +183,20 @@ function buildPassSchema(enforce: boolean) {
 			? explanations.max(MAX_EXPLANATIONS)
 			: explanations
 		).default([]),
+		/**
+		 * One verdict per carried finding the prompt asked to have re-checked.
+		 * Absent on a pass that carried nothing, which is every full pass.
+		 */
+		carried: z
+			.array(
+				z.object({
+					id: z.string(),
+					verdict: z.enum(CARRIED_VERDICT),
+					/** one clause, for the verdict line's credit */
+					why: bounded(CARRIED_WHY_MAX, enforce).optional(),
+				}),
+			)
+			.optional(),
 	});
 }
 
@@ -138,6 +213,9 @@ export type ReviewPass = z.infer<typeof reviewPassSchema>;
 export type ReviewScope = (typeof SCOPE)[number];
 export type ReviewTier = (typeof TIER)[number];
 export type ReviewLane = (typeof LANE)[number];
+export type ReviewFindingKind = (typeof KIND)[number];
+export type CarriedVerdict = (typeof CARRIED_VERDICT)[number];
+export type ExplanationGrounding = (typeof GROUNDING)[number];
 
 export const REVIEW_TIERS: readonly ReviewTier[] = TIER;
 export const REVIEW_LANES: readonly ReviewLane[] = LANE;

@@ -1,7 +1,8 @@
 import type { PassFreshnessDto, ReviewPassDto } from "@dto/ReviewDto";
-import type { RunDto } from "@dto/RunDto";
+import type { ReviewStatusDto, RunDto } from "@dto/RunDto";
 import { serverEventSchema } from "@dto/ServerEvent";
 import { useCallback, useEffect, useState } from "react";
+import type { PostReviewOptions } from "../../infrastructure/endpoints/reviewRun";
 import {
 	cancelReviewRun,
 	getReviewRun,
@@ -29,7 +30,14 @@ export interface ReviewRunState {
 	 * server-authoritative artifact without a second `GET`.
 	 */
 	applyPass(pass: ReviewPassDto): void;
-	start(): void;
+	/**
+	 * Adopts a whole status answered by `POST /api/changeset/refresh`: the
+	 * freshness a re-review dialog states is only true of the changeset it
+	 * was computed against, so it arrives with that changeset rather than
+	 * being fetched separately afterwards.
+	 */
+	applyStatus(status: ReviewStatusDto): void;
+	start(options?: PostReviewOptions): void;
 	cancel(): void;
 }
 
@@ -84,22 +92,31 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		return () => clearInterval(timer);
 	}, [runStatus, refetch]);
 
-	const start = useCallback(() => {
-		setStarting(true);
-		setStartError(null);
-		postReviewRun(api).then(
-			(result) => {
-				setStarting(false);
-				if (result.kind === "conflict") {
-					setStartError(result.message);
-				}
-			},
-			(error: unknown) => {
-				setStarting(false);
-				setStartError(error instanceof Error ? error.message : String(error));
-			},
-		);
-	}, [api]);
+	const applyStatus = useCallback((status: ReviewStatusDto) => {
+		setRun(status.run);
+		setPass(status.pass);
+		setFreshness(status.freshness);
+	}, []);
+
+	const start = useCallback(
+		(options: PostReviewOptions = {}) => {
+			setStarting(true);
+			setStartError(null);
+			postReviewRun(api, options).then(
+				(result) => {
+					setStarting(false);
+					if (result.kind === "conflict") {
+						setStartError(result.message);
+					}
+				},
+				(error: unknown) => {
+					setStarting(false);
+					setStartError(error instanceof Error ? error.message : String(error));
+				},
+			);
+		},
+		[api],
+	);
 
 	const cancel = useCallback(() => {
 		void cancelReviewRun(api);
@@ -110,6 +127,7 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 		pass,
 		freshness,
 		applyPass: setPass,
+		applyStatus,
 		starting,
 		startError,
 		start,

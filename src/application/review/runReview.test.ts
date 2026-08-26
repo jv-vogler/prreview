@@ -8,6 +8,8 @@ import { buildReviewJob } from "./runReview";
 
 const FILES: FileDiff[] = [];
 
+const BASE_SHA = "a".repeat(40);
+
 const PASS = {
 	overview: "adds a greeting endpoint",
 	verdict: "matches the ticket",
@@ -31,6 +33,52 @@ function okResult() {
 
 function context(signal = new AbortController().signal) {
 	return { runId: "run-1", signal };
+}
+
+function passWith(...titles: string[]) {
+	return {
+		...PASS,
+		findings: titles.map((title) => ({
+			path: "src/a.ts",
+			startLine: 1,
+			endLine: 1,
+			kind: "defect",
+			tier: "nitpick",
+			title,
+			body: "x",
+			proof: "Inferred: x",
+			verified: false,
+			lane: "review",
+		})),
+	};
+}
+
+/** One completed pass over the same changeset, into the same store. */
+async function runPassProducing(
+	pass: unknown,
+	sessionStore: FakeSessionStore,
+): Promise<void> {
+	const engine = new FakeEngine();
+	engine.events = [{ ...okResult(), structuredOutput: pass }];
+	const job = buildReviewJob(
+		{
+			engine,
+			git: new FakeGit({ statusPorcelain: "" }),
+			sessionStore,
+			githubService: null,
+			report: () => {},
+		},
+		{
+			changesetId: "worktree",
+			announce: "reviewing",
+			files: FILES,
+			headSha: null,
+			baseSha: BASE_SHA,
+			source: { kind: "worktree" },
+			full: false,
+		},
+	);
+	expect(await job(context())).toEqual({ ok: true });
 }
 
 describe("buildReviewJob", () => {
@@ -66,7 +114,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing the working tree",
 				files: FILES,
 				headSha: null,
+				baseSha: BASE_SHA,
 				source: { kind: "worktree" },
+				full: false,
 			},
 		);
 		const outcome = await job(context());
@@ -113,7 +163,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: null,
+				baseSha: BASE_SHA,
 				source: { kind: "worktree" },
+				full: false,
 			},
 		);
 		await job(context());
@@ -146,7 +198,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: "abc123",
+				baseSha: BASE_SHA,
 				source: { kind: "pr", repo: "o/r", number: 7 },
+				full: false,
 			},
 		);
 		await job(context());
@@ -187,7 +241,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: "new",
+				baseSha: BASE_SHA,
 				source: { kind: "pr", repo: "o/r", number: 7 },
+				full: false,
 			},
 		);
 		await job(context());
@@ -218,11 +274,23 @@ describe("buildReviewJob", () => {
 						path: "src/greeting.ts",
 						startLine: 2,
 						endLine: 2,
+						kind: "defect",
 						tier: "should-fix",
 						title: "Greeting drops the name",
 						body: "engine wording",
 						proof: "Verified: ran it",
 						verified: true,
+						lane: "review",
+					},
+					{
+						path: "src/greeting.ts",
+						startLine: 2,
+						endLine: 2,
+						kind: "question",
+						title: "Why greet by first name only",
+						body: "Why only the first name here?",
+						proof: "Looked at the callers; none answer it.",
+						verified: false,
 						lane: "review",
 					},
 				],
@@ -260,7 +328,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: "new",
+				baseSha: BASE_SHA,
 				source: { kind: "pr", repo: "o/r", number: 7 },
+				full: false,
 			},
 		);
 		await job(context());
@@ -270,6 +340,10 @@ describe("buildReviewJob", () => {
 		expect(prompt).toContain("Greeting drops the name");
 		expect(prompt).toContain("reader wording");
 		expect(prompt).toContain("alice on src/greeting.ts:2");
+		// a prior question has no tier to print, and says so where the tier goes
+		expect(prompt).toContain(
+			"2. [finding-1] (question) Why greet by first name only",
+		);
 	});
 
 	it("re-reviews without the conversation when GitHub is unreachable", async () => {
@@ -298,7 +372,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: "new",
+				baseSha: BASE_SHA,
 				source: { kind: "pr", repo: "o/r", number: 7 },
+				full: false,
 			},
 		);
 		const outcome = await job(context());
@@ -335,7 +411,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: null,
+				baseSha: BASE_SHA,
 				source: { kind: "worktree" },
+				full: false,
 			},
 		);
 		await job(context());
@@ -367,7 +445,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: null,
+				baseSha: BASE_SHA,
 				source: { kind: "worktree" },
+				full: false,
 			},
 		);
 		const outcome = await job(context());
@@ -394,7 +474,9 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: null,
+				baseSha: BASE_SHA,
 				source: { kind: "worktree" },
+				full: false,
 			},
 		);
 		const outcome = await job(context());
@@ -429,11 +511,298 @@ describe("buildReviewJob", () => {
 				announce: "reviewing",
 				files: FILES,
 				headSha: null,
+				baseSha: BASE_SHA,
 				source: { kind: "worktree" },
+				full: false,
 			},
 		);
 		controller.abort();
 		await job(context(controller.signal));
 		expect(engine.stopped).toBe(true);
+	});
+
+	it("names the first pass's findings exactly as their positions did", async () => {
+		const sessionStore = new FakeSessionStore();
+		await runPassProducing(passWith("first", "second"), sessionStore);
+
+		expect(sessionStore.saved[0]).toMatchObject({
+			findingIds: ["finding-0", "finding-1"],
+			nextFindingId: 2,
+		});
+	});
+
+	it("never hands a later finding a number an earlier one already had", async () => {
+		const sessionStore = new FakeSessionStore();
+		await runPassProducing(passWith("first", "second"), sessionStore);
+		await runPassProducing(passWith("third"), sessionStore);
+
+		expect(sessionStore.saved[1]).toMatchObject({
+			findingIds: ["finding-2"],
+			nextFindingId: 3,
+		});
+	});
+});
+
+const FILE_A: FileDiff = {
+	id: "file-a",
+	path: "src/a.ts",
+	status: "modified",
+	additions: 1,
+	deletions: 0,
+	isBinary: false,
+	isGenerated: false,
+	oldBlob: { kind: "odb", oid: "a1" },
+	newBlob: { kind: "odb", oid: "a2" },
+	hunks: [],
+};
+
+const FILE_B: FileDiff = {
+	...FILE_A,
+	id: "file-b",
+	path: "src/b.ts",
+	oldBlob: { kind: "odb", oid: "b1" },
+	newBlob: { kind: "odb", oid: "b2" },
+};
+
+/** `src/a.ts` after one more commit; `src/b.ts` has not been touched. */
+const FILE_A_MOVED: FileDiff = {
+	...FILE_A,
+	newBlob: { kind: "odb", oid: "a3" },
+};
+
+function findingOn(path: string, title: string, dependsOn?: string[]) {
+	return {
+		path,
+		startLine: 1,
+		endLine: 1,
+		kind: "defect",
+		tier: "nitpick",
+		title,
+		body: "x",
+		proof: "Inferred: x",
+		verified: false,
+		lane: "review",
+		...(dependsOn === undefined ? {} : { dependsOn }),
+	};
+}
+
+async function runPass(options: {
+	files: FileDiff[];
+	output: Record<string, unknown>;
+	sessionStore: FakeSessionStore;
+	full?: boolean;
+}): Promise<{ prompt: string }> {
+	const engine = new FakeEngine();
+	engine.events = [{ ...okResult(), structuredOutput: options.output }];
+	const job = buildReviewJob(
+		{
+			engine,
+			git: new FakeGit({ statusPorcelain: "" }),
+			sessionStore: options.sessionStore,
+			githubService: null,
+			report: () => {},
+			logWarning: () => {},
+		},
+		{
+			changesetId: "worktree",
+			announce: "reviewing",
+			files: options.files,
+			baseSha: BASE_SHA,
+			headSha: null,
+			source: { kind: "worktree" },
+			full: options.full ?? false,
+		},
+	);
+	expect(await job(context())).toEqual({ ok: true });
+	return { prompt: engine.lastInput?.prompt ?? "" };
+}
+
+/** A first pass over both files, with one finding anchored in each. */
+async function seedTwoFindings(sessionStore: FakeSessionStore): Promise<void> {
+	await runPass({
+		files: [FILE_A, FILE_B],
+		sessionStore,
+		output: {
+			...PASS,
+			findings: [
+				findingOn("src/a.ts", "about a", []),
+				findingOn("src/b.ts", "about b", []),
+			],
+			explanations: [
+				{ path: "src/b.ts", startLine: 1, endLine: 1, says: ["b settles."] },
+			],
+		},
+	});
+}
+
+describe("buildReviewJob over a pass with a checkpoint", () => {
+	it("renders only the files that moved, and says what is carried", async () => {
+		const sessionStore = new FakeSessionStore();
+		await seedTwoFindings(sessionStore);
+
+		const { prompt } = await runPass({
+			files: [FILE_A_MOVED, FILE_B],
+			sessionStore,
+			output: { ...PASS, findings: [] },
+		});
+
+		expect(prompt).toContain("## Since the last review");
+		expect(prompt).toContain("- Changed: `src/a.ts`");
+		expect(prompt).toContain("- Unchanged, byte for byte: `src/b.ts`");
+		expect(prompt).toContain("carried findings: finding-1");
+	});
+
+	it("keeps a carried finding's id, the reader's edit and its publish record", async () => {
+		const sessionStore = new FakeSessionStore();
+		await seedTwoFindings(sessionStore);
+		const seeded = await sessionStore.loadReview("worktree");
+		if (seeded === null) {
+			throw new Error("the seeding pass saved nothing");
+		}
+		await sessionStore.saveReview({
+			...seeded,
+			commentEdits: { "finding-1": { body: "the reader's wording" } },
+			published: {
+				reviewId: 1,
+				htmlUrl: "https://example.com/r/1",
+				publishedAt: "2026-08-22T00:00:00.000Z",
+				commentIds: ["finding-0", "finding-1"],
+			},
+		});
+
+		await runPass({
+			files: [FILE_A_MOVED, FILE_B],
+			sessionStore,
+			output: { ...PASS, findings: [findingOn("src/a.ts", "about a again")] },
+		});
+
+		const merged = await sessionStore.loadReview("worktree");
+		expect(merged?.findingIds).toEqual(["finding-1", "finding-2"]);
+		expect(merged?.pass.findings.map((entry) => entry.title)).toEqual([
+			"about b",
+			"about a again",
+		]);
+		expect(merged?.commentEdits).toEqual({
+			"finding-1": { body: "the reader's wording" },
+		});
+		expect(merged?.published?.commentIds).toEqual(["finding-1"]);
+		// the unchanged file was never in this run's diff, so its account can
+		// only come from the pass that did see it
+		expect(merged?.pass.explanations.map((entry) => entry.path)).toEqual([
+			"src/b.ts",
+		]);
+	});
+
+	it("drops a carried finding the run says is resolved", async () => {
+		const sessionStore = new FakeSessionStore();
+		await seedTwoFindings(sessionStore);
+
+		await runPass({
+			files: [FILE_A_MOVED, FILE_B],
+			sessionStore,
+			output: {
+				...PASS,
+				findings: [],
+				carried: [
+					{
+						id: "finding-1",
+						verdict: "resolved",
+						why: "the caller now guards",
+					},
+				],
+			},
+		});
+
+		const merged = await sessionStore.loadReview("worktree");
+		expect(merged?.pass.findings).toEqual([]);
+		expect(merged?.findingIds).toEqual([]);
+	});
+
+	it("marks what it carried without looking, and not what it re-checked", async () => {
+		const sessionStore = new FakeSessionStore();
+		await runPass({
+			files: [FILE_A, FILE_B],
+			sessionStore,
+			output: {
+				...PASS,
+				findings: [
+					findingOn("src/b.ts", "leans on a", ["src/a.ts"]),
+					findingOn("src/b.ts", "leans on nothing that moved", []),
+				],
+			},
+		});
+
+		await runPass({
+			files: [FILE_A_MOVED, FILE_B],
+			sessionStore,
+			output: {
+				...PASS,
+				findings: [],
+				carried: [{ id: "finding-0", verdict: "stands" }],
+			},
+		});
+
+		const merged = await sessionStore.loadReview("worktree");
+		expect(merged?.findingIds).toEqual(["finding-0", "finding-1"]);
+		expect(merged?.carriedFindingIds).toEqual(["finding-1"]);
+	});
+
+	it("reviews everything again when the reader asks for it", async () => {
+		const sessionStore = new FakeSessionStore();
+		await seedTwoFindings(sessionStore);
+
+		const { prompt } = await runPass({
+			files: [FILE_A_MOVED, FILE_B],
+			sessionStore,
+			full: true,
+			output: { ...PASS, findings: [] },
+		});
+
+		expect(prompt).not.toContain("## Since the last review");
+		expect(prompt).toContain("### src/b.ts");
+		const replaced = await sessionStore.loadReview("worktree");
+		expect(replaced?.pass.findings).toEqual([]);
+		expect(replaced?.carriedFindingIds).toEqual([]);
+	});
+
+	it("ignores a verdict naming no finding in the pass, and says so", async () => {
+		const sessionStore = new FakeSessionStore();
+		await seedTwoFindings(sessionStore);
+		const warnings: string[] = [];
+		const engine = new FakeEngine();
+		engine.events = [
+			{
+				...okResult(),
+				structuredOutput: {
+					...PASS,
+					findings: [],
+					carried: [{ id: "finding-99", verdict: "resolved" }],
+				},
+			},
+		];
+		const job = buildReviewJob(
+			{
+				engine,
+				git: new FakeGit({ statusPorcelain: "" }),
+				sessionStore,
+				githubService: null,
+				report: () => {},
+				logWarning: (message) => warnings.push(message),
+			},
+			{
+				changesetId: "worktree",
+				announce: "reviewing",
+				files: [FILE_A_MOVED, FILE_B],
+				baseSha: BASE_SHA,
+				headSha: null,
+				source: { kind: "worktree" },
+				full: false,
+			},
+		);
+
+		expect(await job(context())).toEqual({ ok: true });
+		expect(warnings[0]).toContain("finding-99");
+		const merged = await sessionStore.loadReview("worktree");
+		expect(merged?.findingIds).toEqual(["finding-1"]);
 	});
 });

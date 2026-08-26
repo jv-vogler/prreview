@@ -32,7 +32,7 @@ function testApp(
 				: { statusPorcelainSequence: ["", options.statusPorcelainAfter] },
 		github: options.github,
 	});
-	const state = createReviewState({
+	const current: CurrentChangeset = {
 		ref: {
 			source: options.source ?? { kind: "worktree" },
 			baseSha: "a".repeat(40),
@@ -41,7 +41,8 @@ function testApp(
 		},
 		announce: { resolved: "working tree changes", overrideHint: "x" },
 		files: options.files ?? [],
-	});
+	};
+	const state = createReviewState(current, async () => current);
 	const hub = createSseHub();
 	const runner = createReviewRunner(
 		container,
@@ -227,6 +228,7 @@ describe("GET /api/review", () => {
 							path: "src/greeting.ts",
 							startLine: 1,
 							endLine: 1,
+							kind: "defect",
 							tier: "nitpick",
 							title: "x",
 							body: "x",
@@ -238,6 +240,7 @@ describe("GET /api/review", () => {
 							path: "src/missing.ts",
 							startLine: 1,
 							endLine: 1,
+							kind: "defect",
 							tier: "nitpick",
 							title: "x",
 							body: "x",
@@ -308,6 +311,7 @@ async function appWithOneFinding(
 						path: "src/greeting.ts",
 						startLine: 1,
 						endLine: 1,
+						kind: "defect",
 						tier: "nitpick",
 						title: "t",
 						body: "original body",
@@ -512,6 +516,7 @@ describe("POST /api/review/publish (TASK-050, TASK-053)", () => {
 					path: "src/greeting.ts",
 					startLine: 1,
 					endLine: 1,
+					kind: "defect",
 					tier: "nitpick",
 					title: "t",
 					body: "x",

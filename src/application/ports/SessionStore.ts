@@ -8,7 +8,7 @@ import type { ReviewPass } from "../review/reviewSchema";
  * rounds/coverage/chat layout of the old implementation.
  */
 /**
- * One finding's curation state (TASK-046), keyed by its `reviewCommentId`.
+ * One finding's curation state (TASK-046), keyed by its id (`commentIdAt`).
  * Both fields are optional and additive: an absent entry means "as the
  * engine wrote it" — there is no separate "clean" representation to keep in
  * sync.
@@ -32,6 +32,33 @@ export interface PublishedRecord {
 	commentIds: string[];
 }
 
+/**
+ * One file as the pass saw it. `(oldOid, newOid)` identifies a file's diff
+ * byte for byte and independently of commit ancestry: the same pair means
+ * the same hunks on the same lines, so everything anchored in that file
+ * carries over with no re-anchoring, and a rebase that did not touch the
+ * file's content leaves the pair alone.
+ */
+export interface CheckpointFile {
+	path: string;
+	/** null on an added file */
+	oldOid: string | null;
+	/** null on a deleted file */
+	newOid: string | null;
+}
+
+/**
+ * The changeset this pass actually reviewed, in enough detail for the next
+ * run to say what has moved since — which is what lets a re-review cost what
+ * moved rather than the size of the whole change.
+ */
+export interface ReviewCheckpoint {
+	baseSha: string;
+	/** null for a worktree changeset, where there is no commit to name */
+	headSha: string | null;
+	files: CheckpointFile[];
+}
+
 export interface StoredReview {
 	changesetId: ChangesetId;
 	createdAt: string;
@@ -44,8 +71,30 @@ export interface StoredReview {
 	pass: ReviewPass;
 	/** files SEC-003's residue check found left behind by the run, if any */
 	residue: string[];
-	/** per-finding curation state; a fresh pass always starts with none */
+	/** per-finding curation state; keyed by the ids in `findingIds` */
 	commentEdits: Record<string, CommentEdit>;
+	/**
+	 * One id per finding, in `pass.findings` order — the name a curation
+	 * entry, a publish record and the wire all key on. Absent on a pass
+	 * written before ids became data, where a finding is named by its
+	 * position instead (see `commentIdAt`).
+	 */
+	findingIds?: string[];
+	/**
+	 * The number the next new finding's id is minted from. It only ever goes
+	 * up, so a dropped finding's id can never be handed to a different
+	 * finding later.
+	 */
+	nextFindingId?: number;
+	/**
+	 * The ids of findings this pass carried from an earlier one without
+	 * looking at them again. Cross-file invalidation cannot be made sound, so
+	 * the reader is told which findings were re-checked and which were taken
+	 * on trust rather than being left to assume.
+	 */
+	carriedFindingIds?: string[];
+	/** what this pass reviewed; absent on a pass written before checkpoints */
+	checkpoint?: ReviewCheckpoint;
 	/** null until this pass has been published at least once */
 	published: PublishedRecord | null;
 }

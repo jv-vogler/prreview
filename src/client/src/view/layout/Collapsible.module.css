@@ -1,0 +1,44 @@
+/*
+ * One grid row, animated between 0fr and 1fr: the only way to animate to a
+ * height nobody has measured. The way out is quicker than the way in, which
+ * is what keeps a close from feeling like a wait.
+ */
+@keyframes region-open {
+	from {
+		grid-template-rows: 0fr;
+		opacity: 0;
+	}
+	to {
+		grid-template-rows: 1fr;
+		opacity: 1;
+	}
+}
+
+@keyframes region-close {
+	from {
+		grid-template-rows: 1fr;
+		opacity: 1;
+	}
+	to {
+		grid-template-rows: 0fr;
+		opacity: 0;
+	}
+}
+
+.region {
+	display: grid;
+	grid-template-rows: 1fr;
+	width: 100%;
+	animation: region-open var(--motion-duration-medium)
+		var(--motion-easing-enter) both;
+}
+
+.region[data-closing] {
+	animation: region-close var(--motion-duration-short) var(--motion-easing-exit)
+		both;
+}
+
+.clip {
+	min-height: 0;
+	overflow: hidden;
+}

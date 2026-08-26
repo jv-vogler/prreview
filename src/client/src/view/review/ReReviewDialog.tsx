@@ -10,7 +10,7 @@ export interface ReReviewDialogProps {
 	dismissedCount: number;
 	/** the pending GitHub review this pass (or an earlier one) left behind */
 	pendingReviewUrl: string | null;
-	onConfirm: () => void;
+	onConfirm(options: { full: boolean }): void;
 	onCancel: () => void;
 }
 
@@ -19,6 +19,10 @@ export interface ReReviewDialogProps {
  * starts on a bare click: this dialog states what exists and what a new
  * run does with it, as facts, before asking. Cancel is the focused
  * default — the destructive path is always the deliberate one.
+ *
+ * A re-review reads only the files that moved. Nothing can tell whether a
+ * change somewhere else resolved a finding in a file that did not, so the
+ * way out is a choice the reader makes rather than a rule the code guesses.
  */
 export function ReReviewDialog({
 	freshness,
@@ -65,6 +69,11 @@ export function ReReviewDialog({
 						The stored pass is replaced when the new run succeeds. A failed run
 						keeps it.
 					</li>
+					<li>
+						Only the files that have moved are read again. Findings on the rest
+						are carried across, marked as not re-checked. Review everything
+						again to have the whole change looked at.
+					</li>
 					{curation !== null && <li>{curation}</li>}
 					{pendingReviewUrl !== null && (
 						<li>
@@ -87,10 +96,17 @@ export function ReReviewDialog({
 					</button>
 					<button
 						type="button"
-						className={styles.confirmButton}
-						onClick={onConfirm}
+						className={styles.secondaryButton}
+						onClick={() => onConfirm({ full: true })}
 					>
-						Run new review
+						Review everything again
+					</button>
+					<button
+						type="button"
+						className={styles.confirmButton}
+						onClick={() => onConfirm({ full: false })}
+					>
+						Review what changed
 					</button>
 				</div>
 			</div>

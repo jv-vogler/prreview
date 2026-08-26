@@ -8,6 +8,7 @@ import { stubReviewRunner } from "../../../../test/helpers/stubReviewRunner";
 import type { FileDiff } from "../../../domain/changeset/FileDiff";
 import { createApp } from "../app";
 import { createSseHub } from "../events/sseHub";
+import type { CurrentChangeset } from "../reviewState";
 import { createReviewState } from "../reviewState";
 
 const disposables: FixtureRepo[] = [];
@@ -35,7 +36,7 @@ async function fixtureApp(files: FileDiff[]) {
 	const repo = await createFixtureRepo();
 	disposables.push(repo);
 	const { container } = buildTestContainer({ repoRoot: repo.root });
-	const state = createReviewState({
+	const current: CurrentChangeset = {
 		ref: {
 			source: { kind: "worktree" },
 			baseSha: "a".repeat(40),
@@ -44,7 +45,8 @@ async function fixtureApp(files: FileDiff[]) {
 		},
 		announce: { resolved: "x", overrideHint: "x" },
 		files,
-	});
+	};
+	const state = createReviewState(current, async () => current);
 	const app = createApp({
 		container,
 		state,

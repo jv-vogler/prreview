@@ -18,6 +18,7 @@ const STORED: StoredReview = {
 				startLine: 1,
 				endLine: 1,
 				says: ["What the change does.", "Why it does it."],
+				grounding: "inferred",
 				topic: "one intent",
 			},
 			{
@@ -25,6 +26,7 @@ const STORED: StoredReview = {
 				startLine: 9,
 				endLine: 9,
 				says: ["Unplaceable, still on the wire."],
+				grounding: "inferred",
 			},
 		],
 		findings: [],
@@ -93,6 +95,7 @@ describe("toReviewPassDto", () => {
 						path: "src/a.ts",
 						startLine: 1,
 						endLine: 1,
+						kind: "defect",
 						tier: "nitpick",
 						title: "sent",
 						body: "b",
@@ -104,6 +107,7 @@ describe("toReviewPassDto", () => {
 						path: "src/a.ts",
 						startLine: 1,
 						endLine: 1,
+						kind: "defect",
 						tier: "nitpick",
 						title: "kept back",
 						body: "b",
@@ -124,6 +128,37 @@ describe("toReviewPassDto", () => {
 		expect(dto.comments.map((comment) => comment.published)).toEqual([
 			true,
 			false,
+		]);
+	});
+
+	it("marks a finding this pass carried without looking at it again", () => {
+		const finding = {
+			path: "src/a.ts",
+			startLine: 1,
+			endLine: 1,
+			kind: "defect" as const,
+			tier: "nitpick" as const,
+			title: "t",
+			body: "b",
+			proof: "Inferred: x",
+			verified: false,
+			lane: "review" as const,
+		};
+		const pass = toReviewPassDto(
+			{
+				...STORED,
+				pass: { ...STORED.pass, findings: [finding, finding] },
+				findingIds: ["finding-4", "finding-9"],
+				carriedFindingIds: ["finding-4"],
+			},
+			[FILE],
+		);
+
+		expect(
+			pass.comments.map((comment) => [comment.id, comment.carried]),
+		).toEqual([
+			["finding-4", true],
+			["finding-9", false],
 		]);
 	});
 });

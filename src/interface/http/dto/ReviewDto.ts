@@ -15,6 +15,15 @@ const reviewTierDtoSchema = z.enum([
 
 export type ReviewTierDto = z.infer<typeof reviewTierDtoSchema>;
 
+/**
+ * A comment either claims something is wrong or asks the author why. A
+ * question carries no `tier`: the ladder measures how bad something is, and
+ * a question has no badness.
+ */
+const reviewFindingKindDtoSchema = z.enum(["defect", "question"]);
+
+export type ReviewFindingKindDto = z.infer<typeof reviewFindingKindDtoSchema>;
+
 const reviewLaneDtoSchema = z.enum(["review", "pre-existing"]);
 
 export type ReviewLaneDto = z.infer<typeof reviewLaneDtoSchema>;
@@ -55,7 +64,9 @@ export const reviewCommentDtoSchema = z.object({
 	path: z.string(),
 	startLine: z.int().min(1),
 	endLine: z.int().min(1),
-	tier: reviewTierDtoSchema,
+	kind: reviewFindingKindDtoSchema,
+	/** absent exactly when `kind` is `question` */
+	tier: reviewTierDtoSchema.optional(),
 	title: z.string(),
 	body: z.string(),
 	evidence: z.string().optional(),
@@ -69,6 +80,12 @@ export const reviewCommentDtoSchema = z.object({
 	deleted: z.boolean(),
 	/** part of the pending review the last publish sent to GitHub (TASK-053) */
 	published: z.boolean(),
+	/**
+	 * Carried from an earlier pass and not looked at again. A change in a
+	 * file this finding never touched can still have resolved it, and no
+	 * rule can know that, so the reader is told rather than left to assume.
+	 */
+	carried: z.boolean(),
 });
 
 export type ReviewCommentDto = z.infer<typeof reviewCommentDtoSchema>;
@@ -144,6 +161,17 @@ export const passFreshnessDtoSchema = z.discriminatedUnion("kind", [
 ]);
 
 export type PassFreshnessDto = z.infer<typeof passFreshnessDtoSchema>;
+
+/**
+ * `POST /api/review`'s body, which may be omitted entirely. `full` asks for
+ * the whole change to be looked at again rather than only what moved since
+ * the stored pass.
+ */
+export const reviewRunRequestDtoSchema = z.object({
+	full: z.boolean().optional(),
+});
+
+export type ReviewRunRequestDto = z.infer<typeof reviewRunRequestDtoSchema>;
 
 /** `PATCH /api/review/comments/:id`'s request body (TASK-046, TASK-047). */
 export const editCommentRequestDtoSchema = z.object({

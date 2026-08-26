@@ -1,6 +1,6 @@
+/* the width itself is the reader's, set inline from usePanelWidth */
 .panel {
 	flex: none;
-	width: 340px;
 	display: flex;
 	flex-direction: column;
 	height: 100%;

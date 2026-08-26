@@ -1,6 +1,15 @@
-import type { ReviewCommentDto } from "@dto/ReviewDto";
-import { AlertFillIcon, CommentIcon } from "@primer/octicons-react";
+import type {
+	ReviewCommentDto,
+	ReviewFindingKindDto,
+	ReviewTierDto,
+} from "@dto/ReviewDto";
+import {
+	AlertFillIcon,
+	CommentIcon,
+	QuestionIcon,
+} from "@primer/octicons-react";
 import { useState } from "react";
+import { Collapsible } from "../layout/Collapsible";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./DiffCommentAnnotation.module.css";
@@ -47,17 +56,14 @@ export function DiffCommentAnnotation({
 					className={styles.marker}
 					data-comment-marker="true"
 					data-tier={worstTier(collapsed)}
+					data-kind={markerKind(collapsed)}
 					onClick={() => {
 						for (const comment of collapsed) {
 							onToggle(comment.id);
 						}
 					}}
 				>
-					{collapsed.length === 1 ? (
-						<CommentIcon size={14} />
-					) : (
-						<AlertFillIcon size={14} />
-					)}
+					<MarkerIcon comments={collapsed} />
 					{collapsed.length > 1 && (
 						<span className={styles.count}>{collapsed.length}</span>
 					)}
@@ -75,15 +81,21 @@ export function DiffCommentAnnotation({
 	);
 }
 
+/** A lone question shows a question mark; anything else keeps the comment marks. */
+function MarkerIcon({ comments }: { comments: readonly ReviewCommentDto[] }) {
+	if (comments.length > 1) {
+		return <AlertFillIcon size={14} />;
+	}
+	if (comments[0]?.kind === "question") {
+		return <QuestionIcon size={14} />;
+	}
+	return <CommentIcon size={14} />;
+}
+
 /**
- * One open balloon, in a grid whose single row animates between 0fr and 1fr —
- * the only way to animate to a height nobody has measured, since the card's is
- * whatever its markdown comes to. The inner element does the clipping, so the
- * card is revealed rather than squashed.
- *
- * Closing is owned here rather than by the caller: React would unmount the
- * card the instant it left the expanded set, leaving nothing to animate, so
- * the collapse is held until the exit animation reports it has finished.
+ * One open balloon. The collapse control does not remove the card: it starts
+ * the way out, and the caller's own unmount waits for `Collapsible` to say
+ * the animation has finished.
  */
 function ExpandingBalloon({
 	comment,
@@ -97,38 +109,51 @@ function ExpandingBalloon({
 	const [closing, setClosing] = useState(false);
 
 	return (
-		<div
-			className={styles.expander}
-			data-closing={closing || undefined}
-			onAnimationEnd={(event) => {
-				// the card's own animations bubble through here too
-				if (closing && event.target === event.currentTarget) {
-					onCollapse();
-				}
-			}}
-		>
-			<div className={styles.expanderClip}>
-				<CommentBalloon
-					comment={comment}
-					onCollapse={() => setClosing(true)}
-					actions={actions}
-				/>
-			</div>
-		</div>
+		<Collapsible open={!closing} onClosed={onCollapse}>
+			<CommentBalloon
+				comment={comment}
+				onCollapse={() => setClosing(true)}
+				actions={actions}
+			/>
+		</Collapsible>
 	);
 }
 
-const TIER_SEVERITY: Record<string, number> = {
+const TIER_SEVERITY: Record<ReviewTierDto, number> = {
 	blocker: 0,
 	"should-fix": 1,
 	suggestion: 2,
 	nitpick: 3,
 };
 
-function worstTier(comments: readonly ReviewCommentDto[]): string {
-	return comments.reduce(
-		(worst, comment) =>
-			TIER_SEVERITY[comment.tier] < TIER_SEVERITY[worst] ? comment.tier : worst,
-		comments[0]?.tier ?? "nitpick",
-	);
+/** The worst tier under this marker, or nothing when it holds only questions. */
+function worstTier(
+	comments: readonly ReviewCommentDto[],
+): ReviewTierDto | undefined {
+	let worst: ReviewTierDto | undefined;
+	for (const comment of comments) {
+		if (comment.tier === undefined) {
+			continue;
+		}
+		if (
+			worst === undefined ||
+			TIER_SEVERITY[comment.tier] < TIER_SEVERITY[worst]
+		) {
+			worst = comment.tier;
+		}
+	}
+	return worst;
+}
+
+/**
+ * `question` only when there is nothing but questions here, so the marker
+ * says the same thing through the same attribute the balloon, the row and
+ * the sidebar count all use.
+ */
+function markerKind(
+	comments: readonly ReviewCommentDto[],
+): ReviewFindingKindDto | undefined {
+	return comments.every((comment) => comment.kind === "question")
+		? "question"
+		: undefined;
 }

@@ -5,14 +5,12 @@ import styles from "./ChangesetHeading.module.css";
 export interface ChangesetHeadingProps {
 	source: ChangesetSourceDto;
 	resolved: string;
-	overrideHint: string;
 	prUrl?: string;
 }
 
 export function ChangesetHeading({
 	source,
 	resolved,
-	overrideHint,
 	prUrl,
 }: ChangesetHeadingProps) {
 	return (
@@ -23,7 +21,6 @@ export function ChangesetHeading({
 				</h1>
 				{prUrl !== undefined && <ViewOnGithubLink href={prUrl} />}
 			</div>
-			<p className={styles.overrideHint}>{overrideHint}</p>
 		</div>
 	);
 }

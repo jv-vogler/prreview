@@ -18,6 +18,7 @@ function storedReview(overrides: Partial<StoredReview> = {}): StoredReview {
 					path: "src/a.ts",
 					startLine: 1,
 					endLine: 1,
+					kind: "defect",
 					tier: "nitpick",
 					title: "t",
 					body: "original body",
@@ -57,6 +58,22 @@ const FILE: FileDiff = {
 	],
 };
 
+/** A finding, distinguishable from the fixture's default by its body. */
+function finding(body: string) {
+	return {
+		path: "src/a.ts",
+		startLine: 1,
+		endLine: 1,
+		kind: "defect" as const,
+		tier: "nitpick" as const,
+		title: "t",
+		body,
+		proof: "Inferred: x",
+		verified: false,
+		lane: "review" as const,
+	};
+}
+
 describe("effectiveComments", () => {
 	it("resolves a stable id, placement and edited=false for an untouched finding", () => {
 		const [comment] = effectiveComments(storedReview(), [FILE]);
@@ -87,5 +104,32 @@ describe("effectiveComments", () => {
 	it("marks a finding unplaceable when its path is not in the diff", () => {
 		const [comment] = effectiveComments(storedReview(), []);
 		expect(comment.placement).toEqual({ kind: "unplaceable" });
+	});
+
+	it("keeps an edit on its own finding when the pass is rebuilt in another order", () => {
+		const stored = storedReview({
+			pass: {
+				overview: "x",
+				verdict: "x",
+				ticket: null,
+				explanations: [],
+				findings: [finding("the new one"), finding("the carried one")],
+			},
+			findingIds: ["finding-3", "finding-0"],
+			commentEdits: { "finding-0": { body: "the reader's wording" } },
+		});
+
+		expect(effectiveComments(stored, [FILE])).toEqual([
+			expect.objectContaining({
+				id: "finding-3",
+				body: "the new one",
+				edited: false,
+			}),
+			expect.objectContaining({
+				id: "finding-0",
+				body: "the reader's wording",
+				edited: true,
+			}),
+		]);
 	});
 });

@@ -9,15 +9,12 @@ const PR_SOURCE: ChangesetSourceDto = {
 	number: 22,
 };
 
-const OVERRIDE_HINT = "override with an explicit target";
-
 describe("ChangesetHeading", () => {
 	it("leads with the repository and links the PR number", () => {
 		render(
 			<ChangesetHeading
 				source={PR_SOURCE}
 				resolved="pull request #22 of jv-vogler/calisthenics-app"
-				overrideHint={OVERRIDE_HINT}
 				prUrl="https://github.com/jv-vogler/calisthenics-app/pull/22"
 			/>,
 		);
@@ -34,7 +31,6 @@ describe("ChangesetHeading", () => {
 			<ChangesetHeading
 				source={PR_SOURCE}
 				resolved="pull request #22 of jv-vogler/calisthenics-app"
-				overrideHint={OVERRIDE_HINT}
 			/>,
 		);
 		const heading = screen.getByRole("heading", { level: 1 });
@@ -49,7 +45,6 @@ describe("ChangesetHeading", () => {
 			<ChangesetHeading
 				source={PR_SOURCE}
 				resolved="pull request #22 of jv-vogler/calisthenics-app"
-				overrideHint={OVERRIDE_HINT}
 				prUrl="https://github.com/jv-vogler/calisthenics-app/pull/22"
 			/>,
 		);
@@ -63,7 +58,6 @@ describe("ChangesetHeading", () => {
 			<ChangesetHeading
 				source={PR_SOURCE}
 				resolved="pull request #22 of jv-vogler/calisthenics-app"
-				overrideHint={OVERRIDE_HINT}
 			/>,
 		);
 		expect(screen.queryByRole("link")).toBeNull();
@@ -77,7 +71,6 @@ describe("ChangesetHeading", () => {
 			<ChangesetHeading
 				source={{ kind: "branch", branch: "feature-x", base: "main" }}
 				resolved="branch feature-x against main"
-				overrideHint={OVERRIDE_HINT}
 			/>,
 		);
 		expect(screen.getByText("Branch feature-x against main")).toBeTruthy();
@@ -89,7 +82,6 @@ describe("ChangesetHeading", () => {
 			<ChangesetHeading
 				source={{ kind: "worktree" }}
 				resolved="the working tree"
-				overrideHint={OVERRIDE_HINT}
 			/>,
 		);
 		expect(screen.getByText("The working tree")).toBeTruthy();

@@ -29,12 +29,49 @@
 	margin-bottom: var(--base-size-8);
 }
 
-/* the topics panel's "this one" answer: findable, still not a comment */
+/*
+ * The topics panel's "this one" answer. Deliberately not a colored border:
+ * a topic already wears a color, and half the palette is blue, so a blue
+ * ring would read as another topic rather than as selection. Selection is
+ * therefore weight, not hue — a thick neutral edge, a lifted shadow, and a
+ * scale that overshoots once and settles, which is the part the eye
+ * actually follows to the card.
+ */
 .balloon[data-highlighted] {
-	border-color: var(--borderColor-accent-emphasis);
+	border-color: var(--borderColor-emphasis);
 	box-shadow:
-		0 0 0 var(--borderWidth-thin) var(--borderColor-accent-emphasis),
-		var(--shadow-floating-small);
+		0 0 0 var(--borderWidth-thick) var(--borderColor-emphasis),
+		var(--shadow-floating-medium);
+	animation: balloon-select var(--motion-duration-medium)
+		cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+@keyframes balloon-select {
+	from {
+		transform: scale(1);
+	}
+	to {
+		transform: scale(1.02);
+	}
+}
+
+/* not this topic: readable, just no longer the thing being followed */
+.balloon[data-dimmed] {
+	opacity: 0.55;
+}
+
+.balloon {
+	transition:
+		opacity var(--motion-transition-stateChange),
+		transform var(--motion-transition-stateChange),
+		border-color var(--motion-transition-stateChange);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.balloon[data-highlighted] {
+		animation: none;
+		transform: none;
+	}
 }
 
 .icon {

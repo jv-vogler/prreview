@@ -42,6 +42,31 @@ describe("SessionStore", () => {
 		expect(loaded).toEqual(review);
 	});
 
+	it("round-trips the ids and the checkpoint a delta re-review reads back", async () => {
+		const store = new SessionStore({ dataDir, debounceMs: 0 });
+		const review: StoredReview = {
+			changesetId: "worktree",
+			createdAt: "2026-08-21T10:00:00.000Z",
+			headSha: null,
+			pass: PASS,
+			residue: [],
+			commentEdits: {},
+			published: null,
+			findingIds: ["finding-4"],
+			nextFindingId: 5,
+			carriedFindingIds: ["finding-4"],
+			checkpoint: {
+				baseSha: "a".repeat(40),
+				headSha: null,
+				files: [{ path: "src/a.ts", oldOid: "o1", newOid: null }],
+			},
+		};
+		await store.saveReview(review);
+		await store.flush();
+
+		expect(await store.loadReview("worktree")).toEqual(review);
+	});
+
 	it("returns null for a session that was never saved", async () => {
 		const store = new SessionStore({ dataDir });
 		expect(await store.loadReview("worktree")).toBeNull();

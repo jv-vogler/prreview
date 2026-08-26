@@ -6,7 +6,7 @@ import getPort, { portNumbers } from "get-port";
 import type { Hono } from "hono";
 import open from "open";
 import { readChangesetFiles } from "../../application/readChangesetFiles";
-import { buildContainer } from "../../container";
+import { buildContainer, type Container } from "../../container";
 import { AppError } from "../../domain/errors/AppError";
 import { GitClient } from "../../infrastructure/git/GitClient";
 import { probeToolchain } from "../../infrastructure/toolchain/probeToolchain";
@@ -14,9 +14,9 @@ import { createApp } from "../http/app";
 import { createAppEventPublisher } from "../http/events/appEventPublisher";
 import { createSseHub } from "../http/events/sseHub";
 import { createReviewRunner } from "../http/reviewRunner";
-import { createReviewState } from "../http/reviewState";
+import { type CurrentChangeset, createReviewState } from "../http/reviewState";
 import { resolveClientDir } from "../http/static";
-import { parseCliArgs } from "./args";
+import { type CliArgs, parseCliArgs } from "./args";
 
 const execFileAsync = promisify(execFile);
 
@@ -37,17 +37,9 @@ async function main(): Promise<void> {
 		await container.git.gitCommonDir(),
 	);
 
-	const { ref, announce: changesetAnnounce } = await container.resolveChangeset(
-		{
-			...(args.target === undefined ? {} : { target: args.target }),
-			...(args.base === undefined ? {} : { base: args.base }),
-		},
-	);
-	const files = await readChangesetFiles(
-		{ git: container.git, githubService: container.githubService },
-		ref,
-	);
-	const state = createReviewState({ ref, announce: changesetAnnounce, files });
+	const resolveCurrentChangeset = () => currentChangeset(container, args);
+	const initial = await resolveCurrentChangeset();
+	const state = createReviewState(initial, resolveCurrentChangeset);
 
 	const hub = createSseHub();
 	const runner = createReviewRunner(
@@ -59,7 +51,7 @@ async function main(): Promise<void> {
 	// --dev pins the port (the Vite proxy targets it) and leaves static
 	// serving to Vite
 	const port = args.dev
-		? args.port
+		? await pinnedPort(args.port)
 		: await getPort({
 				host: BIND_HOST,
 				port: portNumbers(args.port, args.port + PORT_WALK_SPAN),
@@ -75,7 +67,7 @@ async function main(): Promise<void> {
 	await listen(app, port);
 
 	const url = `http://${BIND_HOST}:${port}/`;
-	announce(url, args, changesetAnnounce);
+	announce(url, args, initial.announce);
 
 	if (args.open && !args.dev) {
 		// fire-and-forget: a browser that cannot be opened (WSL2, headless
@@ -87,6 +79,52 @@ async function main(): Promise<void> {
 		});
 	}
 }
+
+/**
+ * Boot's resolution, as a function the server can call again: pressing
+ * Review re-resolves the same target rather than reusing the snapshot taken
+ * at boot, so a commit pushed while prreview is serving is reviewed instead
+ * of ignored.
+ */
+async function currentChangeset(
+	container: Container,
+	args: CliArgs,
+): Promise<CurrentChangeset> {
+	const { ref, announce } = await container.resolveChangeset({
+		...(args.target === undefined ? {} : { target: args.target }),
+		...(args.base === undefined ? {} : { base: args.base }),
+	});
+	const files = await readChangesetFiles(
+		{ git: container.git, githubService: container.githubService },
+		ref,
+	);
+	return { ref, announce, files };
+}
+
+/**
+ * A pinned port cannot walk, so it has to be free. Checked before serving
+ * rather than reported from the failed listen: `serve` emits that error
+ * where nothing can catch it, and the reader gets a stack trace instead of
+ * the one fact that matters. In dev the answer is never "use another port"
+ * anyway, since the Vite proxy targets this one: a server already holding it
+ * means the browser is quietly talking to that older process, its stored
+ * review and all.
+ */
+async function pinnedPort(port: number): Promise<number> {
+	const free = await getPort({
+		host: BIND_HOST,
+		port: portNumbers(port, port + 1),
+	});
+	if (free !== port) {
+		throw new PortInUseError(
+			`port ${port} is already in use, most likely by a prreview still serving there. Stop that one, or start this with --port <number>.`,
+		);
+	}
+	return port;
+}
+
+/** Boot's one expected failure, so it prints as a sentence and not a stack. */
+class PortInUseError extends Error {}
 
 function listen(app: Hono, port: number): Promise<void> {
 	return new Promise((resolveListening, rejectListening) => {
@@ -141,6 +179,10 @@ function announce(
  * raw.
  */
 function handleBootFailure(error: unknown): never {
+	if (error instanceof PortInUseError) {
+		process.stderr.write(`prreview: ${error.message}\n`);
+		process.exit(FAILURE_EXIT_CODE);
+	}
 	if (error instanceof CommanderError) {
 		// commander already wrote its message (or the help/version text)
 		process.exit(error.exitCode === 0 ? 0 : USAGE_EXIT_CODE);

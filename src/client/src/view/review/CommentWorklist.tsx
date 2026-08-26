@@ -1,9 +1,14 @@
 import type { ReviewCommentDto } from "@dto/ReviewDto";
-import { countByTier } from "../../domain/review/countByTier";
+import { countByTier, countQuestions } from "../../domain/review/countByTier";
+import { Collapsible } from "../layout/Collapsible";
 import type { CommentActions } from "./CommentActions";
 import { CommentBalloon } from "./CommentBalloon";
 import styles from "./CommentWorklist.module.css";
-import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "./reviewTier";
+import {
+	commentTierLabel,
+	REVIEW_TIER_LABEL,
+	REVIEW_TIER_ORDER,
+} from "./reviewTier";
 
 export interface CommentWorklistProps {
 	comments: readonly ReviewCommentDto[];
@@ -17,10 +22,10 @@ export interface CommentWorklistProps {
 
 /**
  * The Comments tab of the review sidebar (TASK-044, REQ-005): per-tier
- * counts, then three sections so nothing is ever silently missing — the
- * on-diff review comments, anything `clamped`/`unplaceable` that the diff
- * cannot show (REQ-010), and pre-existing findings in their own lane
- * (REQ-011).
+ * counts with the questions counted apart from them, then three sections so
+ * nothing is ever silently missing — the on-diff review comments, anything
+ * `clamped`/`unplaceable` that the diff cannot show (REQ-010), and
+ * pre-existing findings in their own lane (REQ-011).
  */
 export function CommentWorklist({
 	comments,
@@ -42,6 +47,7 @@ export function CommentWorklist({
 		(comment) => comment.lane === "pre-existing",
 	);
 	const counts = countByTier(reviewComments);
+	const questions = countQuestions(reviewComments);
 
 	return (
 		<div>
@@ -54,6 +60,11 @@ export function CommentWorklist({
 							{counts[tier]} {REVIEW_TIER_LABEL[tier]}
 						</li>
 					))}
+					{questions > 0 && (
+						<li className={styles.count} data-kind="question">
+							{questions} {questions === 1 ? "Question" : "Questions"}
+						</li>
+					)}
 				</ul>
 			)}
 			<CommentSection
@@ -130,18 +141,19 @@ function CommentSection({
 							className={styles.row}
 							data-comment-row={comment.id}
 							data-tier={comment.tier}
+							data-kind={comment.kind}
 							data-published={comment.published || undefined}
 							onClick={() => onJumpTo(comment)}
 						>
 							<span className={styles.rowTier}>
-								{REVIEW_TIER_LABEL[comment.tier]}
+								{commentTierLabel(comment)}
 							</span>
 							<span className={styles.rowTitle}>{comment.title}</span>
 							{comment.published && (
 								<span className={styles.rowPublished}>published</span>
 							)}
 						</button>
-						{expandedCommentIds.has(comment.id) && (
+						<Collapsible open={expandedCommentIds.has(comment.id)}>
 							<div className={styles.rowExpanded}>
 								<CommentBalloon
 									comment={comment}
@@ -149,7 +161,7 @@ function CommentSection({
 									actions={actions}
 								/>
 							</div>
-						)}
+						</Collapsible>
 					</li>
 				))}
 			</ul>

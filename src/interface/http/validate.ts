@@ -22,6 +22,28 @@ export async function validatedJson<Schema extends z.ZodType>(
 	return parsedOrValidationError(schema, body);
 }
 
+/**
+ * Same boundary for a body that may legitimately be absent: a request with
+ * no body at all validates as `{}`, so an endpoint can gain an option
+ * without every caller having to start sending one.
+ */
+export async function optionalJson<Schema extends z.ZodType>(
+	context: Context,
+	schema: Schema,
+): Promise<z.infer<Schema>> {
+	const text = await context.req.text();
+	if (text.trim() === "") {
+		return parsedOrValidationError(schema, {});
+	}
+	let body: unknown;
+	try {
+		body = JSON.parse(text);
+	} catch (cause) {
+		throw new ValidationError("The request body is not valid JSON.", { cause });
+	}
+	return parsedOrValidationError(schema, body);
+}
+
 /** Same boundary for query strings. */
 export function validatedQuery<Schema extends z.ZodType>(
 	context: Context,

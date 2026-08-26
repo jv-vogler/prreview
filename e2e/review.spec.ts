@@ -84,6 +84,16 @@ test.describe("review pass", () => {
 		// otherwise also match and trip strict mode
 		await expect(page.getByText("1 Blocker", { exact: true })).toBeVisible();
 
+		// a question is counted apart from the tiers, and its row says
+		// "Question" where a defect's says its tier
+		await expect(page.getByText("1 Question", { exact: true })).toBeVisible();
+		const questionRow = page.locator(
+			"[data-comment-row][data-kind='question']",
+		);
+		await expect(questionRow).toHaveCount(1);
+		await expect(questionRow).toContainText("Question");
+		await expect(questionRow).toContainText("Mock question about a choice");
+
 		// change explanations start unfolded at the right edge, costing no
 		// diff rows; the chip folds each line's cards away and back
 		const chip = page.locator("[data-explanation-chip]").first();
@@ -109,19 +119,24 @@ test.describe("review pass", () => {
 		// the overview mentions each topic label verbatim, and the mention
 		// renders as that topic's colored chip, inline in the prose
 		await expect(
-			page
-				.locator("[class*='overview']")
-				.getByRole("button", { name: "Mock shared intent" }),
+			page.locator("[class*='overview']").getByRole("button", {
+				name: "Mock intent: two files change for one reason",
+			}),
 		).toBeVisible();
 
 		// the sidebar's second tab retells the pass as explanations: topics
 		// first with one jump per anchored change, and an explanation the
 		// diff cannot anchor listed and marked instead of vanishing
 		await page.getByRole("tab", { name: /Explanations/ }).click();
+		// each topic heads its own foldable section, with its reach on the line
 		await expect(
-			page
-				.getByRole("tabpanel")
-				.getByRole("button", { name: "Mock shared intent" }),
+			page.getByRole("button", { name: /^Fold Mock intent/ }),
+		).toBeVisible();
+		await expect(
+			page.getByRole("tabpanel").getByRole("button", {
+				name: "Mock intent: two files change for one reason",
+				exact: true,
+			}),
 		).toBeVisible();
 		await expect(
 			page.getByText("Mock explanation the diff cannot anchor."),

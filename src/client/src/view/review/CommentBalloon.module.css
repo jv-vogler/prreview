@@ -26,6 +26,11 @@
 	border-left-color: var(--fgColor-muted);
 }
 
+/* a question is not on the ladder, so it borrows no tier's colour */
+.balloon[data-kind="question"] {
+	border-left-color: var(--fgColor-accent);
+}
+
 /* dismissed, not gone: still readable, visibly no longer in play */
 .balloon[data-dismissed="true"] {
 	border-left-color: var(--borderColor-muted);
@@ -116,6 +121,17 @@
 	margin: var(--base-size-8) 0 0;
 	color: var(--fgColor-muted);
 	font-size: var(--text-body-size-small);
+}
+
+/*
+ * A finding taken on trust reads differently from one just verified, and the
+ * reader has to be able to tell which they are looking at.
+ */
+.carried {
+	margin: var(--base-size-4) 0 0;
+	color: var(--fgColor-muted);
+	font-size: var(--text-body-size-small);
+	font-style: italic;
 }
 
 .editor {

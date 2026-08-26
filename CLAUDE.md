@@ -32,9 +32,16 @@ errors are handled. No `types/` folder anywhere — types live with the layer th
 
 ## Commands
 
-Broken until the skeleton is rebuilt: `npm run dev`, `npm run dev:mock`, `npm run build`,
-`npm run test:e2e`, `npm run typecheck` (both referenced tsconfigs need real input files). What
-works today: `npm test` (vitest, currently no test files) and `npm run lint`.
+`npm test` (vitest), `npm run lint`, `npm run typecheck`, `npm run build`, `npm run test:e2e`
+(Playwright, against the built artifact). `npm run dev` runs the API server and Vite side by side:
+Vite serves the page on 5173 and proxies `/api` to the server on a **pinned** 4973, so a leftover
+server holding that port means the browser is talking to the older process. `npm run dev:mock`
+puts `scripts/mock-agent/claude` on PATH so a review costs nothing.
+
+A finished pass is a file: `.prreview/<changeset-key>/review.json` in the repo being reviewed,
+plain JSON, gitignored via `.git/info/exclude`. It is loaded on boot, which is why a repo that has
+been reviewed already shows that pass instead of an empty screen. `npm run dev:mock:fresh` deletes
+`.prreview/` first, for when a fresh run is the point.
 
 ## Empirical traps
 

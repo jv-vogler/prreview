@@ -21,6 +21,39 @@ export interface ReviewPromptInput {
 	files: readonly FileDiff[];
 	/** the stored pass this run replaces, when there is one — a re-review */
 	previous?: PreviousReviewInput;
+	/**
+	 * What this re-review may take from the previous pass rather than pay
+	 * for again. Absent means the full pass: every file in the diff, read
+	 * from scratch.
+	 */
+	reuse?: ReusePromptInput;
+}
+
+/**
+ * The delta framing. The files that have not moved are named but not
+ * rendered: their diffs are identical byte for byte, so their anchors hold
+ * and their findings and explanations come across as they are.
+ */
+export interface ReusePromptInput {
+	baseMoved: boolean;
+	changedPaths: readonly string[];
+	addedPaths: readonly string[];
+	removedPaths: readonly string[];
+	unchanged: readonly UnchangedFileInput[];
+	/** the carried ids that must come back with a `carried` verdict */
+	recheckIds: readonly string[];
+}
+
+export interface UnchangedFileInput {
+	path: string;
+	/** carried findings' ids, quoted in full in the previous pass above */
+	findingIds: readonly string[];
+	explanations: readonly UnchangedExplanationInput[];
+}
+
+export interface UnchangedExplanationInput {
+	topic?: string;
+	says: readonly string[];
 }
 
 /**
@@ -38,6 +71,9 @@ export interface PreviousReviewInput {
 }
 
 export interface PreviousCommentInput {
+	/** the finding's own id — what a `carried` verdict names it by */
+	id: string;
+	/** the tier, or `question` for a finding that asked rather than claimed */
 	tier: string;
 	title: string;
 	/** the reader's edited wording when they rewrote it, else the engine's */
@@ -49,6 +85,16 @@ export interface PreviousCommentInput {
 	dismissed: boolean;
 	/** the body above is the reader's own rewrite */
 	edited: boolean;
+	/** present exactly when this finding is carried into the new pass */
+	carried?: CarriedNote;
+}
+
+/** Why a carried finding does or does not need looking at again. */
+export interface CarriedNote {
+	/** files it leaned on that have moved since */
+	movedDependencies: readonly string[];
+	/** it recorded nothing it leaned on, so nothing can vouch for it */
+	unrecorded: boolean;
 }
 
 export interface PrConversationEntry {
@@ -67,12 +113,19 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		input.announce,
 		"",
-		...renderPreviousReview(input.previous),
+		...renderPreviousReview(input.previous, input.reuse),
+		...renderReuse(input.reuse),
 		"## Working plan",
 		"",
 		"Before you start, call `TaskCreate` five times **in a single message**, once per step, in this order: find the ticket, read the big picture, find problems, verify findings, write it up. All five in one message and not one per turn: the reviewer then sees the whole plan at once instead of watching it assemble itself a step at a time, and it costs you one turn rather than five. Then use `TaskUpdate` to set a step to `in_progress` when you begin it and `completed` the moment it is genuinely done — never in a batch at the end. The reviewer watches this plan advance live while the run is in progress; it is the only window they have into where the review has got to.",
 		"",
 		"Spend the rest of your turn budget on the review itself. You have no `Glob` or `Grep` here, so explore with `Bash` and batch your shell work — one command that finds and prints what you need beats five that each answer a fragment.",
+		"",
+		"## Review depth",
+		"",
+		"**Calibrate the depth of the review to the change. Never calibrate the standards to the change.** Before you plan, size the change and decide which review it warrants. A single-file rename, a lockfile bump, a formatting sweep, a generated-file update: these get a proportionate pass, which still holds whatever human-written code they touch to every standard below. Anything carrying real logic gets the full set of checks in `## Find problems`.",
+		"",
+		'Say which depth you chose in one clause of the overview, with the reason. A reader seeing three findings on a forty-file PR cannot tell "clean" from "not looked at hard" unless you tell them.',
 		"",
 		"## Spec",
 		"",
@@ -104,9 +157,13 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		'GOOD: ["The evidence block now ships inside the body GitHub receives.", "It used to be reviewer-only scratch.", "Every downstream edit path still touches `body` only."] (first the what in plain words, then the why and the boundary).',
 		"",
+		'Set `grounding` on every explanation: `"code"` when you actually read the reason (a comment, a test, the ticket, an adjacent call site), `"inferred"` when the account is a plausible reconstruction. Nobody is ever shown this field. It exists to mark where an explanation stops and a question starts: if a why is load-bearing and your grounding for it would be `"inferred"`, that is the signal to ask it as a question rather than write a confident reason nobody checked.',
+		"",
 		"Build the account from the code you read, not from the PR description: the description is the author's claim about their own work, and you are reconstructing what the code actually does.",
 		"",
-		"When several explanations serve one intent (a config change and the migration that forces it), give them the same short `topic` label so they read as one unit; leave `topic` off an explanation that stands alone. Mention each `topic` label in the overview, verbatim — the UI renders the mention as that topic's colored chip, so the summary and the balloons on the diff visibly connect.",
+		"When several explanations serve one intent (a config change and the migration that forces it), give them the same `topic` label so they read as one unit; leave `topic` off an explanation that stands alone. Mention each `topic` label in the overview, verbatim — the UI renders the mention as that topic's colored chip, so the summary and the balloons on the diff visibly connect.",
+		"",
+		'**A `topic` label says what changed, not which area it touched.** It is the heading a reader scans to decide whether this is the part they care about, so it has to carry the change itself: "Questions get their own count and are never tiered", not "Question in the UI"; "Cache TTL drops to 60s and the migration forces it", not "Cache changes". A clause is the right size, up to about a dozen words. A label naming only a layer, a file or a feature area is too vague to be worth rendering.',
 		"",
 		"Anchor each explanation exactly like a finding: `path` as printed below, `startLine`/`endLine` from the new side of the diff (old side only for deletions), on the tightest range that contains the change being explained.",
 		"",
@@ -118,11 +175,54 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"## Find problems",
 		"",
-		"Look for correctness (edge cases, wrong data, unhandled errors, races) and design (should this exist in this shape, consistency with sibling code, silent breaking changes). Ground every candidate in code you actually read: open the definitions the diff calls, check the data model, compare with siblings.",
+		"Work these checks in order, cheapest rejection first. Ground every candidate in code you actually read: open the definitions the diff calls, check the data model, compare with siblings.",
+		"",
+		"1. **Should this exist?** Is it a workaround for a bug upstream, or already solved elsewhere in this codebase? Search before accepting a new helper, constant or type.",
+		"2. **Is each added thing necessary, and what did this make dead?** Every new file, wrapper, flag and log line earns its place. In reverse: a guard, fallback or branch that was correct before this change may be unreachable after it.",
+		"3. **Do the types and names tell the truth?** Anything optional or `unknown` that the operation cannot actually function without is a defect, not a style issue. Does a name describe the meaning, or leak the mechanism?",
+		"4. **Simulate the runtime.** What happens when this call fails, this value is absent, these two sources disagree? Does a retry redo work it should not? Conversely, is a guard defending against something that cannot happen?",
+		"5. **Does it belong here?** Judged against the layout this repo already keeps, not an abstract ideal: does this rule live with the data it owns, does this function receive more than it needs, is this public when nothing outside uses it?",
+		'6. **Does it match decisions already made here?** Is there an existing logger, error type, config source or test convention this bypasses? Phrase it as *"why not the standard?"*, never "use the standard": the author may have a reason, and asking surfaces it.',
+		"7. **Will we know when it breaks?** Read as the on-call engineer. Will the failure surface where anyone looks, carry enough detail to diagnose, and not fire as an error when it is not one?",
+		"8. **What do the tests prove?** Behaviour, or merely that a call happened and nothing threw? Do they cover the branches the implementation actually has, including the failure states? Will they still pass tomorrow, with real clocks and shared fixtures?",
+		"",
+		"**The kill test, before you write any finding:** could you have written this comment without knowing anything about this system? If yes, it needed no context, so it proves nothing. Point at the sibling that does it the other way, the definition you opened, or the command you ran. An argument from evidence is checkable, taste is not.",
+		"",
+		"## Craft",
+		"",
+		"Correctness is not the whole review. How the code is written is the other half, and these are the standards you hold it to:",
+		"",
+		"- **Names spell out meaning.** No abbreviations or single-letter names, except the near-universal conventions: loop indices `i`/`j`, comparators `a`/`b`, math `x`/`y`, caught errors `err`, and infrastructure names `id`, `db`, `ctx`.",
+		"- **Return early.** Guard clauses over nested conditionals; the happy path reads top to bottom without indentation debt. **Never nest ternaries**: a ternary that needs another ternary needs a function.",
+		"- **Comments explain why, never what.** A comment that narrates the line below it is noise, and the fix is a better name, not a better comment.",
+		"- **No magic numbers.** Literals and configuration become named constants.",
+		"- **Pure by default.** Isolate side effects in the layer that owns them; core logic stays predictable.",
+		"",
+		'Never excuse a violation by the size or triviality of the code it appears in. A magic number in a three-line helper is still a magic number, and a nested ternary in a one-line component is still a nested ternary. If you catch yourself writing "it\'s just a small…", that is the violation talking.',
+		"",
+		'**The standards are imbued, never cited.** They are why you noticed, not what the author reads. A finding says what is wrong with this code and asks for the correction, in your own voice; it never quotes a rule, announces which standard was broken, or reads as though you are working off a checklist. "This ternary inside the template literal is hard to follow, pull it into a named function?" is the comment. "Violates the no-nested-ternaries standard" is not.',
+		"",
+		"These are review findings, not lint output. If the project's own tooling already fails the build on it, it is not worth a comment. Tier a craft violation honestly: usually `suggestion`, `should-fix` when it will actively mislead the next reader, and `blocker` only when it causes a real defect.",
+		"",
+		"## Questions",
+		"",
+		'Not every gap is a defect. Where the code does not carry its own reason, ask instead of guessing: a finding with `kind: "question"`, publishable as a PR comment because that is how a human asks it. A question is worth asking only when all five of these hold:',
+		"",
+		"1. **The code and the codebase do not answer it.** The explanations carry what the change does and why in its local context. The deeper why, and why this instead of the obvious alternative, is where a question lives.",
+		"2. **The answer would change the review.** If the same findings stand whichever way the author answers, that is curiosity, not review.",
+		"3. **The choice is load-bearing:** correctness, data, failure behaviour, or a boundary other code depends on.",
+		"4. **You looked and did not find it:** the callers, a sibling doing it the other way, the ticket. A question you could have answered yourself is a failure to do the work.",
+		'5. **It deviates from a rule or a sibling**, the "why not the standard?" case, where the departure may well be deliberate.',
+		"",
+		"There is no expected number of questions. The five gates produce however many they produce: a change with eight real gaps gets eight, and a change whose reasons are all legible in the code gets none. Never pad to a figure, and never hold a question back to stay under one.",
+		"",
+		'A question carries no `tier`, and its `body` carries no alert block: it opens with the question itself, in one or two sentences. Everything else works exactly as a finding does, `proof` included, where the proof line says what you looked at before asking (`verified: false`, since asking is not verifying). Set `kind: "defect"` on everything that is not a question.',
 		"",
 		"## Verify",
 		"",
-		"Every finding gets tested before you write it up. Prefer a failing test that reproduces the bug — its diff can go in the evidence block, it is the most useful artifact you can hand back. When a test cannot capture it, run the app and interact with it. You have Bash, Write and Edit here specifically so you can do this — work in place on this working directory, and **delete any temp test or scratch file you create before you finish**, whether or not the finding survives. A killed false positive, discovered by actually running something, is the system working; discard whatever fails verification. Genuinely impractical to test (network, third parties)? A high-confidence inference is acceptable — hedge honestly in `proof` and set `verified: false`.",
+		"Every finding claiming a defect gets tested before you write it up (a question claims nothing, so there is nothing to test). Prefer a failing test that reproduces the bug — its diff can go in the evidence block, it is the most useful artifact you can hand back. When a test cannot capture it, run the app and interact with it. You have Bash, Write and Edit here specifically so you can do this — work in place on this working directory, and **delete any temp test or scratch file you create before you finish**, whether or not the finding survives. A killed false positive, discovered by actually running something, is the system working; discard whatever fails verification. Genuinely impractical to test (network, third parties)? A high-confidence inference is acceptable — hedge honestly in `proof` and set `verified: false`.",
+		"",
+		"Record what you leaned on: set `dependsOn` on every finding to the other files you opened to convince yourself it is real, by the same paths printed below. A later review re-checks a carried finding only when one of those files has moved, and a finding that names nothing has to be re-checked from scratch every time. Leave it off only when the finding rests on nothing but the lines it points at.",
 		"",
 		"## Severity",
 		"",
@@ -135,6 +235,10 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"Torn between two tiers? Pick the lower.",
 		"",
+		"A `nitpick` still has to earn its place against the findings above it: one that would not survive being said aloud in a review call does not belong in the pass. That is a bar, not a quota, and there is no share of a review that nitpicks are supposed to fill.",
+		"",
+		'A question has no tier at all: the ladder measures how bad something is, and a question has no badness. Leave `tier` off it and set `kind: "question"`.',
+		"",
 		"## What a comment is",
 		"",
 		"Two of the four fields you fill are pasted into GitHub as one comment, and two are not. Know which is which before you write.",
@@ -143,7 +247,7 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		"**Not pasted:** `title` (a plain-language scan aid for the reviewer's list) and `proof` (their triage line).",
 		"",
-		"Because `title` never reaches GitHub, `body` has to stand on its own: the alert block's tier line is what tells a reader how bad this is, so it is mandatory, not decoration.",
+		"Because `title` never reaches GitHub, `body` has to stand on its own: the alert block's tier line is what tells a reader how bad this is, so on a defect it is mandatory, not decoration. A question has no tier, so it has no alert block either: its `body` is the question itself.",
 		"",
 		"### The shape",
 		"",
@@ -214,21 +318,41 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 		"",
 		'No fake-personal voice in either direction. Never write "I really like this PR" or perform enthusiasm, and do not soften a finding to be polite. State facts plainly and let them carry their own weight.',
 		"",
+		"**Argue from evidence, never from taste.** Name the sibling that does it the other way, the definition you opened, or the command you ran. Evidence is checkable and taste is not, which is why a comment resting on taste alone is one the author is right to ignore.",
+		"",
 		"**Never use an em-dash in prose. This is a hard rule, not a preference.** The em-dash is the long dash, U+2014, the one reflex reaches for; a reviewer reads it as machine-written and trusts the text around it less. It is banned in `overview`, `verdict`, `ticket`, `title`, `proof`, every `says` sentence and the `body` paragraph. Use a period, a comma, a colon or parentheses instead, and take the rewrite as an invitation to split a long sentence in two. An en-dash (U+2013) or a double hyphen standing in for one breaks the same rule. The alert block's tier line, whose format is fixed above, is the only exception.",
 		"",
 		"## The change",
 		"",
-		renderNumberedDiff(input.files),
+		renderNumberedDiff(diffFiles(input)),
 	].join("\n");
+}
+
+/**
+ * The files the numbered diff renders. A re-review with a reuse plan leaves
+ * out the unchanged ones: they are identical to the diff already reviewed,
+ * so rendering them again is the whole cost the delta pass exists to avoid.
+ */
+function diffFiles(input: ReviewPromptInput): readonly FileDiff[] {
+	if (input.reuse === undefined) {
+		return input.files;
+	}
+	const unchanged = new Set(input.reuse.unchanged.map((file) => file.path));
+	return input.files.filter((file) => !unchanged.has(file.path));
 }
 
 /**
  * The re-review framing: the previous pass is prior notes, not a verdict to
  * defend. What got fixed is dropped and credited; what still stands is
  * re-emitted against the new diff; what the reviewer dismissed stays gone.
+ *
+ * With a reuse plan the second half of that changes: the findings on files
+ * that have not moved are already in the new pass, so re-emitting one
+ * duplicates it rather than keeping it.
  */
 function renderPreviousReview(
 	previous: PreviousReviewInput | undefined,
+	reuse: ReusePromptInput | undefined,
 ): string[] {
 	if (previous === undefined) {
 		return [];
@@ -236,13 +360,9 @@ function renderPreviousReview(
 	return [
 		"## Previous review",
 		"",
-		`You reviewed this change before (${previous.createdAt}). Below are that pass and, when present, the conversation it produced on GitHub. Treat them as your own prior notes, then review the CURRENT diff at the bottom of this prompt in full, with these rules:`,
-		"",
-		"- A previous finding the current code has fixed, or that an author reply below convincingly answers, is resolved: do not re-emit it, and credit what was resolved in one clause of the verdict.",
-		"- A previous finding still true in the current code is re-emitted: keep its substance (keep the reader's wording where a finding is marked edited), re-anchor it to the numbered diff below, and re-verify it against the code as it is now.",
-		"- A finding marked dismissed was removed by the reviewer on purpose: leave it out unless the code changed in a way that makes it newly dangerous.",
-		"- Everything else in the current diff is reviewed fresh, as if for the first time.",
-		"- Never repeat a point the conversation below already makes unless it is unresolved and matters.",
+		...(reuse === undefined
+			? fullReviewRules(previous.createdAt)
+			: deltaReviewRules(previous.createdAt)),
 		"",
 		"### The previous pass",
 		"",
@@ -258,6 +378,31 @@ function renderPreviousReview(
 	];
 }
 
+function fullReviewRules(createdAt: string): string[] {
+	return [
+		`You reviewed this change before (${createdAt}). Below are that pass and, when present, the conversation it produced on GitHub. Treat them as your own prior notes, then review the CURRENT diff at the bottom of this prompt in full, with these rules:`,
+		"",
+		"- A previous finding the current code has fixed, or that an author reply below convincingly answers, is resolved: do not re-emit it, and credit what was resolved in one clause of the verdict.",
+		"- A previous finding still true in the current code is re-emitted: keep its substance (keep the reader's wording where a finding is marked edited), re-anchor it to the numbered diff below, and re-verify it against the code as it is now.",
+		"- A finding marked dismissed was removed by the reviewer on purpose: leave it out unless the code changed in a way that makes it newly dangerous.",
+		"- Everything else in the current diff is reviewed fresh, as if for the first time.",
+		"- Never repeat a point the conversation below already makes unless it is unresolved and matters.",
+	];
+}
+
+function deltaReviewRules(createdAt: string): string[] {
+	return [
+		`You reviewed this change before (${createdAt}). Below are that pass and, when present, the conversation it produced on GitHub. Most of the change has not moved since, so the diff at the bottom of this prompt holds only the files that did, and "## Since the last review" says what is already carried for you. The rules:`,
+		"",
+		"- A previous finding anchored in the diff below is judged again from scratch: fixed means dropped and credited in one clause of the verdict, still true means re-emitted, re-anchored and re-verified.",
+		"- A finding marked `carried` is already in this pass. Do not re-emit it and do not make its point again as a new finding; that duplicates it.",
+		"- A finding marked `RE-CHECK` is carried too, but something it leaned on has moved. Read the code as it is now and answer it in `carried`.",
+		"- A finding marked dismissed was removed by the reviewer on purpose: leave it out unless the code changed in a way that makes it newly dangerous.",
+		"- Everything in the diff below that the previous pass did not cover is reviewed fresh, as if for the first time.",
+		"- Never repeat a point the conversation below already makes unless it is unresolved and matters.",
+	];
+}
+
 function renderPreviousComment(
 	comment: PreviousCommentInput,
 	index: number,
@@ -265,13 +410,104 @@ function renderPreviousComment(
 	const flags = [
 		comment.dismissed ? "dismissed by the reviewer" : null,
 		comment.edited ? "wording edited by the reviewer" : null,
+		carriedFlag(comment.carried),
 	].filter((flag) => flag !== null);
 	const suffix = flags.length === 0 ? "" : ` [${flags.join(", ")}]`;
 	const anchor = `${comment.path}:${comment.startLine}-${comment.endLine}`;
 	return [
-		`${index + 1}. (${comment.tier}) ${comment.title} @ ${anchor}${suffix}`,
+		`${index + 1}. [${comment.id}] (${comment.tier}) ${comment.title} @ ${anchor}${suffix}`,
 		indent(comment.body),
 	].join("\n");
+}
+
+function carriedFlag(carried: CarriedNote | undefined): string | null {
+	if (carried === undefined) {
+		return null;
+	}
+	if (carried.unrecorded) {
+		return "carried, RE-CHECK: the pass recorded nothing this finding leaned on";
+	}
+	if (carried.movedDependencies.length > 0) {
+		return `carried, RE-CHECK: ${carried.movedDependencies.map(quotePath).join(", ")} moved since you verified it`;
+	}
+	return "carried: its file has not changed since you reviewed it";
+}
+
+/**
+ * What is the same, what moved, and what the pass already said about the
+ * files that did not. This section is what replaces the diff of the
+ * unchanged files: identical blobs mean identical hunks and identical line
+ * numbers, so nothing anchored in them needs re-anchoring or re-reading.
+ */
+function renderReuse(reuse: ReusePromptInput | undefined): string[] {
+	if (reuse === undefined) {
+		return [];
+	}
+	return [
+		"## Since the last review",
+		"",
+		reuse.baseMoved
+			? "The base commit moved, so this change is measured against different starting content than it was."
+			: "The base commit is the one the previous pass measured against.",
+		"",
+		...pathList("Changed", reuse.changedPaths),
+		...pathList("Added", reuse.addedPaths),
+		...pathList("Gone from the change", reuse.removedPaths),
+		...pathList(
+			"Unchanged, byte for byte",
+			reuse.unchanged.map((file) => file.path),
+		),
+		"",
+		"**The diff at the bottom holds only the changed and added files.** Every unchanged file is identical to the one you already reviewed, hunk for hunk and line for line, so its anchors still hold and there is nothing in it to read again. What the previous pass said about those files is carried into this pass for you, already marked above. Do not spend turns reopening them.",
+		"",
+		reuse.recheckIds.length === 0
+			? "Nothing needs re-checking: no carried finding leaned on a file that moved. Leave `carried` empty."
+			: `Re-check exactly these, and answer one \`carried\` entry for each: ${reuse.recheckIds.join(", ")}. \`stands\` when the finding is still true in the code as it is now, \`resolved\` when it is not, with a one-clause \`why\` on a \`resolved\` so the verdict line can credit the fix. An id outside that list is ignored.`,
+		"",
+		...renderUnchangedInventory(reuse.unchanged),
+	];
+}
+
+function pathList(label: string, paths: readonly string[]): string[] {
+	return paths.length === 0
+		? []
+		: [`- ${label}: ${paths.map(quotePath).join(", ")}`];
+}
+
+function renderUnchangedInventory(
+	unchanged: readonly UnchangedFileInput[],
+): string[] {
+	const withNotes = unchanged.filter(
+		(file) => file.findingIds.length > 0 || file.explanations.length > 0,
+	);
+	if (withNotes.length === 0) {
+		return [];
+	}
+	return [
+		"### What the last pass already said about the unchanged files",
+		"",
+		withNotes.map(renderUnchangedFile).join("\n"),
+		"",
+		"Those explanations are carried into this pass exactly as they are. Write explanations only for the files in the diff below.",
+		"",
+	];
+}
+
+function renderUnchangedFile(file: UnchangedFileInput): string {
+	const notes = [
+		...(file.findingIds.length === 0
+			? []
+			: [`  - carried findings: ${file.findingIds.join(", ")}`]),
+		...file.explanations.map(
+			(explanation) =>
+				`  - explanation${explanation.topic === undefined ? "" : ` (topic "${explanation.topic}")`}: ${explanation.says.join(" ")}`,
+		),
+	];
+	return [`- ${quotePath(file.path)}`, ...notes].join("\n");
+}
+
+function quotePath(path: string): string {
+	return `\`${path}\``;
 }
 
 function renderConversation(
