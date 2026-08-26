@@ -11,17 +11,17 @@ export default defineConfig({
 	test: {
 		coverage: {
 			provider: "v8",
-			include: ["src/**"],
+			include: ["src/**/*.{ts,tsx}"],
 			exclude: [
 				"src/**/*.test.{ts,tsx}",
 				"src/client/src/main.tsx",
 				"src/client/src/vite-env.d.ts",
 			],
 			thresholds: {
-				statements: 73,
-				branches: 63,
-				functions: 70,
-				lines: 73,
+				statements: 74,
+				branches: 65,
+				functions: 71,
+				lines: 74,
 			},
 		},
 		projects: [
