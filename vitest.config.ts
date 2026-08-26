@@ -1,5 +1,11 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { defaultExclude, defineConfig } from "vitest/config";
+
+const CLIENT_ALIAS = {
+	"@dto": fileURLToPath(new URL("./src/interface/http/dto", import.meta.url)),
+};
+
+const CLIENT_DOMAIN = "src/client/src/domain";
 
 export default defineConfig({
 	test: {
@@ -28,17 +34,20 @@ export default defineConfig({
 				},
 			},
 			{
-				resolve: {
-					alias: {
-						"@dto": fileURLToPath(
-							new URL("./src/interface/http/dto", import.meta.url),
-						),
-					},
+				resolve: { alias: CLIENT_ALIAS },
+				test: {
+					name: "client-domain",
+					environment: "node",
+					include: [`${CLIENT_DOMAIN}/**/*.test.ts`],
 				},
+			},
+			{
+				resolve: { alias: CLIENT_ALIAS },
 				test: {
 					name: "client",
 					environment: "jsdom",
 					include: ["src/client/**/*.test.{ts,tsx}"],
+					exclude: [...defaultExclude, `${CLIENT_DOMAIN}/**`],
 					setupFiles: ["./test/setup/reactTestingLibrary.ts"],
 				},
 			},
