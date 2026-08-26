@@ -1,5 +1,13 @@
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+} from "vitest";
 import { createPathShim, type PathShim } from "../../../test/helpers/shimPath";
 import type { EngineEvent } from "../../application/ports/Engine";
 import { ClaudeEngine } from "./ClaudeEngine";
@@ -48,16 +56,22 @@ describe("ClaudeEngine", () => {
 	let shim: PathShim;
 	let originalPath: string | undefined;
 
-	beforeEach(async () => {
+	beforeAll(async () => {
 		shim = await createPathShim();
+	});
+
+	afterAll(async () => {
+		await shim.dispose();
+	});
+
+	beforeEach(() => {
 		originalPath = process.env.PATH;
 	});
 
-	afterEach(async () => {
+	afterEach(() => {
 		process.env.PATH = originalPath;
 		delete process.env.FAKE_CLAUDE_FIXTURE;
 		delete process.env.FAKE_CLAUDE_EXIT;
-		await shim.dispose();
 	});
 
 	it("probes the fake binary's version", async () => {

@@ -30,7 +30,7 @@ afterAll(async () => {
 	await Promise.all(disposables.map((repo) => repo.dispose()));
 });
 
-describe("repo discovery", () => {
+describe.concurrent("repo discovery", () => {
 	it("repoRoot resolves the toplevel from a subdirectory", async () => {
 		const repo = await fixtureRepo();
 		await repo.write("nested/deep/file.txt", "content\n");
@@ -47,7 +47,7 @@ describe("repo discovery", () => {
 	});
 });
 
-describe("verifyRef", () => {
+describe.concurrent("verifyRef", () => {
 	it("resolves a branch name to its commit sha", async () => {
 		const repo = await fixtureRepo();
 		const client = new GitClient(repo.root);
@@ -74,7 +74,7 @@ describe("verifyRef", () => {
 	});
 });
 
-describe("remoteUrl", () => {
+describe.concurrent("remoteUrl", () => {
 	it("returns the origin url of a clone", async () => {
 		const origin = await fixtureRepo();
 		const cloned = await trackClone(origin);
@@ -89,7 +89,7 @@ describe("remoteUrl", () => {
 	});
 });
 
-describe("defaultBranch", () => {
+describe.concurrent("defaultBranch", () => {
 	it("reads origin/HEAD in a clone", async () => {
 		const origin = await fixtureRepo();
 		const cloned = await trackClone(origin);
@@ -114,7 +114,7 @@ describe("defaultBranch", () => {
 	});
 });
 
-describe("mergeBase", () => {
+describe.concurrent("mergeBase", () => {
 	it("finds the fork point of two diverged branches", async () => {
 		const repo = await fixtureRepo();
 		const forkSha = await repo.headSha();
@@ -130,7 +130,7 @@ describe("mergeBase", () => {
 	});
 });
 
-describe("diff", () => {
+describe.concurrent("diff", () => {
 	it("produces canonical parseable diff text between two commits", async () => {
 		const repo = await fixtureRepo();
 		await repo.write("app.ts", "const value = 1;\n");
@@ -180,7 +180,7 @@ describe("diff", () => {
 	});
 });
 
-describe("diffWorktree", () => {
+describe.concurrent("diffWorktree", () => {
 	it("combines staged and unstaged edits versus HEAD", async () => {
 		const repo = await fixtureRepo();
 		await repo.write("staged.txt", "original staged\n");
@@ -203,7 +203,7 @@ describe("diffWorktree", () => {
 	});
 });
 
-describe("blob reads", () => {
+describe.concurrent("blob reads", () => {
 	it("readBlob returns committed content at ref:path, byte-exact for binary", async () => {
 		const repo = await fixtureRepo();
 		const bytes = Buffer.from([0, 1, 2, 250, 0, 13, 10]);
@@ -288,7 +288,7 @@ describe("blob reads", () => {
 	});
 });
 
-describe("worktree management", () => {
+describe.concurrent("worktree management", () => {
 	it("adds a detached checkout outside the repo, then removes it", async () => {
 		const repo = await fixtureRepo();
 		await repo.write("file.txt", "first\n");
@@ -313,7 +313,7 @@ describe("worktree management", () => {
 	});
 });
 
-describe("hashObject", () => {
+describe.concurrent("hashObject", () => {
 	it("matches the oid git recorded for the committed file", async () => {
 		const repo = await fixtureRepo();
 		await repo.write("file.txt", "hash me\n");
@@ -325,7 +325,7 @@ describe("hashObject", () => {
 	});
 });
 
-describe("worktreeFingerprint", () => {
+describe.concurrent("worktreeFingerprint", () => {
 	it("is stable while nothing changes, including mtime-only touches", async () => {
 		const repo = await fixtureRepo();
 		await repo.write("file.txt", "content\n");
@@ -387,7 +387,7 @@ describe("worktreeFingerprint", () => {
 	});
 });
 
-describe("fetchPrHead", () => {
+describe.concurrent("fetchPrHead", () => {
 	it("fetches refs/pull/N/head from origin into a named local ref", async () => {
 		const origin = await fixtureRepo();
 		await origin.git(["checkout", "--quiet", "-b", "feature"]);
@@ -410,7 +410,7 @@ describe("fetchPrHead", () => {
 	});
 });
 
-describe("currentBranch", () => {
+describe.concurrent("currentBranch", () => {
 	it("names the checked-out branch", async () => {
 		const repo = await fixtureRepo();
 		expect(await new GitClient(repo.root).currentBranch()).toBe("main");
@@ -423,7 +423,7 @@ describe("currentBranch", () => {
 	});
 });
 
-describe("localBranches", () => {
+describe.concurrent("localBranches", () => {
 	it("lists every local branch name", async () => {
 		const repo = await fixtureRepo();
 		await repo.git(["branch", "feat/rate-limit"]);
@@ -436,7 +436,7 @@ describe("localBranches", () => {
 	});
 });
 
-describe("isDirty", () => {
+describe.concurrent("isDirty", () => {
 	it("is false on a clean checkout", async () => {
 		const repo = await fixtureRepo();
 		expect(await new GitClient(repo.root).isDirty()).toBe(false);
