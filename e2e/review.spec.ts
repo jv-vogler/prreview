@@ -51,6 +51,21 @@ test.describe("review pass", () => {
 		const markers = page.locator("[data-finding-marker]");
 		await expect(markers.first()).toBeVisible();
 		await expect(page.locator("[data-finding-id]")).toHaveCount(0);
+
+		const chip = page.locator("[data-explanation-chip]").first();
+		await expect(chip).toBeVisible();
+		const balloon = page.locator("[data-explanation-id]").first();
+		await expect(balloon).toBeVisible();
+		await expect(balloon.getByRole("button")).toHaveCount(0);
+		await chip.click();
+		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
+		await chip.click();
+		await expect(balloon).toBeVisible();
+		await page.getByRole("button", { name: "Hide explanations" }).click();
+		await expect(page.locator("[data-explanation-chip]")).toHaveCount(0);
+		await page.getByRole("button", { name: "Show explanations" }).click();
+		await expect(chip).toBeVisible();
+
 		await markers.first().click();
 		await expect(page.locator("[data-finding-id]").first()).toBeVisible();
 
@@ -66,21 +81,6 @@ test.describe("review pass", () => {
 		await expect(questionRow).toHaveCount(1);
 		await expect(questionRow).toContainText("Question");
 		await expect(questionRow).toContainText("Mock question about a choice");
-
-		const chip = page.locator("[data-explanation-chip]").first();
-		await expect(chip).toBeVisible();
-		const balloon = page.locator("[data-explanation-id]").first();
-		await expect(balloon).toBeVisible();
-		await expect(balloon.getByRole("button")).toHaveCount(0);
-		await chip.click();
-		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
-		await chip.click();
-		await expect(balloon).toBeVisible();
-		await page.getByRole("button", { name: "Hide explanations" }).click();
-		await expect(page.locator("[data-explanation-chip]")).toHaveCount(0);
-		await page.getByRole("button", { name: "Show explanations" }).click();
-		await expect(chip).toBeVisible();
-		await expect(page.locator("[data-finding-id]").first()).toBeVisible();
 
 		await expect(
 			page.locator("[class*='overview']").getByRole("button", {
