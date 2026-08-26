@@ -44,7 +44,6 @@ import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";
 import { useHeaderFoldClicks } from "./useHeaderFoldClicks";
 
-/** the annotation metadata carried per rendered diff line (TASK-043) */
 interface DiffAnnotationMeta {
 	findingIds: string[];
 	explanationIds: string[];
@@ -59,21 +58,16 @@ export interface DiffWorkspaceHandle {
 export interface DiffWorkspaceProps {
 	api: ApiClient;
 	changeset: ChangesetDto;
-	/** files without hunks (binary, mode-only, pure renames) have no rows to render */
 	renderedFiles: readonly FileDiffDto[];
 	foldedFileIds: ReadonlySet<string>;
 	onToggleFold(fileId: string): void;
 	handleRef: React.RefObject<DiffWorkspaceHandle | null>;
-	/** every comment for the pass on screen, placed or not (unplaced ones carry no annotation) */
 	findings: readonly ReviewFindingDto[];
 	expandedFindingIds: ReadonlySet<string>;
 	onToggleFinding(findingId: string): void;
 	actions: FindingActions;
-	/** the pass's change explanations; unplaceable ones carry no annotation */
 	explanations: readonly ExplanationDto[];
-	/** the one header toggle: off drops the explanations entirely */
 	showExplanations: boolean;
-	/** chips fold behind a right-edge marker; margin keeps the cards open */
 	explanationsMode: ExplanationsMode;
 }
 
@@ -82,7 +76,6 @@ const ANNOTATION_SIDE: Record<AnchorSideDto, "deletions" | "additions"> = {
 	new: "additions",
 };
 
-/** The one screen's renderer: Pierre's virtualized CodeView over the resolved changeset. */
 export function DiffWorkspace({
 	api,
 	changeset,
@@ -114,9 +107,6 @@ export function DiffWorkspace({
 		[explanations],
 	);
 
-	// one annotation per line carries both kinds: the hidden state drops the
-	// explanation groups entirely, so a line with only explanations loses its
-	// annotation rather than rendering an empty slot
 	const annotationsByFileId = useMemo(() => {
 		const merged = new Map<
 			string,
@@ -168,10 +158,6 @@ export function DiffWorkspace({
 		return byFile;
 	}, [findings, explanations, showExplanations]);
 
-	// Pierre reuses a file's whole rendered record — annotations included —
-	// until `version` moves (see the comment at its use below), so a new
-	// pass's comments, its explanations, the show/hide toggle and the
-	// explanations mode all need their own bump distinct from the fold bit.
 	const findingsRevisionRef = useRef(0);
 	const previousAnnotationsRef = useRef(annotationsByFileId);
 	const previousModeRef = useRef(explanationsMode);
@@ -205,9 +191,7 @@ export function DiffWorkspace({
 					id: file.id,
 					type: "diff" as const,
 					fileDiff,
-					// the renderer reuses a file's rendered record — including its
-					// annotations — until this number moves, so both a fold and a
-					// new pass's comments have to be encoded into it
+
 					version: (collapsed ? 1 : 0) + findingsRevision * 2,
 					collapsed,
 					annotations: annotationsByFileId.get(file.id),
@@ -245,8 +229,6 @@ export function DiffWorkspace({
 			return { oldFile, newFile };
 
 			async function loadSide(side: BlobRequest | null, name: string) {
-				// an absent side IS the full contents: added files have an empty
-				// old side, deleted files an empty new side
 				if (side === null) {
 					return { name, contents: "" };
 				}
@@ -259,8 +241,6 @@ export function DiffWorkspace({
 
 	useHeaderFoldClicks(containerRef, onToggleFold);
 
-	// every open card stack positions through one shared layout, so stacks
-	// on nearby lines can see each other (explanationCardLayout.ts)
 	const cardLayout = useMemo(() => createExplanationCardLayout(), []);
 	const topicColors = useMemo(
 		() => topicColorsFor(explanations),
@@ -311,7 +291,6 @@ export function DiffWorkspace({
 				containerRef={containerRef}
 				items={items}
 				className={styles.codeView}
-				// the far-left slot, immediately before the change-type icon
 				renderHeaderPrefix={(item) => {
 					const file = filesById.get(item.id);
 					if (file === undefined) {

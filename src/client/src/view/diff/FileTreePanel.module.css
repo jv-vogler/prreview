@@ -27,7 +27,6 @@
 	gap: var(--base-size-2);
 }
 
-/* a folder boundary, told with air rather than a rule */
 .list > li[data-group-start="true"] {
 	margin-top: var(--base-size-12);
 }

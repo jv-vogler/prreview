@@ -14,24 +14,10 @@ import {
 	type RunProgressUpdate,
 } from "../../domain/run/RunProgress";
 
-/**
- * The old implementation's two-lane policy and fan-out semaphore are gone
- * on purpose (TASK-033) — there is one lane now, and a second start request
- * while one is active is simply a conflict, never a queue.
- */
 export interface RunManagerOptions {
-	/** every state transition goes out here */
 	publish: PublishEvent;
 }
 
-/**
- * How often a running job's progress reaches the browser.
- *
- * An agent reading forty files emits forty tool events in a few seconds, and
- * forty SSE frames to move one line of text is waste. One frame every half
- * second still reads as live to a person, and the newest state is always
- * the one that gets sent — a coalesced frame is never a stale frame.
- */
 const PROGRESS_PUBLISH_MS = 500;
 
 const MS_PER_SECOND = 1000;
@@ -41,17 +27,14 @@ interface ActiveRun {
 	controller: AbortController;
 	cancelRequested: boolean;
 	timedOut: boolean;
-	/** set while a coalesced progress frame is waiting to go out */
 	progressTimer: NodeJS.Timeout | null;
-	/** the silence clock; rearmed by every progress report */
 	idleTimer: NodeJS.Timeout | null;
 }
 
 export function createRunManager(options: RunManagerOptions): RunManager {
 	const { publish } = options;
 	const runsById = new Map<string, ActiveRun>();
-	// the most recently started run, kept even after it settles — a poll or a
-	// page reload has to see a run's terminal state too, not just a live one
+
 	let mostRecent: ActiveRun | null = null;
 
 	function armIdleClock(entry: ActiveRun): void {
@@ -78,8 +61,6 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 		eventType: RunEventType,
 	): void {
 		if (entry.progressTimer !== null) {
-			// a queued progress frame published after the terminal one would put
-			// the run back into "working" on every screen watching it
 			clearTimeout(entry.progressTimer);
 			entry.progressTimer = null;
 		}
@@ -123,7 +104,6 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 				signal: entry.controller.signal,
 			});
 		} catch (error) {
-			// a throwing job must never wedge the manager
 			return { ok: false, reason: "internal", message: describeError(error) };
 		}
 	}
@@ -162,8 +142,6 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 		runsById.set(entry.run.id, entry);
 		mostRecent = entry;
 		publish({ type: "run.queued", run: snapshot(entry) });
-		// deliberately not awaited: start() returns while the work runs, and
-		// start_() contains every failure itself
 		void start_(entry, job);
 		return { kind: "started", runId: entry.run.id };
 	}
@@ -193,12 +171,6 @@ export function createRunManager(options: RunManagerOptions): RunManager {
 		entry.progressTimer.unref?.();
 	}
 
-	/**
-	 * Cancellation travels through the abort signal: the job stops iterating
-	 * the engine, and (per `buildReviewJob`) the abort listener calls the
-	 * engine's own `stop()`, which sends SIGTERM and escalates to SIGKILL
-	 * (SEC-002).
-	 */
 	function cancel(runId: string): boolean {
 		const entry = runsById.get(runId);
 		if (entry === undefined || isSettled(entry.run.status)) {
@@ -230,7 +202,6 @@ function isSettled(status: RunStatus): boolean {
 	return status !== "queued" && status !== "running";
 }
 
-/** Callers get a copy: a run record handed out must not mutate under them. */
 function snapshot(entry: ActiveRun): Run {
 	return { ...entry.run };
 }

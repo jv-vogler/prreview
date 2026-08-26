@@ -46,7 +46,6 @@ describe("createSseHub", () => {
 			{ type: "run.started", run: RUN_DTO },
 			{ type: "run.succeeded", run: { ...RUN_DTO, status: "succeeded" } },
 		]);
-
 		await disconnect(body);
 	});
 
@@ -85,7 +84,6 @@ describe("createSseHub", () => {
 		const body = requireBody(await app.request("/events"));
 		const [data] = await readSseFrames(body, 1);
 		expect(JSON.parse(data ?? "{}")).toEqual({ type: "heartbeat" });
-
 		await disconnect(body);
 		hub.stop();
 	});

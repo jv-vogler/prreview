@@ -14,8 +14,7 @@ describe("useElapsedSince", () => {
 	it("keeps ticking even when the server's clock is ahead of the client's", () => {
 		const now = Date.now();
 		vi.setSystemTime(now);
-		// a server clock running ahead makes the naive `Date.now() - started`
-		// diff negative for the whole run — this is the bug being guarded
+
 		const startedInTheFuture = new Date(now + 5_000).toISOString();
 
 		const { result } = renderHook(() => useElapsedSince(startedInTheFuture));
@@ -36,7 +35,6 @@ describe("useElapsedSince", () => {
 			initialProps: { instant: new Date().toISOString() },
 		});
 		expect(result.current).not.toBeNull();
-
 		rerender({ instant: null });
 		expect(result.current).toBeNull();
 	});

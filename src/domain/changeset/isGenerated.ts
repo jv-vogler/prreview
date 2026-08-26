@@ -22,11 +22,6 @@ const GENERATED_DIRECTORY_NAMES = new Set(["dist", "vendor"]);
 const MINIFIED_MARKER = ".min.";
 const SOURCE_MAP_EXTENSION = ".map";
 
-/**
- * Heuristic: files nobody reviews line by line (lockfiles, minified bundles,
- * build output, vendored code, source maps). Used for attention ordering and
- * collapsed-by-default rendering, never to drop files from the changeset.
- */
 export function isGenerated(path: string): boolean {
 	const segments = path.split("/");
 	const basename = segments[segments.length - 1] ?? "";

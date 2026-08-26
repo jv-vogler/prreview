@@ -44,7 +44,8 @@ No `types/` folder anywhere; types live with the layer that owns them.
 `src/interface/http/dto/` is the only shared code between server and client: zod schemas +
 `z.infer` types, importing nothing but zod (and in-folder siblings).
 
-Enforced by `scripts/check-layering.mjs` and `scripts/check-dto-imports.mjs` in `npm run lint`.
+Enforced by `scripts/check-layering.mjs`, `scripts/check-dto-imports.mjs` and
+`scripts/check-comments.mjs` in `npm run lint`.
 If a rule here is not in one of those scripts, it is because it could not be mechanised — not
 because it is optional.
 
@@ -59,8 +60,10 @@ Precedent beats prose. When shape is in question, follow the file, not the parag
 
 ## How code is written
 
-- **Comments say why.** A comment narrating the line below it is noise, and the fix is a better
-  name. Keep named constants, drop restatement.
+- **No comments.** Enforced by `scripts/check-comments.mjs`; only tool directives survive
+  (`biome-ignore`, `@ts-expect-error`, triple-slash references). If something needs explaining,
+  the answer is a better name, a smaller function, or a test whose name says it. A fact about the
+  world outside this repo (a CLI's behaviour, a library's quirk) goes in `docs/`, not in a file.
 - **One name per concept**, everywhere it appears — domain, wire, and UI.
 - **Return early.** Guard clauses over nesting. Never nest ternaries.
 - **No magic numbers**, but a literal inside an already-named constant is not one, and neither is

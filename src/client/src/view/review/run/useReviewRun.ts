@@ -10,43 +10,21 @@ import {
 } from "../../../infrastructure/endpoints/reviewRun";
 import type { ApiClient } from "../../../infrastructure/httpClients/apiClient";
 
-/** while a run is live, how often the poll fallback re-checks (TASK-037) */
 const POLL_MS = 8_000;
 const LIVE_STATUSES = new Set(["queued", "running"]);
 
 export interface ReviewRunState {
 	run: RunDto | null;
 	starting: boolean;
-	/** a start attempt's own failure — a 409 conflict, or the request itself failing */
 	startError: string | null;
-	/** the last completed pass for this changeset, if any has ever been saved */
 	pass: ReviewPassDto | null;
-	/** how far the change moved since that pass; null exactly when `pass` is null */
 	freshness: PassFreshnessDto | null;
-	/**
-	 * Adopts a pass answered directly by a curation call (TASK-046, TASK-047)
-	 * — edit/delete/restore all answer the recomputed pass in the same
-	 * response, so the reader's optimistic change reconciles against the
-	 * server-authoritative artifact without a second `GET`.
-	 */
 	applyPass(pass: ReviewPassDto): void;
-	/**
-	 * Adopts a whole status answered by `POST /api/changeset/refresh`: the
-	 * freshness a re-review dialog states is only true of the changeset it
-	 * was computed against, so it arrives with that changeset rather than
-	 * being fetched separately afterwards.
-	 */
 	applyStatus(status: ReviewStatusDto): void;
 	start(options?: PostReviewOptions): void;
 	cancel(): void;
 }
 
-/**
- * The run's state on screen, kept in sync two ways at once: the SSE channel
- * for live updates, and an 8-second poll of `GET /api/review` whenever a
- * run is queued or running, so a dropped SSE frame goes stale for seconds,
- * never permanently wrong (REQ-008, TASK-037).
- */
 export function useReviewRun(api: ApiClient): ReviewRunState {
 	const [run, setRun] = useState<RunDto | null>(null);
 	const [pass, setPass] = useState<ReviewPassDto | null>(null);
@@ -75,8 +53,6 @@ export function useReviewRun(api: ApiClient): ReviewRunState {
 			}
 			setRun(parsed.data.run);
 			if (parsed.data.type === "run.succeeded") {
-				// residue is discovered only by reading the store, so a
-				// success frame is followed by one fetch to pick it up
 				refetch();
 			}
 		};

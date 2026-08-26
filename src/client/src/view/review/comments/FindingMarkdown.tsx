@@ -3,12 +3,6 @@ import remarkGfm from "remark-gfm";
 import { parseAlertBlock } from "../../../domain/finding/parseAlertBlock";
 import styles from "./FindingMarkdown.module.css";
 
-/**
- * Renders a finding's `body` as markdown (TASK-043): bullets, backticks and
- * bold render through `react-markdown`; the leading GitHub alert block
- * renders as a styled box instead of a plain blockquote, using
- * `parseAlertBlock`'s pure extraction rather than a markdown plugin.
- */
 export function FindingMarkdown({ body }: { body: string }) {
 	const alert = parseAlertBlock(body);
 	if (alert === null) {
@@ -35,11 +29,6 @@ function Prose({ text }: { text: string }) {
 	);
 }
 
-/**
- * A fenced ```diff block, colored the way GitHub colors one. Without this the
- * fix an evidence block is carrying renders as flat grey text, so the reader
- * has to parse the leading +/- themselves.
- */
 function Code({
 	className,
 	children,

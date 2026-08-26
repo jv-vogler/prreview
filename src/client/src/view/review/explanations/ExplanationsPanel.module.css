@@ -1,9 +1,3 @@
-/*
- * The same author's voice as the balloons, condensed to a table of
- * contents: topics carry their shared color, entries lead with the place
- * they anchor to, and the prose stays secondary. Reading top to bottom is
- * reading the PR's story; clicking any place is opening the book there.
- */
 .panel {
 	display: flex;
 	flex-direction: column;
@@ -23,7 +17,6 @@
 	gap: var(--base-size-8);
 }
 
-/* the chevron, the chip and the reach of the topic, on one line */
 .topicHead {
 	display: flex;
 	align-items: flex-start;
@@ -61,11 +54,6 @@
 	padding-left: var(--base-size-24);
 }
 
-/*
- * What the topic is about, before any of its places: the lead sentence of
- * each explanation under it (topics.ts), so a folded panel still reads as
- * an account rather than a list of file names.
- */
 .summary {
 	margin: 0;
 	color: var(--fgColor-default);

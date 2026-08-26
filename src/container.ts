@@ -16,32 +16,17 @@ import { GhCliGithubService } from "./infrastructure/github/GhCliGithubService";
 import { SessionStore as FileSessionStore } from "./infrastructure/store/SessionStore";
 
 export interface BootConfig {
-	/** absolute repo toplevel (`git rev-parse --show-toplevel`) */
 	repoRoot: string;
 }
 
-/**
- * The test seam: use-case tests swap adapters for fakes here, at the
- * composition root, never by module mocking (CON-013).
- */
 export interface ContainerOverrides {
 	clock?: Clock;
 	git?: Git;
-	/** null = no GitHub backend at all, matching toolchain.github.kind "none" */
 	githubService?: GithubService | null;
-	/** null = no agent at all, matching toolchain.agent.kind "none" (REQ-009) */
 	engine?: Engine | null;
 	sessionStore?: SessionStore;
 }
 
-/**
- * The composition root (CON-009): everything is built once at boot and
- * handed down; nothing below this file imports an implementation directly.
- *
- * `toolchain` is a required parameter, not something this function invents —
- * the CLI edge probes it (infrastructure/toolchain/probeToolchain.ts) and
- * hands the result down.
- */
 export function buildContainer(
 	config: BootConfig,
 	toolchain: Toolchain,
@@ -90,7 +75,6 @@ export interface Container {
 	resolveChangeset: ResolveChangeset;
 }
 
-/** Mirrors GithubService selection by the probed toolchain; no fallback backend yet. */
 function selectGithubService(
 	toolchain: Toolchain,
 	git: Git,

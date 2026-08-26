@@ -17,10 +17,6 @@
 	background: var(--bgColor-default);
 }
 
-/*
- * The subject and the actions share one row instead of stacking: every
- * vertical slot this block gives up is a diff row the reader gets back.
- */
 .headerRow {
 	display: flex;
 	flex-wrap: wrap;

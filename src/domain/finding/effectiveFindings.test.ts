@@ -58,7 +58,6 @@ const FILE: FileDiff = {
 	],
 };
 
-/** A finding, distinguishable from the fixture's default by its body. */
 function finding(body: string) {
 	return {
 		path: "src/a.ts",

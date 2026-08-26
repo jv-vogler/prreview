@@ -1,4 +1,3 @@
-/* the width itself is the reader's, set inline from usePanelWidth */
 .panel {
 	flex: none;
 	display: flex;
@@ -31,7 +30,7 @@
 	gap: var(--base-size-6);
 	padding: var(--base-size-4) 0 var(--base-size-8);
 	border: none;
-	/* the underline is the selection; keep the box model stable across states */
+
 	border-bottom: var(--borderWidth-thick) solid transparent;
 	background: none;
 	color: var(--fgColor-muted);
@@ -64,7 +63,6 @@
 	flex: 1;
 }
 
-/* pushed to the panel's foot; publishing is the sidebar's closing act */
 .publishDock {
 	margin-top: auto;
 	padding-top: var(--base-size-16);

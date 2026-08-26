@@ -6,10 +6,6 @@ import type {
 	TaskSpec,
 } from "../../src/application/ports/Engine";
 
-/**
- * In-memory Engine fake: events are scripted per test, `stop()` is recorded
- * so a cancellation test can assert the engine was actually told to die.
- */
 export class FakeEngine implements Engine {
 	events: EngineEvent[] = [];
 	stopped = false;

@@ -12,7 +12,6 @@ import type { ApiClient } from "../httpClients/apiClient";
 import { HttpError } from "../httpClients/HttpError";
 import type { PostReviewResult } from "./reviewRun";
 
-/** `PATCH /api/review/comments/:id`; answers the recomputed pass (TASK-046, TASK-047). */
 export async function editFinding(
 	api: ApiClient,
 	findingId: string,
@@ -23,7 +22,6 @@ export async function editFinding(
 	);
 }
 
-/** `DELETE /api/review/comments/:id`; answers the recomputed pass. */
 export async function deleteFinding(
 	api: ApiClient,
 	findingId: string,
@@ -33,7 +31,6 @@ export async function deleteFinding(
 	);
 }
 
-/** `POST /api/review/comments/:id/restore`; answers the recomputed pass. */
 export async function restoreFinding(
 	api: ApiClient,
 	findingId: string,
@@ -43,11 +40,6 @@ export async function restoreFinding(
 	);
 }
 
-/**
- * `POST /api/review/comments/:id/rework` (TASK-048): starts a run, same
- * shape as `postReviewRun` — the proposal itself arrives later, on that
- * run's own status once it succeeds (TASK-049).
- */
 export async function reworkFinding(
 	api: ApiClient,
 	findingId: string,

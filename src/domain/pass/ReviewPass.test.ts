@@ -100,7 +100,6 @@ describe("reviewOutputSchema findings", () => {
 		);
 	});
 
-	// dropping the stray field beats discarding a finished pass over it
 	it("drops a tier a question should never have carried", () => {
 		const parsed = reviewOutputSchema.parse({
 			...BARE_PASS,

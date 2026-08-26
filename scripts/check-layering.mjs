@@ -2,37 +2,16 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/**
- * The layering gate (CLAUDE.md, "Where a file goes"). Four rules, all
- * mechanical, because a rule that needs judgment is a rule that drifts:
- *
- * 1. imports only ever point down the stack;
- * 2. a module under `application/` takes a port, or it is domain code in the
- *    wrong folder;
- * 3. no `types/` folder anywhere — types live with the layer that owns them;
- * 4. no folder holds more than MAX_FILES_PER_FOLDER source files.
- *
- * Existing violations live in `layering-baseline.json` and are not failures.
- * That file may only shrink: an entry that no longer violates is itself an
- * error, so fixing something forces you to prune it rather than leaving a
- * suppression behind that quietly re-authorises the next one.
- */
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "src");
 const BASELINE_FILE = join(ROOT, "scripts", "layering-baseline.json");
 
-/** Enough for a cohesive concept, few enough that a dumping ground shows up. */
 const MAX_FILES_PER_FOLDER = 15;
 
 const SOURCE_FILE = /\.(?:ts|tsx)$/;
 const TEST_FILE = /\.test\.(?:ts|tsx)$/;
 const RELATIVE_IMPORT = /\bfrom\s*["'](\.[^"']+)["']/g;
 
-/**
- * Each stack, innermost first. A file may import from its own layer or any
- * layer earlier in its list, never a later one: the dependency arrow points
- * inward, always.
- */
 const STACKS = [
 	{
 		name: "server",
@@ -54,7 +33,6 @@ const STACKS = [
 	},
 ];
 
-/** The wire contract is shared on purpose; `check-dto-imports.mjs` guards it. */
 const SHARED = "src/interface/http/dto";
 const PORTS = "src/application/ports";
 
@@ -77,14 +55,12 @@ function sourceFiles(dir) {
 	return found;
 }
 
-/** Repo-relative, forward-slashed, so it reads the same on every platform. */
 function repoPath(absolute) {
 	return relative(ROOT, absolute).split(sep).join("/");
 }
 
 function layerOf(path) {
 	for (const stack of STACKS) {
-		// longest match first: src/client/src/domain also starts with src/
 		const matches = stack.layers.filter((layer) =>
 			path.startsWith(`${layer}/`),
 		);
@@ -119,7 +95,6 @@ for (const file of files) {
 	}
 	const targets = importsOf(file.absolute);
 
-	// 1. imports point down the stack
 	for (const target of targets) {
 		if (target.startsWith(`${SHARED}/`) || target === SHARED) {
 			continue;
@@ -137,7 +112,6 @@ for (const file of files) {
 		}
 	}
 
-	// 2. application code takes a port
 	const isApplication =
 		from.layer === "src/application" && !file.path.startsWith(`${PORTS}/`);
 	if (isApplication && !targets.some((t) => t.startsWith(`${PORTS}/`))) {
@@ -149,7 +123,6 @@ for (const file of files) {
 	}
 }
 
-// 3. no types/ folder
 for (const file of files) {
 	if (file.path.includes("/types/")) {
 		report(
@@ -160,7 +133,6 @@ for (const file of files) {
 	}
 }
 
-// 4. folder size
 const perFolder = new Map();
 for (const file of files) {
 	if (TEST_FILE.test(file.path)) {

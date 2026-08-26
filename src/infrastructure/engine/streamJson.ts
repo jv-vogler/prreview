@@ -1,15 +1,3 @@
-/**
- * Line-delimited JSON parser over the claude CLI's `--output-format
- * stream-json` stdout, tolerant by construction: the stream carries
- * environment noise from the user's own hooks and config (`system` events
- * with subtypes `hook_started`, `hook_response`, `status`, `thinking_tokens`,
- * plus `rate_limit_event`), so the parser whitelists what it understands and
- * counts-and-skips everything else — an unknown event, subtype, or an
- * unparseable line never throws. A stream that ends without a `result`
- * record is how a crashed child looks to the caller.
- */
-
-/** Every record the parser knows how to normalize out of the stream. */
 export type StreamJsonRecord =
 	| StreamInitRecord
 	| StreamAssistantTextRecord
@@ -17,7 +5,6 @@ export type StreamJsonRecord =
 	| StreamToolResultRecord
 	| StreamResultRecord;
 
-/** `system` / `subtype: "init"` — the run's identity and the engine cwd. */
 export interface StreamInitRecord {
 	kind: "init";
 	sessionId: string;
@@ -25,13 +12,11 @@ export interface StreamInitRecord {
 	model: string;
 }
 
-/** a complete assistant `text` content block */
 export interface StreamAssistantTextRecord {
 	kind: "assistant-text";
 	text: string;
 }
 
-/** an assistant `tool_use` content block */
 export interface StreamToolUseRecord {
 	kind: "tool-use";
 	id: string;
@@ -39,14 +24,12 @@ export interface StreamToolUseRecord {
 	input: Record<string, unknown>;
 }
 
-/** a user `tool_result` content block, joined to its call by toolUseId */
 export interface StreamToolResultRecord {
 	kind: "tool-result";
 	toolUseId: string;
 	content: unknown;
 }
 
-/** the terminal `result` event, normalized; success keys on isError */
 export interface StreamResultRecord {
 	kind: "result";
 	isError: boolean;
@@ -56,27 +39,14 @@ export interface StreamResultRecord {
 	numTurns: number;
 	costUsd: number;
 	text: string | null;
-	/**
-	 * The HTTP status behind a `terminal_reason: "api_error"`, when there was
-	 * one. Captured because it is the difference between "you cannot reach
-	 * that model" (404), "you are rate limited" (429), and "your prompt is
-	 * too long" (400) — and without it every one of those reads the same to a
-	 * user.
-	 */
 	apiErrorStatus: number | null;
-	/** absent on non-schema runs; null when the CLI exhausted its retries */
 	structuredOutput: unknown;
 }
 
-/** mutated in place so the caller can assert tolerance without owning the loop */
 export interface StreamJsonTally {
 	skippedLines: number;
 }
 
-/**
- * Parses a chunked byte stream into normalized records. Partial lines across
- * chunk boundaries are buffered; a final unterminated line is still parsed.
- */
 export async function* parseStreamJson(
 	source: AsyncIterable<Buffer | string>,
 	tally?: StreamJsonTally,
@@ -120,7 +90,6 @@ function* recordsFromLine(
 	yield* records;
 }
 
-/** null = event not understood (count it); [] = understood, nothing to yield */
 function normalizeEvent(
 	event: Record<string, unknown>,
 ): StreamJsonRecord[] | null {
@@ -169,7 +138,6 @@ function assistantRecords(
 				input: isObject(block.input) ? block.input : {},
 			});
 		}
-		// thinking blocks are understood noise: consumed, never yielded
 	}
 	return records;
 }

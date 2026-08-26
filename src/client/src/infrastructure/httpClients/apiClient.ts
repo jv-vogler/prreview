@@ -10,14 +10,9 @@ export interface ApiClient {
 }
 
 const NO_CONTENT = 204;
-/** No answer at all — the request never reached a server. */
+
 const NO_RESPONSE = 0;
 
-/**
- * The one fetch wrapper: same-origin JSON in/out, non-2xx parsed as ErrorDto
- * and thrown as HttpError. Endpoint functions own response validation; this
- * layer only moves bytes.
- */
 export function createApiClient(fetchImpl: typeof fetch = fetch): ApiClient {
 	async function request(
 		path: string,
@@ -42,19 +37,6 @@ export function createApiClient(fetchImpl: typeof fetch = fetch): ApiClient {
 	};
 }
 
-/**
- * A request that never got an answer, said in the same shape as one that got
- * a bad answer.
- *
- * fetch rejects with a bare TypeError when the server is gone, which carries
- * no status and matches nothing a view switches on. Left alone it reaches a
- * suspending query as an unrecognisable throw — and, worse, a proxy that
- * holds the socket open instead of refusing it never rejects at all, which is
- * how the dev server used to sit on "Loading review…" forever with the real
- * reason (no server) printed in another terminal. Every failure leaves this
- * layer as an HttpError, and `unreachable` is the one reason that is ours
- * rather than the wire's.
- */
 async function fetchOrUnreachable(
 	fetchImpl: typeof fetch,
 	path: string,
@@ -94,8 +76,6 @@ async function toHttpError(response: Response): Promise<HttpError> {
 		const body = await response.json();
 		const parsed = errorDtoSchema.safeParse(body);
 		if (!parsed.success) {
-			// not an ErrorDto — a route like the review conflict answers its own
-			// shape, and the endpoint that called us is the one that knows it
 			return new HttpError(
 				response.status,
 				fallback.reason,

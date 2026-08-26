@@ -13,28 +13,16 @@ export interface RunningServer {
 	readonly child: ChildProcess;
 	readonly url: string;
 	stdout(): string;
-	/** settles when the process is gone — captured at spawn, so no exit race */
 	readonly exited: Promise<unknown>;
 }
 
 export interface LaunchOptions {
-	/** the repository to review — the child's cwd */
 	cwd: string;
-	/** PATH for the child: a `createPathShim()` value, never the machine's */
 	pathValue: string;
-	/** CLI arguments after the port; default `["working", "--no-open"]` */
 	args?: readonly string[];
-	/** extra environment, e.g. the `MOCK_AGENT_*` knobs */
 	env?: Readonly<Record<string, string>>;
 }
 
-/**
- * `dist/cli.js` in a fixture repo, on a stripped PATH, with the served URL
- * read back off stdout. Every e2e spec launches its server through here so
- * all three agree on the hermetic environment: the machine's git config
- * cannot shape what the server sees, and only the fakes on `pathValue` are
- * reachable.
- */
 export async function launchPrreview(
 	options: LaunchOptions,
 ): Promise<RunningServer> {
@@ -103,11 +91,6 @@ function waitForServing(
 	});
 }
 
-/**
- * SIGKILL and wait for the process to be gone. Safe to call twice: a child
- * killed by signal has `exitCode === null`, so the check covers `signalCode`
- * too, and `exited` was captured at spawn so it has already settled.
- */
 export async function stopServer(server: RunningServer): Promise<void> {
 	const alreadyGone =
 		server.child.exitCode !== null || server.child.signalCode !== null;
@@ -117,7 +100,6 @@ export async function stopServer(server: RunningServer): Promise<void> {
 	await server.exited;
 }
 
-/** a GET against the running server, asserted 200, parsed as JSON */
 export async function fetchApi<T>(baseUrl: string, path: string): Promise<T> {
 	const response = await fetch(new URL(path, baseUrl));
 	expect(response.status).toBe(200);

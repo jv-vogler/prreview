@@ -99,8 +99,6 @@ describe("placeOnDiff", () => {
 			],
 		});
 
-		// the requested range (2..40) crosses a gap of unrendered lines the
-		// diff never carries, so it cannot be exact
 		const placement = placeOnDiff(
 			{ path: target.path, startLine: 2, endLine: 40 },
 			[target],
@@ -123,8 +121,7 @@ describe("placeOnDiff", () => {
 					lines: [
 						{ type: "add", content: "a", newLine: 10 },
 						{ type: "add", content: "b", newLine: 11 },
-						// 12 is unchanged and outside this hunk's context, so it is
-						// not a rendered line even though 10, 11 and 13 are
+
 						{ type: "add", content: "c", newLine: 13 },
 					],
 				}),

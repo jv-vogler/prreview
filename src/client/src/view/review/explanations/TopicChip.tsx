@@ -1,11 +1,5 @@
 import styles from "./TopicChip.module.css";
 
-/**
- * One topic label, wearing its palette slot (topicColors.ts) everywhere it
- * appears — on a balloon's header and in the sidebar — so repeated topics
- * match at a glance. With `onToggle` it becomes the control that lights up
- * every balloon of its topic.
- */
 export function TopicChip({
 	label,
 	color,
@@ -16,7 +10,6 @@ export function TopicChip({
 	label: string;
 	color?: number;
 	pressed?: boolean;
-	/** a label is a clause, so anywhere with room lets it take a second line */
 	wrap?: boolean;
 	onToggle?(): void;
 }) {

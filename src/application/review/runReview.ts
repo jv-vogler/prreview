@@ -40,16 +40,9 @@ export interface RunReviewInput {
 	changesetId: ChangesetId;
 	announce: string;
 	files: readonly FileDiff[];
-	/** what the change is measured against */
 	baseSha: string;
-	/** the changeset's head commit; null for worktree */
 	headSha: string | null;
 	source: ChangesetSource;
-	/**
-	 * The reader asked for the whole change to be looked at again. Cross-file
-	 * invalidation cannot be made sound, so this is the way out of a delta
-	 * pass — never a fallback the code takes on its own.
-	 */
 	full: boolean;
 }
 
@@ -57,25 +50,13 @@ export interface RunReviewDeps {
 	engine: Engine;
 	git: Git;
 	sessionStore: SessionStore;
-	/** null = no GitHub backend; a re-review then runs without the conversation */
 	githubService: GithubService | null;
-	/** the manager's own report(), captured so the job can call back into it */
+
 	report: (runId: string, update: RunProgressUpdate) => void;
-	/** test seam; defaults to console.warn */
+
 	logWarning?: (message: string) => void;
 }
 
-/**
- * Builds the job the run manager runs: spends one `Engine.runTask` call on
- * the vendored review prompt, reports every tool call as progress, and on
- * success saves the pass to the session store — after checking, per
- * SEC-003/TASK-030, whether the run left anything behind on the tree.
- *
- * A re-review over a pass that recorded a checkpoint costs what moved
- * rather than the size of the change: the files whose diffs are identical
- * byte for byte are named instead of rendered, and what the previous pass
- * said about them is merged back in afterwards.
- */
 export function buildReviewJob(
 	deps: RunReviewDeps,
 	input: RunReviewInput,
@@ -138,11 +119,6 @@ export function buildReviewJob(
 	};
 }
 
-/**
- * Null means the full pass: no checkpoint to read the changeset against, the
- * reader asked for everything again, or nothing at all is reusable, where a
- * delta pass and a full one are the same run with extra framing.
- */
 function reusePlanFor(
 	stored: StoredReview | null,
 	input: RunReviewInput,
@@ -158,7 +134,6 @@ function reusePlanFor(
 	return plan.unchanged.length === 0 ? null : plan;
 }
 
-/** What the artifact carries beyond the run's own facts. */
 interface ReviewArtifact {
 	pass: ReviewPass;
 	findingIds: string[];
@@ -178,23 +153,13 @@ function freshArtifact(
 		findingIds: mintIds(firstId, answered.findings.length),
 		nextFindingId: firstId + answered.findings.length,
 		carriedFindingIds: [],
-		// a fresh pass replaces the curation (ASSUMPTION-003): every finding
-		// here was minted with an id no earlier one carried, so nothing the
-		// reader edited or dismissed is about any of them
+
 		findingEdits: {},
-		// but a pending review the old pass left on GitHub is still out there
-		// — its id must survive so the next publish replaces it instead of
-		// 422ing. findingIds is emptied for the same reason as the edits:
-		// nothing in THIS pass has been published.
+
 		published: withFindingIds(stored?.published ?? null, []),
 	};
 }
 
-/**
- * The carried findings the run did not resolve, then the ones it wrote.
- * Ids come across untouched, which is what keeps the reader's edits and the
- * publish record attached to the findings they were always about.
- */
 function mergedArtifact(
 	deps: RunReviewDeps,
 	plan: ReusePlan,
@@ -225,8 +190,7 @@ function mergedArtifact(
 				...survivors.map((carried) => carried.finding),
 				...answered.findings,
 			],
-			// the unchanged files are not in the diff this run saw, so their
-			// accounts can only come from the pass that did see them
+
 			explanations: [
 				...stored.pass.explanations.filter((explanation) =>
 					unchanged.has(explanation.path),
@@ -236,8 +200,7 @@ function mergedArtifact(
 		},
 		findingIds,
 		nextFindingId: firstId + answered.findings.length,
-		// a survivor the run answered nothing about was never looked at, and
-		// the reader is told so rather than left to assume it was
+
 		carriedFindingIds: survivors
 			.filter((carried) => !verdicts.has(carried.id))
 			.map((carried) => carried.id),
@@ -261,7 +224,7 @@ function reportUnknownVerdicts(
 	if (unknown.length === 0) {
 		return;
 	}
-	// never a reason to throw the pass away: the findings it wrote are good
+
 	const log = deps.logWarning ?? ((message: string) => console.warn(message));
 	log(
 		`prreview: ignoring carried verdicts for ${unknown.join(", ")} — no such finding in this pass`,
@@ -281,11 +244,6 @@ function withFindingIds(
 	return published === null ? null : { ...published, findingIds };
 }
 
-/**
- * The stored pass, curation applied, as the prompt's prior notes — plus the
- * PR's inline conversation when there is one to read. Conversation reading
- * is best-effort: a re-review must run offline exactly like a first pass.
- */
 async function previousReviewInput(
 	deps: RunReviewDeps,
 	source: ChangesetSource,
@@ -327,7 +285,6 @@ async function previousReviewInput(
 	};
 }
 
-/** The unchanged files, each with what the previous pass already said about it. */
 function reusePromptInput(
 	plan: ReusePlan,
 	stored: StoredReview,

@@ -18,11 +18,6 @@
 	border-bottom-color: var(--borderColor-danger-muted);
 }
 
-/*
- * A moving dot, not a spinner: it says "the process is alive" while the text
- * beside it says what the process is doing. When the run stalls it stops
- * moving and turns amber, so the visual and the words agree.
- */
 .pulse {
 	flex: none;
 	width: var(--base-size-8);

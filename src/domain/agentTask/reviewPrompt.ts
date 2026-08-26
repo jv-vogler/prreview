@@ -1,52 +1,24 @@
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { Hunk } from "../../domain/changeset/Hunk";
 
-/**
- * The vendored review prompt, adapted from the `pr:local-review` skill.
- * Committed here rather than invoked by name so a fresh install does not
- * depend on the reader having that skill.
- *
- * Its prose discipline is the product: the ≤500-character budget on the
- * paragraph, the mandatory cut pass, the four severity tiers mapped to
- * GitHub alert blocks, and the Verified:/Inferred: proof line all carry
- * over. Two things differ deliberately. Output is structured rather than a
- * markdown scratchfile, since prreview places, edits and publishes comments
- * itself. And visual aids are exempt from the character budget instead of
- * counting toward it — the budget exists to prevent textwalls, and a diff
- * or table is what cures one.
- */
 export interface ReviewPromptInput {
-	/** what was resolved, in the same words the CLI announced to the user */
 	announce: string;
 	files: readonly FileDiff[];
-	/** the stored pass this run replaces, when there is one — a re-review */
 	previous?: PreviousReviewInput;
-	/**
-	 * What this re-review may take from the previous pass rather than pay
-	 * for again. Absent means the full pass: every file in the diff, read
-	 * from scratch.
-	 */
 	reuse?: ReusePromptInput;
 }
 
-/**
- * The delta framing. The files that have not moved are named but not
- * rendered: their diffs are identical byte for byte, so their anchors hold
- * and their findings and explanations come across as they are.
- */
 export interface ReusePromptInput {
 	baseMoved: boolean;
 	changedPaths: readonly string[];
 	addedPaths: readonly string[];
 	removedPaths: readonly string[];
 	unchanged: readonly UnchangedFileInput[];
-	/** the carried ids that must come back with a `carried` verdict */
 	recheckIds: readonly string[];
 }
 
 export interface UnchangedFileInput {
 	path: string;
-	/** carried findings' ids, quoted in full in the previous pass above */
 	findingIds: readonly string[];
 	explanations: readonly UnchangedExplanationInput[];
 }
@@ -56,44 +28,29 @@ export interface UnchangedExplanationInput {
 	says: readonly string[];
 }
 
-/**
- * The previous pass, curation applied, plus whatever conversation it
- * produced on GitHub — the notes a re-review starts from instead of
- * starting blind.
- */
 export interface PreviousReviewInput {
 	createdAt: string;
 	overview: string;
 	verdict: string;
 	findings: readonly PreviousFindingInput[];
-	/** inline PR comments on GitHub, anyone's; null = not a PR or unreadable */
 	conversation: readonly PrConversationEntry[] | null;
 }
 
 export interface PreviousFindingInput {
-	/** the finding's own id — what a `carried` verdict names it by */
 	id: string;
-	/** the tier, or `question` for a finding that asked rather than claimed */
 	tier: string;
 	title: string;
-	/** the reader's edited wording when they rewrote it, else the engine's */
 	body: string;
 	path: string;
 	startLine: number;
 	endLine: number;
-	/** the reader removed this finding from the pass */
 	dismissed: boolean;
-	/** the body above is the reader's own rewrite */
 	edited: boolean;
-	/** present exactly when this finding is carried into the new pass */
 	carried?: CarriedNote;
 }
 
-/** Why a carried finding does or does not need looking at again. */
 export interface CarriedNote {
-	/** files it leaned on that have moved since */
 	movedDependencies: readonly string[];
-	/** it recorded nothing it leaned on, so nothing can vouch for it */
 	unrecorded: boolean;
 }
 
@@ -328,11 +285,6 @@ export function buildReviewPrompt(input: ReviewPromptInput): string {
 	].join("\n");
 }
 
-/**
- * The files the numbered diff renders. A re-review with a reuse plan leaves
- * out the unchanged ones: they are identical to the diff already reviewed,
- * so rendering them again is the whole cost the delta pass exists to avoid.
- */
 function diffFiles(input: ReviewPromptInput): readonly FileDiff[] {
 	if (input.reuse === undefined) {
 		return input.files;
@@ -341,15 +293,6 @@ function diffFiles(input: ReviewPromptInput): readonly FileDiff[] {
 	return input.files.filter((file) => !unchanged.has(file.path));
 }
 
-/**
- * The re-review framing: the previous pass is prior notes, not a verdict to
- * defend. What got fixed is dropped and credited; what still stands is
- * re-emitted against the new diff; what the reviewer dismissed stays gone.
- *
- * With a reuse plan the second half of that changes: the findings on files
- * that have not moved are already in the new pass, so re-emitting one
- * duplicates it rather than keeping it.
- */
 function renderPreviousReview(
 	previous: PreviousReviewInput | undefined,
 	reuse: ReusePromptInput | undefined,
@@ -433,12 +376,6 @@ function carriedFlag(carried: CarriedNote | undefined): string | null {
 	return "carried: its file has not changed since you reviewed it";
 }
 
-/**
- * What is the same, what moved, and what the pass already said about the
- * files that did not. This section is what replaces the diff of the
- * unchanged files: identical blobs mean identical hunks and identical line
- * numbers, so nothing anchored in them needs re-anchoring or re-reading.
- */
 function renderReuse(reuse: ReusePromptInput | undefined): string[] {
 	if (reuse === undefined) {
 		return [];
@@ -534,12 +471,6 @@ function indent(text: string): string {
 		.join("\n");
 }
 
-/**
- * The diff, numbered, one file at a time. Plain unified-diff-shaped text
- * rather than a bespoke serialization: the model has seen this format more
- * than any other, and the line numbers already carried by each `DiffLine`
- * are exactly what `startLine`/`endLine` anchoring needs.
- */
 export function renderNumberedDiff(files: readonly FileDiff[]): string {
 	if (files.length === 0) {
 		return "(no files changed)";

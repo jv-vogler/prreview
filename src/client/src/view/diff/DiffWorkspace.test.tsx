@@ -6,8 +6,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { FindingActions } from "../review/comments/FindingActions";
 import { DiffWorkspace } from "./DiffWorkspace";
 
-// the real CodeView needs a highlight worker pool; the seam under test is
-// what DiffWorkspace hands it, so a recorder is the whole mock
 const renderedItems: CodeViewDiffItem<unknown>[][] = [];
 vi.mock("@pierre/diffs/react", () => ({
 	CodeView: (props: { items: CodeViewDiffItem<unknown>[] }) => {
@@ -105,11 +103,6 @@ function lastVersion(): number {
 	return (items[0] as { version: number }).version;
 }
 
-/**
- * Pierre reuses a file's whole rendered record — annotations included —
- * until `version` moves; if new explanations or the toggle do not bump it,
- * new prose silently never renders.
- */
 describe("DiffWorkspace version counter", () => {
 	it("moves when the explanations change and when the toggle flips", () => {
 		const { rerender } = render(

@@ -20,13 +20,6 @@ export interface FindingBalloonProps {
 	actions: FindingActions;
 }
 
-/**
- * One comment, expanded (TASK-043): tier and lane, the body as markdown
- * (its own alert block included), the evidence block if there is one, and
- * the proof line for the reviewer's own triage — never pasted into GitHub.
- * The reader can also edit the body in place, delete the comment, and ask
- * for a rework (TASK-046, TASK-047, TASK-049).
- */
 export function FindingBalloon({
 	finding,
 	onCollapse,
@@ -128,7 +121,6 @@ export function FindingBalloon({
 	);
 }
 
-/** A markdown textarea that commits on blur (TASK-047's exact shape). */
 function EditBody({
 	initialBody,
 	onDone,

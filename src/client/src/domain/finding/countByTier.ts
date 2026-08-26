@@ -1,12 +1,5 @@
 import type { ReviewFindingDto, ReviewTierDto } from "@dto/ReviewDto";
 
-/**
- * How many comments fall in each severity tier, keyed so a caller can pick
- * only the tiers actually present (FindingWorklist's sidebar counts) or read
- * one tier off directly (RunStatusBar's completed take line) without
- * counting the same list twice. A question has no tier and is counted by
- * `countQuestions` instead.
- */
 export function countByTier(
 	findings: readonly ReviewFindingDto[],
 ): Record<ReviewTierDto, number> {
@@ -24,11 +17,6 @@ export function countByTier(
 	return counts;
 }
 
-/**
- * Questions sit outside the ladder, so they are counted apart from it: a
- * sidebar that folded them into a tier would be claiming a badness the
- * question does not have.
- */
 export function countQuestions(findings: readonly ReviewFindingDto[]): number {
 	return findings.filter((finding) => finding.kind === "question").length;
 }

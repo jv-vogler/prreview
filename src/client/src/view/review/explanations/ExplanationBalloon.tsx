@@ -5,24 +5,16 @@ import styles from "./ExplanationBalloon.module.css";
 import { useHighlightedExplanations } from "./highlightedExplanations";
 import { TopicChip } from "./TopicChip";
 
-/**
- * One change explanation on the diff: the author's account of what a change
- * does and why, read next to the code it describes. Deliberately not a
- * comment and styled not to read as one — no card, no actions, no tier —
- * because nothing here is feedback and nothing here is actionable.
- */
 export function ExplanationBalloon({
 	explanation,
 	topicColor,
 }: {
 	explanation: ExplanationDto;
-	/** the topic's palette slot (topicColors.ts); same label, same color */
 	topicColor?: number;
 }) {
 	const selection = useHighlightedExplanations();
 	const highlighted = selection.has(explanation.id);
-	// while a topic is selected, everything outside it steps back rather than
-	// competing: still readable, visibly not the thing being followed
+
 	const dimmed = selection.size > 0 && !highlighted;
 	return (
 		<aside
@@ -62,11 +54,6 @@ function lineRange(explanation: ExplanationDto): string {
 		: `lines ${explanation.startLine}–${explanation.endLine}`;
 }
 
-/**
- * `says` sentences are plain prose that may carry inline code in backticks;
- * that is the whole grammar, so a split beats a markdown renderer here.
- * Shared with the sidebar, which renders the same sentences.
- */
 export function BacktickText({ text }: { text: string }) {
 	const parts = text.split("`");
 	return (

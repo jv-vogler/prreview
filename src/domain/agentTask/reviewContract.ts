@@ -1,9 +1,3 @@
-/**
- * The system contract carried by `--append-system-prompt`, not the user
- * prompt on stdin: this is prreview's own invariant, load-bearing regardless
- * of anything a ticket, a PR description or a reviewer's guideline might
- * say — none of that is trusted at this level.
- */
 export function reviewContract(): string {
 	return [
 		"You are running as a non-interactive subprocess of a local code review tool called prreview.",
@@ -14,11 +8,6 @@ export function reviewContract(): string {
 	].join(" ");
 }
 
-/**
- * The rework task's own contract (TASK-048): same non-interactive, no-chat,
- * grounded-claims invariants as `reviewContract`, adapted for a call that
- * touches one existing comment rather than writing a whole pass.
- */
 export function reworkContract(): string {
 	return [
 		"You are running as a non-interactive subprocess of a local code review tool called prreview, reworking one existing review comment.",

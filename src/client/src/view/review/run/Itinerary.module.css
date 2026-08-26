@@ -1,10 +1,3 @@
-/*
- * The rail appears mid-run, once the agent writes its first plan — it has no
- * height to start from, so the row opens the same way a comment balloon does
- * (DiffFindingAnnotation.module.css's row-open trick): a single grid row
- * interpolating between 0fr and 1fr, which is the only way to animate a
- * height nobody measured.
- */
 @keyframes itinerary-open {
 	from {
 		grid-template-rows: 0fr;
@@ -103,13 +96,6 @@
 	}
 }
 
-/*
- * The active step's dot carries the "alive" signal for the whole bar — the
- * old bare pulse dot steps aside once a plan exists (RunStatusBar.tsx). Same
- * halo idiom as DiffFindingAnnotation.module.css's marker-pulse: the spread
- * grows while the colour is still opaque, driven by a local custom property
- * so colour and motion stay separated.
- */
 @keyframes itinerary-pulse {
 	0% {
 		box-shadow: 0 0 0 0 var(--itinerary-halo);
@@ -131,19 +117,11 @@
 	animation: itinerary-pulse 1.2s var(--motion-easing-move) infinite;
 }
 
-/* stalled: the pulse stops and turns amber, matching RunStatusBar's .pulse[data-stalled] */
 .dot[data-stalled] {
 	background: var(--fgColor-attention);
 	animation: none;
 }
 
-/*
- * The connector is two layered lines: a dotted base always visible ahead,
- * and a solid overlay that draws in left-to-right as the step behind it
- * completes. Never partially filled under the active step — there is no
- * sub-step progress to be honest about, so `data-filled` is only ever set
- * from a completed step's own connector.
- */
 .connector {
 	position: relative;
 	flex: 1 1 var(--base-size-32);

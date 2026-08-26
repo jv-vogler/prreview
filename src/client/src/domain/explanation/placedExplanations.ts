@@ -1,11 +1,5 @@
 import type { AnchorSideDto, ExplanationDto } from "@dto/ReviewDto";
 
-/**
- * Where one explanation's balloon goes on the rendered diff. Unplaceable
- * explanations never appear here: unlike a finding, an explanation is about
- * a line of the change, so with no line to sit next to it has nothing to
- * explain (the DTO still carries it, counted, never silently lost).
- */
 export interface PlacedExplanation {
 	fileId: string;
 	side: AnchorSideDto;
@@ -31,7 +25,6 @@ export function placedExplanations(
 	return placed;
 }
 
-/** One rendered diff line can carry several explanations; they share a slot. */
 export interface ExplanationGroup {
 	fileId: string;
 	side: AnchorSideDto;

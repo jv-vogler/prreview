@@ -8,18 +8,11 @@ import type {
 import { GithubError } from "../../src/domain/errors/GithubError";
 import type { Toolchain } from "../../src/domain/session/Toolchain";
 
-/**
- * Knobs for the in-memory GithubService fake. `kind: "git-remote"` mirrors a
- * metadata-less backend: PR metadata methods throw
- * GithubError('unsupported-backend') while fetch/diff still work.
- */
 export interface FakeGithubState {
 	kind?: "gh" | "git-remote";
 	prs?: Record<number, PrInfo>;
-	/** null (the default) = "no pull requests found" for the current branch */
 	currentBranchPr?: PrInfo | null;
 	prDiffs?: Record<number, string>;
-	/** fetchPrHead result per PR; falls back to the PR's headRefOid */
 	prHeads?: Record<number, string>;
 	pendingReviews?: Record<number, PendingReview>;
 	prReviewComments?: Record<number, PrReviewCommentInfo[]>;

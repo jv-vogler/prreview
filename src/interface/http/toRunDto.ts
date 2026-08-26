@@ -2,7 +2,6 @@ import type { Run } from "../../domain/run/Run";
 import type { RunProgress } from "../../domain/run/RunProgress";
 import type { RunDto, RunProgressDto } from "./dto/RunDto";
 
-/** A run as the wire describes it — everything passes straight through. */
 export function toRunDto(run: Run): RunDto {
 	return {
 		id: run.id,

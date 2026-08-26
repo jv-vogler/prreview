@@ -1,39 +1,23 @@
 import { createContext, useContext } from "react";
 
-/** gap between the anchored line's bottom edge and the first card under it */
 const GAP_PX = 4;
-/** gap kept between two stacks pushed apart so neither covers the other */
+
 const STACK_GAP_PX = 8;
-/** inset from the diff viewport's right edge */
+
 const EDGE_PX = 24;
-/** breathing room kept under the lowest card, so none of them ends at the fold */
+
 const FLOOR_PX = 16;
 
 export interface ExplanationCardLayout {
-	/** starts tracking one line's open card stack; returns its release */
 	register(id: string, anchor: HTMLElement, stack: HTMLElement): () => void;
 }
 
-/**
- * One layout pass over every open card stack, instead of each stack placing
- * itself. A stack alone can only see its own anchor, which loses two ways:
- * stacks on nearby lines land on top of each other, and none of them notices
- * the diff reflowing under it — expanding a comment balloon moves every line
- * below without a single scroll event, stranding the cards mid-page.
- *
- * The manager re-derives every position together: on scroll and resize, when
- * a stack changes size, and on any DOM change inside the diff viewport (the
- * reflow case). Stacks lay out top to bottom pinned beside their anchors; a
- * stack that would overlap the one above it slides down below it instead.
- */
-/** Where one card wants to sit before the stacking pass moves it. */
 interface Placement {
 	stack: HTMLElement;
 	top: number;
 	anchorTop: number;
 }
 
-/** Which side of the viewport an anchor sits on, or neither. */
 function sideOf(
 	anchorTop: number,
 	roof: number,
@@ -45,10 +29,6 @@ function sideOf(
 	return anchorTop > limit ? "below" : undefined;
 }
 
-/**
- * Where one card belongs this frame, or null when it has nothing honest to
- * show and should be hidden.
- */
 function placeStack(
 	entry: TrackedStack,
 	roof: number,
@@ -68,11 +48,6 @@ function placeStack(
 
 	const anchorRect = anchor.getBoundingClientRect();
 	if (anchorRect.width === 0) {
-		// the renderer drops a far-out row's layout (and reshapes the block),
-		// so a zero rect says nothing about where the line is. The remembered
-		// side does: last seen above and its block still on screen, the card
-		// stays stuck at the top; last seen below, or never measured at all,
-		// there is nothing honest to show.
 		return entry.lastSeen === "above" && blockOnScreen
 			? { stack, top: stuckTop(), anchorTop: Number.NEGATIVE_INFINITY }
 			: null;
@@ -80,15 +55,11 @@ function placeStack(
 
 	const anchorTop = anchorRect.top;
 	entry.lastSeen = sideOf(anchorTop, roof, limit);
-	// below the viewport it just waits its turn; a fixed element would
-	// otherwise float over the surrounding chrome
+
 	if (anchorTop > limit) {
 		return null;
 	}
 	if (anchorTop < roof) {
-		// the line scrolled past, but its context is still on screen: the card
-		// sticks at the viewport top while its file block remains, and slides
-		// out under the block's own end
 		return blockOnScreen ? { stack, top: stuckTop(), anchorTop } : null;
 	}
 	return { stack, top: anchorTop + GAP_PX, anchorTop };
@@ -97,12 +68,7 @@ function placeStack(
 interface TrackedStack {
 	anchor: HTMLElement;
 	stack: HTMLElement;
-	/** the anchored file block, looked up once the anchor is in a document */
 	block?: Element | null;
-	/** which side of the viewport the anchor was last measured on: the
-	 * renderer drops a row's layout (and reshapes the block) once it scrolls
-	 * far enough out, so this remembered side is the only trustworthy fact
-	 * left about where the line went */
 	lastSeen?: "above" | "below";
 }
 
@@ -120,8 +86,6 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 		}
 	};
 
-	// jsdom ships neither observer; the layout still works, it just only
-	// re-derives on the explicit triggers
 	const mutations =
 		typeof MutationObserver === "undefined"
 			? null
@@ -138,17 +102,13 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 			resizes?.unobserve(watchedViewport);
 		}
 		if (viewport !== null) {
-			// attributes as well: the renderer moves rows by rewriting style
-			// transforms, so a childList-only observer sees the balloon land
-			// but never the lines shifting under it
 			mutations?.observe(viewport, {
 				childList: true,
 				subtree: true,
 				attributes: true,
 				attributeFilter: ["style", "class"],
 			});
-			// and the viewport's own size: chrome above it folding away
-			// moves the whole diff without a single event inside it
+
 			resizes?.observe(viewport);
 		}
 		watchedViewport = viewport;
@@ -158,11 +118,6 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 		visible.sort((a, b) => a.top - b.top || a.anchorTop - b.anchorTop);
 		let floor = Number.NEGATIVE_INFINITY;
 		for (const { stack, top } of visible) {
-			// pushed down by whatever sits above it, then lifted back inside
-			// the viewport's own bottom: a card anchored to one of the last
-			// lines would otherwise hang off the screen and be read half-way.
-			// No matching lift at the top, which is where a stack sliding out
-			// under its own block's end is supposed to go.
 			const lowest = limit - FLOOR_PX - stack.offsetHeight;
 			const settled = Math.min(Math.max(top, floor), lowest);
 			stack.style.top = `${settled}px`;
@@ -197,7 +152,6 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 	};
 
 	const listen = () => {
-		// capture phase so the diff's own scroller counts, not just the window
 		window.addEventListener("scroll", schedule, {
 			capture: true,
 			passive: true,
@@ -226,7 +180,6 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 			}
 			stacks.set(id, { anchor, stack });
 			resizes?.observe(stack);
-			// synchronous: the stack must be placed before the frame paints
 			relayout();
 			return () => {
 				stacks.delete(id);
@@ -241,7 +194,6 @@ export function createExplanationCardLayout(): ExplanationCardLayout {
 	};
 }
 
-/** the nearest ancestor that actually scrolls — the diff viewport */
 function scrollableAncestor(element: Element): Element | null {
 	let node = element.parentElement;
 	while (node !== null) {

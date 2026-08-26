@@ -8,7 +8,7 @@ import type { Git } from "./ports/Git";
 import type { GithubService, PrInfo } from "./ports/GithubService";
 
 const PR_NUMBER_PATTERN = /^\d+$/;
-// host-agnostic on purpose: gh logins include GHES hosts
+
 const PR_URL_PATTERN =
 	/^https?:\/\/[^/]+\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:[/?#].*)?$/;
 const RANGE_SEPARATOR = "..";
@@ -18,7 +18,6 @@ const PR_OPEN_STATE = "OPEN";
 const EXPLICIT_FORMS_HINT =
 	"override with an explicit target: prreview <pr-number|pr-url>, prreview <branch> [base], prreview <from>..<to>, or prreview working";
 
-/** Suggestions further away than this read as noise, not as "did you mean". */
 const SUGGESTION_MAX_DISTANCE = 3;
 
 export interface ResolveChangesetDeps {
@@ -27,13 +26,11 @@ export interface ResolveChangesetDeps {
 	toolchain: Toolchain;
 }
 
-/** The CLI positionals, verbatim (`prreview [target] [base]`). */
 export interface ResolveChangesetInput {
 	target?: string;
 	base?: string;
 }
 
-/** What was resolved, and the explicit form that would override it. */
 export interface ChangesetAnnounce {
 	resolved: string;
 	overrideHint: string;
@@ -48,15 +45,6 @@ export type ResolveChangeset = (
 	input: ResolveChangesetInput,
 ) => Promise<ResolvedChangeset>;
 
-/**
- * Turns the CLI positionals (or their absence) into a fully resolved
- * ChangesetRef. Positional disambiguation, in order: all digits → PR number;
- * a GitHub PR URL → that PR; contains `..` → range; the literal `working` →
- * the working tree; anything else → a branch. Auto-detect, in order: dirty
- * tree → working tree; the current branch's open PR when the gh backend is
- * available; the current branch against its merge-base with the default
- * branch; else a usage error.
- */
 export function makeResolveChangeset(
 	deps: ResolveChangesetDeps,
 ): ResolveChangeset {
@@ -69,8 +57,6 @@ export function makeResolveChangeset(
 		return { ref, announce: announceFor(source, input.target) };
 	};
 }
-
-// ── positional disambiguation ───────────────────────────────────────────────
 
 async function disambiguateTarget(
 	deps: ResolveChangesetDeps,
@@ -109,12 +95,6 @@ async function disambiguateTarget(
 	};
 }
 
-/**
- * `from..to` and `from...to` both parse to the same source: range semantics
- * are always "what `to` adds over the common ancestor" (baseSha is the
- * merge-base, which for the ordinary linear `HEAD~3..HEAD` case IS `from`).
- * An empty side defaults to HEAD, as it does in git itself.
- */
 function rangeSource(target: string): ChangesetSource {
 	const separatorIndex = target.indexOf(RANGE_SEPARATOR);
 	const separatorLength = target.startsWith("...", separatorIndex) ? 3 : 2;
@@ -124,8 +104,6 @@ function rangeSource(target: string): ChangesetSource {
 		to: target.slice(separatorIndex + separatorLength) || "HEAD",
 	};
 }
-
-// ── auto-detect chain ───────────────────────────────────────────────────────
 
 async function autoDetectSource(
 	deps: ResolveChangesetDeps,
@@ -152,8 +130,6 @@ async function findCurrentBranchOpenPr(
 		const pr = await githubService.getCurrentBranchPr();
 		return pr.state === PR_OPEN_STATE ? pr : null;
 	} catch {
-		// "no pull requests found" (or any gh hiccup) only means this rung of
-		// the auto-detect ladder does not apply; the next rung answers instead.
 		return null;
 	}
 }
@@ -199,7 +175,6 @@ async function currentBranchOrNull(git: Git): Promise<string | null> {
 	try {
 		return await git.currentBranch();
 	} catch {
-		// an unborn HEAD (fresh init, no commits) has nothing to review anyway
 		return null;
 	}
 }
@@ -224,19 +199,11 @@ async function detectBaseBranch(git: Git): Promise<string> {
 	}
 }
 
-// ── ref resolution (shared with refreshChangeset and detectDrift) ───────────
-
 export interface SourceRefDeps {
 	git: Git;
 	githubService: GithubService | null;
 }
 
-/**
- * Resolves an already-identified source to the SHAs (and worktree
- * fingerprint) of its current state. This is the single definition of "what
- * does this changeset look like right now": resolveChangeset uses it at
- * boot, and later refresh/drift-detection use-cases reuse it.
- */
 export async function resolveSourceRef(
 	deps: SourceRefDeps,
 	source: ChangesetSource,
@@ -332,9 +299,6 @@ async function prRef(
 		};
 	}
 
-	// metadata-less backend (plain git remote): fetching is the only way to
-	// learn the head, and the base falls back to the default branch's
-	// merge-base because the PR's declared base is unknown
 	const headSha = await fetchPrHeadOrNotFound(githubService, source.number);
 	const defaultTipSha = await resolvePrBaseTip(
 		git,
@@ -348,8 +312,6 @@ async function prRef(
 		resolvedAt: new Date().toISOString(),
 	};
 }
-
-// ── expected-failure conversions (use-cases give failures meaning) ─────────
 
 async function prInfoIfBackendHasMetadata(
 	githubService: GithubService,
@@ -409,7 +371,6 @@ async function commitExistsLocally(git: Git, sha: string): Promise<boolean> {
 	}
 }
 
-/** The PR's base branch tip, preferring the remote-tracking ref (the PR's real ancestor). */
 async function resolvePrBaseTip(git: Git, baseName: string): Promise<string> {
 	try {
 		return await git.verifyRef(`refs/remotes/origin/${baseName}`);
@@ -476,7 +437,6 @@ function closestBranch(
 	return best.name;
 }
 
-/** Plain Levenshtein — small inputs (branch names), no need for anything smarter. */
 function editDistance(a: string, b: string): number {
 	let previousRow = Array.from({ length: b.length + 1 }, (_, index) => index);
 	for (let rowIndex = 1; rowIndex <= a.length; rowIndex++) {
@@ -495,8 +455,6 @@ function editDistance(a: string, b: string): number {
 	}
 	return previousRow[b.length];
 }
-
-// ── the repo slug for a bare PR number (`pr:owner/repo#N` identity) ─────────
 
 const REMOTE_URL_SLUG_PATTERN = /[/:]([^/:]+)\/([^/:]+?)(?:\.git)?\/?$/;
 
@@ -536,8 +494,6 @@ async function repoSlugFor(
 	}
 	return `${match[1]}/${match[2]}`;
 }
-
-// ── the announcement ─────────────────────────────────────────────────────
 
 function announceFor(
 	source: ChangesetSource,

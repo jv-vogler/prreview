@@ -2,7 +2,6 @@ import { Command, InvalidArgumentError, Option } from "commander";
 
 export const DEFAULT_PORT = 4973;
 
-/** The whole CLI surface (CON-011) — nothing else. */
 export interface CliArgs {
 	target?: string;
 	base?: string;
@@ -11,11 +10,6 @@ export interface CliArgs {
 	dev: boolean;
 }
 
-/**
- * Parses argv. Throws CommanderError (exitOverride) instead of exiting so
- * the CLI's single boot catch owns every exit code: usage errors are 2,
- * help/version displays are 0.
- */
 export function parseCliArgs(argv: readonly string[]): CliArgs {
 	const program = new Command()
 		.name("prreview")
@@ -34,8 +28,7 @@ export function parseCliArgs(argv: readonly string[]): CliArgs {
 			DEFAULT_PORT,
 		)
 		.option("--no-open", "do not open the browser")
-		// internal dev-loop flag: skips static serving and browser-open, pins
-		// the port; deliberately not part of the surface
+
 		.addOption(new Option("--dev").hideHelp())
 		.exitOverride();
 

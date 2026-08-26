@@ -16,20 +16,11 @@ import {
 export interface FindingWorklistProps {
 	findings: readonly ReviewFindingDto[];
 	expandedFindingIds: ReadonlySet<string>;
-	/** row clicked: expand it and, if it has a place on the diff, scroll there */
 	onJumpTo(finding: ReviewFindingDto): void;
-	/** the balloon's own collapse control: just closes it, no scrolling */
 	onCollapse(findingId: string): void;
 	actions: FindingActions;
 }
 
-/**
- * The Comments tab of the review sidebar (TASK-044, REQ-005): per-tier
- * counts with the questions counted apart from them, then three sections so
- * nothing is ever silently missing — the on-diff review comments, anything
- * `clamped`/`unplaceable` that the diff cannot show (REQ-010), and
- * pre-existing findings in their own lane (REQ-011).
- */
 export function FindingWorklist({
 	findings,
 	expandedFindingIds,

@@ -1,24 +1,9 @@
-/*
- * The whole point of this file is costing the diff no rows: the anchor is
- * zero-height, so Pierre's annotation row collapses to nothing and the code
- * below never moves. The chip and the cards are absolutely positioned off
- * it — the chip translated up onto the anchor line itself, the cards
- * hanging below it, both pinned to the right edge of the visible code area
- * (the annotation wrapper is horizontally sticky, so right means the right
- * edge the reader sees, not the end of the longest line).
- */
 .anchor {
 	position: relative;
 	height: 0;
 	width: 100%;
 }
 
-/*
- * Sits over the anchor line itself (one line-height up from the annotation
- * row below it). Deliberately calmer than a comment marker: no pulse, no
- * tier color, no arrival animation — an explanation is ambient context,
- * not a finding demanding triage.
- */
 .chip {
 	position: absolute;
 	top: calc(-1 * var(--base-size-20));
@@ -49,17 +34,10 @@
 	font-weight: var(--base-text-weight-semibold);
 }
 
-/*
- * The open cards live in a body-level portal, not in the diff: every file
- * block is its own scroller, so a card kept inline is clipped at the
- * block's edge (a one-line file cannot fit one on any side). The component
- * positions this element against the live anchor rect on every scroll and
- * hides it when its anchor leaves the diff viewport.
- */
 .floating {
 	position: fixed;
 	z-index: 10;
-	/* hidden until the shared layout's first pass places it */
+
 	visibility: hidden;
 	display: flex;
 	flex-direction: column;

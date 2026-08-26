@@ -6,35 +6,14 @@ import styles from "./DiffExplanationAnnotation.module.css";
 import { ExplanationBalloon } from "./ExplanationBalloon";
 import { useExplanationCardLayout } from "./explanationCardLayout";
 
-/**
- * How explanations sit on the diff. `chips` gives each line's explanations
- * a book chip pinned to the right edge that folds the cards away; `margin`
- * keeps the cards always open with no chip. Both take no diff rows: the
- * anchor is a zero-height element, so the code below never moves.
- */
 export type ExplanationsMode = "chips" | "margin";
 
 export interface DiffExplanationAnnotationProps {
 	explanations: readonly ExplanationDto[];
 	mode: ExplanationsMode;
-	/** each topic label's palette slot (topicColors.ts) */
 	topicColors: ReadonlyMap<string, number>;
 }
 
-/**
- * One line's explanations: a chip over the anchored line at the right edge
- * of the visible code area, and the open cards floated NEXT to the diff
- * rather than inside it. The cards must leave the renderer's DOM entirely
- * (a portal, fixed-position): every file block is its own scroller, so a
- * card kept inline is clipped at the block's edge — a one-line file cannot
- * fit a card on any side, and no z-index crosses a scroller's clip.
- *
- * Positioning belongs to the shared card layout (explanationCardLayout.ts):
- * stacks near each other have to know about one another to not overlap, so
- * no single annotation can place its own. The registration effect lives
- * here, not in a child: layout effects run bottom-up, so a child's effect
- * would fire before this component's anchor ref is attached.
- */
 export function DiffExplanationAnnotation({
 	explanations,
 	mode,

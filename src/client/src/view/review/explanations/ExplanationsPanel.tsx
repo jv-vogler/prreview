@@ -17,24 +17,10 @@ import { TopicChip } from "./TopicChip";
 
 export interface ExplanationsPanelProps {
 	explanations: readonly ExplanationDto[];
-	/** entry clicked: scroll the diff there and light that balloon */
 	onJumpTo(explanation: ExplanationDto): void;
-	/** the topic chip toggles the highlight on every balloon it groups */
 	onToggleTopic(topic: Topic): void;
 }
 
-/**
- * The pass retold as its explanations: the sidebar's second tab organizes
- * every card into a read-through summary of the PR, in the order the diff
- * itself runs (explanationOrder.ts). Topics first — one chip, its shared
- * color, its own account, and one jump per anchored change, which is how an
- * intent spanning several files stays one unit — then the standalone
- * explanations under their own paths. An explanation the diff cannot anchor
- * is listed too, marked instead of vanishing.
- *
- * A topic folds to its heading, because a long pass is a long panel and the
- * reader usually wants one intent at a time.
- */
 export function ExplanationsPanel({
 	explanations,
 	onJumpTo,
@@ -88,7 +74,7 @@ function TopicSection({
 	const [open, setOpen] = useState(true);
 	const highlighted = useHighlightedExplanations();
 	const paths = topicPaths(topic);
-	// the account above already says these; an entry adds what it does not
+
 	const said = new Set(topicSummaryLeads(topic));
 	return (
 		<section className={styles.topic} data-topic-section={topic.label}>
@@ -146,7 +132,6 @@ function Entry({
 	onJumpTo,
 }: {
 	explanation: ExplanationDto;
-	/** sentences the topic's account above already carries */
 	skipSaid?: ReadonlySet<string>;
 	onJumpTo(explanation: ExplanationDto): void;
 }) {

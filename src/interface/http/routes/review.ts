@@ -21,26 +21,9 @@ export interface ReviewRouteDeps {
 	runner: ReviewRunner;
 	state: ReviewState;
 	sessionStore: SessionStore;
-	/** null = no GitHub backend at all (REQ-009's treatment, mirrored for publish) */
 	githubService: GithubService | null;
 }
 
-/**
- * `POST /api/review` starts a run, `GET /api/review` answers the current
- * one (also the 8-second poll's fallback, TASK-037), `DELETE
- * /api/review/run` cancels it. One run at a time (TASK-033): a second
- * `POST` while one is active answers 409, never a queue.
- *
- * `PATCH`/`DELETE`/`.../restore` on one comment (TASK-046, TASK-047) all
- * answer the same way: the recomputed `ReviewPassDto`, so the client's
- * optimistic local edit reconciles against the server-authoritative
- * artifact in the same round trip rather than a second `GET`.
- * `.../rework` (TASK-048) instead starts a run, the same way `POST /` does
- * — its answer arrives through the same run status the client already
- * polls and subscribes to. `POST /publish` (TASK-050, TASK-053) answers the
- * same recomputed `ReviewPassDto` too — publishing only ever adds a
- * `published` record, it never clears the artifact.
- */
 export function reviewRoute(deps: ReviewRouteDeps): Hono {
 	const route = new Hono();
 

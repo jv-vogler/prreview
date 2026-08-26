@@ -13,18 +13,10 @@ export type EngineTaskResult =
 	| { ok: false; outcome: RunOutcome };
 
 export interface EngineTaskLabels {
-	/** what ended with no result at all, in the reader's words */
 	noResult: string;
-	/** the fallback when the run failed and the agent said nothing on stderr */
 	failed: string;
 }
 
-/**
- * One `Engine.runTask` call, from wiring the cancel through to a terminal
- * result: reports every tool call as progress, forwards the agent's own plan
- * as an itinerary, and turns "no result" and "failed" into outcomes the run
- * manager understands.
- */
 export async function runEngineTask(
 	deps: EngineTaskDeps,
 	context: RunContext,

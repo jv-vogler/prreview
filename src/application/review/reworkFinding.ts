@@ -22,11 +22,6 @@ import type { RunContext, RunJob, RunOutcome } from "../ports/RunManager";
 import type { SessionStore } from "../ports/SessionStore";
 import { runEngineTask } from "./runEngineTask";
 
-/**
- * What the reader can ask for on one comment (TASK-048, REQ-006). All three
- * are about the same axis — how much the body says — never about the
- * finding's substance: the agent re-verifies, it does not relitigate.
- */
 export type ReworkInstruction = "concise" | "expand" | "explain";
 
 const REWORK_INSTRUCTION_PROMPT: Record<ReworkInstruction, string> = {
@@ -46,7 +41,6 @@ export interface ReworkFindingInput {
 	changesetId: ChangesetId;
 	findingId: string;
 	instruction: ReworkInstruction;
-	/** the diff currently on screen, for the cited-code grounding */
 	files: readonly FileDiff[];
 }
 
@@ -54,17 +48,10 @@ export interface ReworkFindingDeps {
 	engine: Engine;
 	git: Git;
 	sessionStore: SessionStore;
-	/** the manager's own report(), captured so the job can call back into it */
+
 	report: (runId: string, update: RunProgressUpdate) => void;
 }
 
-/**
- * Builds the job that reworks one comment: reuses the same `Engine` port and
- * one-run-at-a-time lane as a review pass (no chat, no second lane), but
- * spends far less turn budget and never writes to the store itself — its
- * result is a proposal the reader accepts or rejects through the normal
- * edit path (TASK-046), never an in-place overwrite.
- */
 export function buildReworkJob(
 	deps: ReworkFindingDeps,
 	input: ReworkFindingInput,
@@ -105,7 +92,6 @@ export function buildReworkJob(
 	};
 }
 
-/** The finding a rework may touch: it exists, and the reader has not removed it. */
 async function reworkableFinding(
 	sessionStore: SessionStore,
 	input: ReworkFindingInput,

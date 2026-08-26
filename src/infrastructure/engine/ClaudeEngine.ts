@@ -19,17 +19,15 @@ import { PROMPT_DELIVERY } from "./promptDelivery";
 import { parseStreamJson, type StreamResultRecord } from "./streamJson";
 
 const AGENT_COMMAND = "claude";
-/** Probes must answer fast and never touch the network. */
+
 const PROBE_TIMEOUT_MS = 2000;
-/** SEC-002: SIGTERM, then SIGKILL once this grace period has elapsed. */
+
 const DEFAULT_KILL_GRACE_MS = 5000;
-/** enough stderr to explain a crash, little enough to keep in a RunDto */
+
 const STDERR_TAIL_BYTES = 4096;
 
-/** the CLI's terminal_reason when the run spent its --max-turns budget */
 const MAX_TURNS_TERMINAL_REASON = "max_turns";
 
-/** terminal_reason values that mean the CLI itself gave up on the clock */
 const TIMEOUT_TERMINAL_REASONS = new Set([
 	"timeout",
 	"timed_out",
@@ -37,31 +35,18 @@ const TIMEOUT_TERMINAL_REASONS = new Set([
 ]);
 
 export interface ClaudeEngineOptions {
-	/** overridable so a test can shorten SEC-002's escalation window */
 	killGraceMs?: number;
 }
 
-/**
- * The claude adapter: one short-lived child process per review task, spawned
- * with an argv array and `shell: false` so no prompt, path, or user text is
- * ever interpolated into a shell (SEC-002). The prompt goes in on stdin
- * (promptDelivery.ts); events come back off stdout as line-delimited JSON.
- * Failures are raw here — the use-case above converts them (GUD-002).
- *
- * There is no schema-retry loop: the CLI already feeds validation errors
- * back to the model and retries until its turn budget runs out, then fails
- * cleanly.
- */
 export class ClaudeEngine implements Engine {
 	private readonly killGraceMs: number;
-	/** every child spawned and not yet reaped — the shutdown kill list (SEC-002) */
+
 	private readonly liveChildren = new Set<ChildProcessWithoutNullStreams>();
 
 	constructor(options: ClaudeEngineOptions = {}) {
 		this.killGraceMs = options.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
 	}
 
-	/** The agent's own report of itself; throws raw when the binary is unusable. */
 	async probe(): Promise<AgentInfo> {
 		const output = await exec(AGENT_COMMAND, buildVersionArgv(), {
 			timeoutMs: PROBE_TIMEOUT_MS,
@@ -83,11 +68,6 @@ export class ClaudeEngine implements Engine {
 		});
 	}
 
-	/**
-	 * Ends every child still running, now, and resolves when they are gone.
-	 * The one thing shutdown cannot delegate to a generator's cleanup: a
-	 * process on its way out never gives the generator another turn.
-	 */
 	async stop(): Promise<void> {
 		await Promise.all(
 			[...this.liveChildren].map((child) => this.terminateAndWait(child)),
@@ -135,8 +115,6 @@ export class ClaudeEngine implements Engine {
 
 		try {
 			for await (const record of parseStreamJson(child.stdout)) {
-				// every line off stdout is proof the child is alive and working,
-				// whatever the line says — that is the whole basis of the idle clock
 				lifetime.touch();
 				switch (record.kind) {
 					case "init":
@@ -178,23 +156,10 @@ export class ClaudeEngine implements Engine {
 				outputSchema: options.outputSchema,
 			});
 		} finally {
-			// covers both the normal end and an early `break` by the consumer:
-			// a cancelled run must never leave a claude child behind (SEC-002)
 			lifetime.stop();
 		}
 	}
 
-	/**
-	 * Owns the child's clock and its death: the idle timeout fires SIGTERM
-	 * and escalates to SIGKILL after the grace period, and `stop()` does the
-	 * same on the way out of the generator for a child that is still
-	 * running.
-	 *
-	 * The clock measures **silence, not duration**. It is armed at spawn and
-	 * rearmed by `touch()` on every line the child emits, so a child that is
-	 * working stays alive however long the work takes, and only one that has
-	 * genuinely stopped talking gets killed.
-	 */
 	private startLifetime(
 		child: ChildProcessWithoutNullStreams,
 		idleTimeoutMs: number,
@@ -225,8 +190,6 @@ export class ClaudeEngine implements Engine {
 		return {
 			timedOut: () => timedOut,
 			touch: () => {
-				// after stop() there is nothing left to wait for, and rearming here
-				// would resurrect a timer the teardown just cleared
 				if (stopped || timedOut) {
 					return;
 				}
@@ -240,8 +203,6 @@ export class ClaudeEngine implements Engine {
 				child.stdout.destroy();
 				child.stderr.destroy();
 				if (killTimer !== undefined) {
-					// leaving the escalation armed would hold the event loop's
-					// last reference to a process that already died
 					setImmediate(() => clearTimeout(killTimer)).unref();
 				}
 			},
@@ -259,16 +220,10 @@ interface RunOptions {
 
 interface ChildLifetime {
 	timedOut(): boolean;
-	/** proof of life: rearms the idle clock */
 	touch(): void;
 	stop(): void;
 }
 
-/**
- * The prompt is written to stdin and stdin is closed — the CLI reads to EOF
- * (docs/engine-notes.md). A child that died before reading makes this an
- * EPIPE, which is not the failure worth reporting: the exit code is.
- */
 function writePrompt(
 	child: ChildProcessWithoutNullStreams,
 	prompt: string,
@@ -301,11 +256,6 @@ function collectStderrTail(child: ChildProcessWithoutNullStreams): {
 	};
 }
 
-/**
- * Resolves once the child is done, with the spawn-level error when there was
- * one. A missing binary surfaces here as ENOENT rather than as a throw, and
- * that is the one failure that means "no agent on this machine".
- */
 function waitForExit(
 	child: ChildProcessWithoutNullStreams,
 ): Promise<NodeJS.ErrnoException | null> {
@@ -319,9 +269,6 @@ function toolEvent(
 	name: string,
 	input: Record<string, unknown>,
 ): EngineEvent & { type: "tool" } {
-	// every tool names its subject under a different key, and a tool whose key
-	// is missing here renders as a bare verb forever — `Running a command`,
-	// sixteen times, is what that looks like to a reader watching a run
 	const target = firstString(
 		input.file_path,
 		input.pattern,
@@ -348,7 +295,6 @@ function firstString(...candidates: unknown[]): string | undefined {
 
 interface TerminalInput {
 	result: StreamResultRecord | null;
-	/** resolved by the CLI, reported on the init event */
 	model: string;
 	stderrTail: string;
 	timedOut: boolean;
@@ -356,7 +302,6 @@ interface TerminalInput {
 	outputSchema: OutputParser;
 }
 
-/** Exactly one result event per run, always last (the port's contract). */
 function terminalEvent(input: TerminalInput): EngineEvent {
 	if (input.spawnFailure?.code === "ENOENT") {
 		return failure("agent-missing", null, input);
@@ -370,7 +315,6 @@ function terminalEvent(input: TerminalInput): EngineEvent {
 		);
 	}
 	if (input.result === null) {
-		// the stream ended without a result event: the child died mid-run
 		return failure("crashed", null, input);
 	}
 	if (input.result.isError) {
@@ -388,9 +332,6 @@ function successOrSchemaViolation(
 	result: StreamResultRecord,
 	input: TerminalInput,
 ): EngineEvent {
-	// the CLI accepting its own output is not validation. Captures omit
-	// `structured_output` entirely rather than sending null when the model
-	// never produced one, so nullish covers both.
 	if (
 		result.structuredOutput === null ||
 		result.structuredOutput === undefined
@@ -415,14 +356,10 @@ function successOrSchemaViolation(
 }
 
 function failureReason(result: StreamResultRecord): EngineErrorReason {
-	// Checked FIRST: an API failure also leaves a schema task with no
-	// structured output, and reporting that as a schema violation blames the
-	// model for a call that never happened.
 	if (result.terminalReason === "api_error") {
 		return "api-error";
 	}
-	// before the structured-output check: an exhausted run has none either,
-	// and blaming the model for an answer it never got to write is a lie
+
 	if (result.terminalReason === MAX_TURNS_TERMINAL_REASON) {
 		return "out-of-turns";
 	}
@@ -441,12 +378,6 @@ function failureReason(result: StreamResultRecord): EngineErrorReason {
 	return "crashed";
 }
 
-/**
- * The CLI's own explanation is the most useful thing in the envelope on an
- * API failure — it says which model, or that the prompt is too long — so it
- * is put where the UI already looks rather than discarded in favour of
- * stderr, which on these runs is usually empty.
- */
 function failure(
 	reason: EngineErrorReason,
 	terminalReason: string | null,

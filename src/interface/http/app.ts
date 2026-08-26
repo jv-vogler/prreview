@@ -14,11 +14,6 @@ import { eventsRoute } from "./routes/events";
 import { reviewRoute } from "./routes/review";
 import { registerStatic } from "./static";
 
-/**
- * The one place an AppError becomes an HTTP status. Anything not listed here
- * — and anything that is not an AppError — is a 500 `internal` whose stack
- * stays in the server log and never reaches the response.
- */
 const STATUS_BY_REASON: Record<string, ContentfulStatusCode> = {
 	validation: 400,
 	"branch-not-found": 404,
@@ -38,15 +33,12 @@ export interface AppDeps {
 	state: ReviewState;
 	runner: ReviewRunner;
 	hub: SseHub;
-	/** absolute repo toplevel — the WORKING blob containment root (SEC-002) */
 	repoRoot: string;
-	/** built client directory; null skips static serving (--dev, tests) */
 	clientDir: string | null;
-	/** test seam; defaults to console.error */
+
 	logError?: (error: unknown) => void;
 }
 
-/** The Hono app: routes plus the one onError — nothing else catches. */
 export function createApp(deps: AppDeps): Hono {
 	const logError = deps.logError ?? ((error: unknown) => console.error(error));
 	const app = new Hono();

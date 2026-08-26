@@ -17,13 +17,6 @@ export interface PublishControlProps {
 	onPublish: () => void;
 }
 
-/**
- * States, before sending, exactly what a publish will do (TASK-052): the
- * count going up and every comment left behind, with its reason — a
- * publish that silently drops a finding is the failure this control exists
- * to prevent. Sending is one click away, not behind a second confirm step;
- * the summary below is always on screen, never hidden until asked for.
- */
 export function PublishControl({
 	findings,
 	published,

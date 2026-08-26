@@ -1,10 +1,3 @@
-/*
- * The color IS the grouping: every chip with the same label wears the same
- * slot, assigned by first mention (topicColors.ts), so two balloons three
- * files apart read as one intent before either label is read. Muted
- * surface tokens, not emphasis fills — a topic is a thread to follow, not
- * an alert.
- */
 .chip {
 	flex: none;
 	display: inline-flex;
@@ -28,14 +21,7 @@ button.chip {
 	cursor: pointer;
 }
 
-/*
- * A label is a clause about what changed, not a category word, so where
- * there is room it wraps instead of ending in an ellipsis that hides the
- * half that carried the meaning. The pill grows with it.
- */
 .wrapped {
-	/* shrinkable, so a long clause wraps instead of pushing its neighbours
-	 * out of a narrow panel */
 	flex: 0 1 auto;
 	min-width: 0;
 	height: auto;
@@ -46,11 +32,6 @@ button.chip {
 	white-space: normal;
 }
 
-/*
- * Selected is not a color change: the chip's color is its topic's identity,
- * and changing it would say "different topic". A heavier edge and the same
- * settle the selected cards make is what says "this one".
- */
 button.chip[aria-pressed="true"] {
 	border-width: var(--borderWidth-thick);
 	border-color: var(--borderColor-emphasis);

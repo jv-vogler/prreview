@@ -3,12 +3,6 @@ import { readFile, realpath } from "node:fs/promises";
 import { join, sep } from "node:path";
 import { exec, execBuffer } from "./exec";
 
-/**
- * Config overrides that keep diff output parseable regardless of the user's
- * gitconfig: quoted non-ASCII paths, missing a/ b/ prefixes (diff.noprefix),
- * or i/ w/ mnemonic prefixes would each break gitdiff-parser or the paths in
- * the IR.
- */
 const DIFF_SAFE_CONFIG = [
 	"-c",
 	"core.quotepath=false",
@@ -18,11 +12,6 @@ const DIFF_SAFE_CONFIG = [
 	"diff.mnemonicPrefix=false",
 ];
 
-/**
- * Flags matching the canonical diff text (`git diff -M -C --unified=3`),
- * plus overrides so user config (color, external diff drivers, textconv)
- * cannot alter what the parser sees.
- */
 const DIFF_FLAGS = [
 	"-M",
 	"-C",
@@ -30,24 +19,12 @@ const DIFF_FLAGS = [
 	"--no-color",
 	"--no-ext-diff",
 	"--no-textconv",
-	// full oids on the index lines, so the IR's BlobRefs can be read back by
-	// oid (anchoring) and can name a file under `.prreview/blobs/`; git's
-	// default abbreviation is neither
+
 	"--full-index",
 ];
 
 const DEFAULT_BRANCH_CANDIDATES = ["main", "master"];
 
-/**
- * git exports these to hooks and to `rebase --exec`, and a child git honours
- * them over its own cwd. Inheriting them points every command at whichever
- * repository invoked prreview instead of the one being reviewed, so the repo
- * is always the one `cwd` names and never an ambient one.
- *
- * GIT_TERMINAL_PROMPT is here for a different reason: a git that decides to
- * prompt (credentials on fetch) would hang a headless server forever, and
- * failing raw is always better.
- */
 const REPO_FROM_CWD_ONLY: Record<string, string | undefined> = {
 	GIT_DIR: undefined,
 	GIT_WORK_TREE: undefined,
@@ -56,19 +33,8 @@ const REPO_FROM_CWD_ONLY: Record<string, string | undefined> = {
 	GIT_TERMINAL_PROMPT: "0",
 };
 
-/**
- * Hex oid, abbreviated or full: our own diffs print full oids (--full-index),
- * but a PR diff fetched from GitHub carries git's abbreviations, and git
- * resolves those itself. The pattern exists to keep anything that is not an
- * oid out of argv, and 7 hex characters are as safe as 40.
- */
 const OBJECT_ID = /^[0-9a-f]{7,64}$/;
 
-/**
- * Local git adapter — the concrete side of the `Git` port. Every method
- * shells out to the real git binary; failures are thrown raw — the use-cases
- * upstairs decide what a failure means.
- */
 export class GitClient {
 	private readonly cwd: string;
 
@@ -80,7 +46,6 @@ export class GitClient {
 		return (await this.git(["rev-parse", "--show-toplevel"])).trim();
 	}
 
-	/** Absolute path even in worktrees — this is where info/exclude lives. */
 	async gitCommonDir(): Promise<string> {
 		return (
 			await this.git([
@@ -91,16 +56,6 @@ export class GitClient {
 		).trim();
 	}
 
-	/**
-	 * Resolves a revision to the sha of a commit that is actually here.
-	 *
-	 * The `^{commit}` peel is load-bearing. `rev-parse --verify` handed a full
-	 * 40-hex string succeeds and echoes it straight back without ever looking
-	 * for the object, so the bare form answered "yes, present" for every sha in
-	 * existence and the port's documented "rejects when it does not exist" was
-	 * false for precisely the input that matters. Peeling also resolves an
-	 * annotated tag to the commit a diff can use.
-	 */
 	async verifyRef(ref: string): Promise<string> {
 		return (
 			await this.git([
@@ -112,21 +67,13 @@ export class GitClient {
 		).trim();
 	}
 
-	/**
-	 * The repo's default branch name: from origin/HEAD when set (clones have
-	 * it), else probing main → master on both the origin remote and local
-	 * heads. Throws raw when nothing matches; resolveChangeset turns that into
-	 * its usage error.
-	 */
 	async defaultBranch(): Promise<string> {
 		try {
 			const originHead = (
 				await this.git(["symbolic-ref", "refs/remotes/origin/HEAD"])
 			).trim();
 			return originHead.replace(/^refs\/remotes\/origin\//, "");
-		} catch {
-			// origin/HEAD is only set by clone; fall through to the probe.
-		}
+		} catch {}
 
 		for (const candidate of DEFAULT_BRANCH_CANDIDATES) {
 			for (const namespace of ["refs/remotes/origin/", "refs/heads/"]) {
@@ -140,13 +87,11 @@ export class GitClient {
 		);
 	}
 
-	/** The checked-out branch name, or null on a detached HEAD. */
 	async currentBranch(): Promise<string | null> {
 		const name = (await this.git(["rev-parse", "--abbrev-ref", "HEAD"])).trim();
 		return name === "HEAD" ? null : name;
 	}
 
-	/** Local branch names — the "did you mean" candidate pool. */
 	async localBranches(): Promise<string[]> {
 		const output = await this.git([
 			"for-each-ref",
@@ -159,11 +104,6 @@ export class GitClient {
 			.filter((line) => line !== "");
 	}
 
-	/**
-	 * Tracked staged or unstaged changes versus HEAD. Untracked files
-	 * deliberately do not count as dirt: `diffWorktree` cannot show them, so
-	 * auto-detecting "dirty" from them would open an empty review.
-	 */
 	async isDirty(): Promise<boolean> {
 		const output = await this.git(["status", "--porcelain=v2", "-z"]);
 		return splitNulTerminated(output).some(
@@ -174,17 +114,10 @@ export class GitClient {
 		);
 	}
 
-	/**
-	 * The raw `git status --porcelain` text, untracked files included
-	 * (SEC-003/TASK-030): unlike `isDirty`, this exists to name every file a
-	 * review run leaves behind, and a temp test the agent forgot to delete is
-	 * untracked by definition.
-	 */
 	async statusPorcelain(): Promise<string> {
 		return this.git(["status", "--porcelain"]);
 	}
 
-	/** The remote's URL; throws raw when the remote does not exist. */
 	async remoteUrl(remoteName: string): Promise<string> {
 		return (await this.git(["remote", "get-url", remoteName])).trim();
 	}
@@ -198,34 +131,22 @@ export class GitClient {
 		return Number.parseInt(raw.trim(), 10);
 	}
 
-	/** Canonical diff text between two commits. */
 	async diff(base: string, head: string): Promise<string> {
 		return this.git([...DIFF_SAFE_CONFIG, "diff", ...DIFF_FLAGS, base, head]);
 	}
 
-	/**
-	 * The worktree changeset: staged and unstaged together, versus HEAD.
-	 * Untracked files are not part of a git diff and do not appear.
-	 */
 	async diffWorktree(): Promise<string> {
 		return this.git([...DIFF_SAFE_CONFIG, "diff", ...DIFF_FLAGS, "HEAD"]);
 	}
 
-	/** Blob content at `ref:path`, raw bytes (the blob endpoint checks size/binary itself). */
 	async readBlob(ref: string, path: string): Promise<Buffer> {
 		return this.gitBuffer(["show", `${ref}:${path}`]);
 	}
 
-	/** Staged (index, stage 0) blob content for one path. */
 	async readIndexBlob(path: string): Promise<Buffer> {
 		return this.gitBuffer(["show", `:${path}`]);
 	}
 
-	/**
-	 * Blob content by object id. The oid is checked against the hex-sha shape
-	 * before it reaches argv: ids arrive from stored anchors, and `cat-file`
-	 * would happily interpret `HEAD:../../secret` as a revision.
-	 */
 	async readObject(oid: string): Promise<Buffer> {
 		if (!OBJECT_ID.test(oid)) {
 			throw new Error(`not an object id: ${oid}`);
@@ -233,11 +154,6 @@ export class GitClient {
 		return this.gitBuffer(["cat-file", "blob", oid]);
 	}
 
-	/**
-	 * Working-tree content for one repo-relative path, contained to the repo
-	 * root through its realpath — the same check the blob route performs
-	 * inline, so a symlink out of the tree cannot be read.
-	 */
 	async readWorkingFile(path: string): Promise<Buffer> {
 		const realRoot = await realpath(this.cwd);
 		const realFile = await realpath(join(this.cwd, path));
@@ -249,18 +165,10 @@ export class GitClient {
 		return readFile(realFile);
 	}
 
-	/** The oid the worktree file would have as a blob — the staleness check for BlobRef. */
 	async hashObject(path: string): Promise<string> {
 		return (await this.git(["hash-object", "--", path])).trim();
 	}
 
-	/**
-	 * sha256 over sorted (path, oid) pairs covering both the index
-	 * (`ls-files -s`) and the worktree side of every dirty or untracked path
-	 * (`status --porcelain=v2`, worktree files hashed via `hash-object`). Any
-	 * edit, stage, unstage, delete, or new file changes the fingerprint;
-	 * mtime-only touches do not.
-	 */
 	async worktreeFingerprint(): Promise<string> {
 		const [indexEntries, statusEntries] = await Promise.all([
 			this.git(["ls-files", "-s", "-z"]),
@@ -269,7 +177,6 @@ export class GitClient {
 
 		const pairs: string[] = [];
 		for (const entry of splitNulTerminated(indexEntries)) {
-			// "<mode> <oid> <stage>\t<path>"
 			pairs.push(`index\0${entry}`);
 		}
 
@@ -288,12 +195,6 @@ export class GitClient {
 		return createHash("sha256").update(pairs.join("\n"), "utf8").digest("hex");
 	}
 
-	/**
-	 * Makes a PR's head commit available locally by fetching GitHub's
-	 * `refs/pull/N/head` into `refs/prreview/pr/N` — a named ref rather than
-	 * bare FETCH_HEAD, because FETCH_HEAD is overwritten by any later fetch and
-	 * an unreferenced head is gc-bait mid-session. Returns the head sha.
-	 */
 	async fetchPrHead(prNumber: number): Promise<string> {
 		const localRef = `refs/prreview/pr/${prNumber}`;
 		await this.git([
@@ -305,21 +206,14 @@ export class GitClient {
 		return this.verifyRef(localRef);
 	}
 
-	/**
-	 * A detached checkout of one commit at `dir`, which lives outside the
-	 * repo (the engine workspace). Detached on purpose: no branch is created,
-	 * so nothing about the user's branches changes.
-	 */
 	async addWorktree(dir: string, sha: string): Promise<void> {
 		await this.git(["worktree", "add", "--detach", dir, sha]);
 	}
 
-	/** `--force` because the agent may have left the checkout non-pristine. */
 	async removeWorktree(dir: string): Promise<void> {
 		await this.git(["worktree", "remove", "--force", dir]);
 	}
 
-	/** Drops registrations whose directories are gone — crash leftovers. */
 	async pruneWorktrees(): Promise<void> {
 		await this.git(["worktree", "prune"]);
 	}
@@ -334,8 +228,6 @@ export class GitClient {
 	}
 
 	private async hashWorktreeFiles(paths: readonly string[]): Promise<string[]> {
-		// One exec for the whole dirty set, one oid per output line. A path
-		// that vanishes mid-poll fails the tick raw.
 		const output = await this.git(["hash-object", "--", ...paths]);
 		return output.trim().split("\n");
 	}
@@ -358,21 +250,11 @@ interface WorktreeSide {
 	deletedPaths: string[];
 }
 
-/**
- * Extracts the worktree-side state from `status --porcelain=v2 -z` entries.
- * Entry forms: "1 <XY> … <path>", "2 <XY> … <path>" followed by the original
- * path as its own NUL field, "u … <path>" (unmerged), "? <path>" (untracked).
- * Only paths whose *worktree* differs from the index need hashing — the index
- * side is already covered by ls-files.
- */
-/** Fields before the path in a `--porcelain=v2` entry, per entry kind. */
 const HEADER_FIELDS: Record<string, number> = { "1": 8, "2": 9, u: 10 };
 
 interface TrackedEntry {
 	path: string;
-	/** the worktree column of the XY status pair */
 	worktreeStatus: string;
-	/** a rename carries its original path as the next NUL-separated field */
 	consumesNextField: boolean;
 	unmerged: boolean;
 }

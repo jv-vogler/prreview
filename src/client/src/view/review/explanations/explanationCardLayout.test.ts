@@ -49,8 +49,6 @@ describe("createExplanationCardLayout", () => {
 		expect(stack.style.visibility).toBe("visible");
 	});
 
-	// the screenshot bug: a card anchored near the fold hung off the bottom
-	// of the window and could only be read half-way
 	it("lifts a stack back inside the viewport's bottom", () => {
 		const layout = createExplanationCardLayout();
 		const stack = stackOfHeight(200);
@@ -71,7 +69,6 @@ describe("createExplanationCardLayout", () => {
 		const lower = stackOfHeight(80);
 		releases.push(layout.register("explanation-0", anchorAt(100), upper));
 		releases.push(layout.register("explanation-1", anchorAt(110), lower));
-		// upper spans 104..184; the lower anchor wants 114 but yields to 192
 		expect(upper.style.top).toBe("104px");
 		expect(lower.style.top).toBe("192px");
 	});
@@ -105,7 +102,6 @@ describe("createExplanationCardLayout", () => {
 		const layout = createExplanationCardLayout();
 		const stack = stackOfHeight(80);
 		releases.push(layout.register("explanation-0", anchorAt(-50, 60), stack));
-		// 60 - 80 puts the card's top above the roof: on its way out
 		expect(stack.style.visibility).toBe("visible");
 		expect(stack.style.top).toBe("-20px");
 	});
@@ -130,7 +126,7 @@ describe("createExplanationCardLayout", () => {
 		document.body.appendChild(block);
 		releases.push(layout.register("explanation-0", anchor, stack));
 		expect(stack.style.top).toBe("4px");
-		// the row's layout goes away; the card was last seen above and stays
+
 		rect.width = 0;
 		rect.top = 0;
 		releases.push(

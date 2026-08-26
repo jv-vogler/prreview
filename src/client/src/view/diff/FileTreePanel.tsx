@@ -8,7 +8,6 @@ export interface FileTreePanelProps {
 	onJumpToFile(index: number): void;
 }
 
-/** The file panel: every changed file, in the order the diff carries them. */
 export function FileTreePanel({
 	files,
 	currentFileIndex,
@@ -23,13 +22,6 @@ export function FileTreePanel({
 				{files.map((file, index) => (
 					<li
 						key={file.id}
-						/*
-							A folder boundary keeps a directory's files together, so a
-							directory change really is the boundary between two groups
-							rather than an accident of order. A little air is all it takes
-							to read the list as a handful of areas instead of one long run
-							of paths.
-						*/
 						data-group-start={
 							index > 0 &&
 							directoryOf(file.path) !==

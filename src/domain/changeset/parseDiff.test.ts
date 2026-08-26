@@ -208,9 +208,6 @@ describe("parseDiff over raw git diff fixtures", () => {
 
 describe("parseDiff over constructed parser output", () => {
 	it("keeps delete-A and rename-B→A apart (the fileId collision case)", () => {
-		// A two-tree git diff can never contain both entries (the new tree
-		// either has A or it does not), but concatenated or served diffs can;
-		// the id scheme must hold regardless.
 		const deletedA: GitDiffParserFile = {
 			type: "delete",
 			oldPath: "a.txt",

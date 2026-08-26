@@ -1,10 +1,5 @@
 import type { RunFailureReasonDto } from "@dto/RunDto";
 
-/**
- * Why the review did not happen, in words a reader can act on: the problem
- * first, then the way out. Exhaustive by type, so a new failure reason on
- * the wire cannot ship without someone writing what the reader should see.
- */
 export const REVIEW_FAILURE_COPY: Record<RunFailureReasonDto, string> = {
 	"agent-missing":
 		"No agent CLI was found, so prreview cannot review this change. Install and sign in to claude, then start prreview again.",

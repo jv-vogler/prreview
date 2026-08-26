@@ -53,7 +53,6 @@ function passWith(...titles: string[]) {
 	};
 }
 
-/** One completed pass over the same changeset, into the same store. */
 async function runPassProducing(
 	pass: unknown,
 	sessionStore: FakeSessionStore,
@@ -204,7 +203,6 @@ describe("buildReviewJob", () => {
 			},
 		);
 		await job(context());
-
 		expect(sessionStore.saved[0]?.headSha).toBe("abc123");
 	});
 
@@ -249,9 +247,7 @@ describe("buildReviewJob", () => {
 		await job(context());
 
 		const saved = sessionStore.saved[0];
-		// the pending review's id survives so the next publish replaces it,
-		// but nothing in the fresh pass has been published — and the ids are
-		// positional, so the old list must not bleed onto new comments
+
 		expect(saved?.published).toEqual({
 			reviewId: 99,
 			htmlUrl: "https://example.com/r/99",
@@ -340,7 +336,7 @@ describe("buildReviewJob", () => {
 		expect(prompt).toContain("Greeting drops the name");
 		expect(prompt).toContain("reader wording");
 		expect(prompt).toContain("alice on src/greeting.ts:2");
-		// a prior question has no tier to print, and says so where the tier goes
+
 		expect(prompt).toContain(
 			"2. [finding-1] (question) Why greet by first name only",
 		);
@@ -417,7 +413,6 @@ describe("buildReviewJob", () => {
 			},
 		);
 		await job(context());
-
 		expect(sessionStore.saved[0]?.residue).toEqual(["scratch-test.ts"]);
 	});
 
@@ -564,7 +559,6 @@ const FILE_B: FileDiff = {
 	newBlob: { kind: "odb", oid: "b2" },
 };
 
-/** `src/a.ts` after one more commit; `src/b.ts` has not been touched. */
 const FILE_A_MOVED: FileDiff = {
 	...FILE_A,
 	newBlob: { kind: "odb", oid: "a3" },
@@ -617,7 +611,6 @@ async function runPass(options: {
 	return { prompt: engine.lastInput?.prompt ?? "" };
 }
 
-/** A first pass over both files, with one finding anchored in each. */
 async function seedTwoFindings(sessionStore: FakeSessionStore): Promise<void> {
 	await runPass({
 		files: [FILE_A, FILE_B],
@@ -686,8 +679,7 @@ describe("buildReviewJob over a pass with a checkpoint", () => {
 			"finding-1": { body: "the reader's wording" },
 		});
 		expect(merged?.published?.findingIds).toEqual(["finding-1"]);
-		// the unchanged file was never in this run's diff, so its account can
-		// only come from the pass that did see it
+
 		expect(merged?.pass.explanations.map((entry) => entry.path)).toEqual([
 			"src/b.ts",
 		]);

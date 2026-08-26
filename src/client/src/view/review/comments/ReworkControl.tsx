@@ -8,12 +8,6 @@ const INSTRUCTIONS: { instruction: ReworkInstructionDto; label: string }[] = [
 	{ instruction: "explain", label: "Explain" },
 ];
 
-/**
- * The per-comment rework control (TASK-049): three plain instructions, the
- * run's own honest status while it works (REQ-008's discipline, scoped to
- * this one comment instead of the top bar), and an explicit accept/reject
- * of the proposal — it never overwrites the comment on its own.
- */
 export function ReworkControl({
 	finding,
 	actions,

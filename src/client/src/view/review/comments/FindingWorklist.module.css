@@ -36,7 +36,6 @@
 	color: var(--fgColor-success);
 }
 
-/* a question is asked, not ranked: its own colour, off the tier ladder */
 .count[data-kind="question"] {
 	background: var(--bgColor-accent-muted);
 	color: var(--fgColor-accent);
@@ -101,13 +100,6 @@
 	filter: brightness(0.97);
 }
 
-/*
- * A dismissed comment is not deleted, it moves — out of its tier's section and
- * into Dismissed. React unmounts it from one list and mounts it in the other,
- * so the arrival is the only half that can be animated; sliding it in from the
- * side is what makes it read as the same comment relocating rather than a new
- * one appearing.
- */
 @keyframes row-arrive {
 	from {
 		opacity: 0;
@@ -124,8 +116,6 @@
 		both;
 }
 
-/* an open balloon is a different object than the rows; give it air on both
- * sides. The opening itself belongs to Collapsible, which wraps it. */
 .rowExpanded {
 	margin: var(--base-size-8) 0 var(--base-size-12);
 }
@@ -146,7 +136,6 @@
 	line-height: var(--base-text-lineHeight-normal);
 }
 
-/* already sent to GitHub in the pending review: settled, not actionable */
 .row[data-published] .rowTier,
 .row[data-published] .rowTitle {
 	color: var(--fgColor-muted);

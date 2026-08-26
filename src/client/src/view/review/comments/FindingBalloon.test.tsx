@@ -50,7 +50,6 @@ describe("FindingBalloon", () => {
 		const textarea = screen.getByRole("textbox");
 		fireEvent.change(textarea, { target: { value: "reworded body" } });
 		fireEvent.blur(textarea);
-
 		expect(onEdit).toHaveBeenCalledWith("finding-0", "reworded body");
 	});
 
@@ -66,7 +65,6 @@ describe("FindingBalloon", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: /edit comment/i }));
 		fireEvent.blur(screen.getByRole("textbox"));
-
 		expect(onEdit).not.toHaveBeenCalled();
 	});
 

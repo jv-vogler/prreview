@@ -195,8 +195,6 @@ describe("buildReviewPrompt", () => {
 		expect(prompt).toContain("**Pure by default.**");
 	});
 
-	// the clause the section exists for: without it, "it's only a small
-	// helper" excuses every craft finding away
 	it("refuses to excuse a craft violation by the size of the code", () => {
 		expect(prompt).toContain(
 			"Never excuse a violation by the size or triviality of the code it appears in.",

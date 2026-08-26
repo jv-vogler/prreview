@@ -131,8 +131,6 @@ describe("buildPublishPayload", () => {
 		);
 	});
 
-	// a question is asked the way a human asks it: the body is the question,
-	// with no tier to announce and so no alert block to carry
 	it("publishes a question as its body alone, no alert block added", () => {
 		const { included } = buildPublishPayload([
 			effective({
@@ -307,7 +305,7 @@ describe("publishReview", () => {
 			publishedAt: expect.any(String),
 			findingIds: ["finding-0"],
 		});
-		// the artifact itself is untouched — a second pass stays possible
+
 		expect(result.pass.findings).toHaveLength(3);
 	});
 

@@ -17,42 +17,20 @@ import type { ReviewState } from "./reviewState";
 import { toReviewPassDto } from "./toReviewPassDto";
 import { toRunDto } from "./toRunDto";
 
-/**
- * The HTTP edge's view of one review run: a thin adapter over the run
- * manager and the container's ports, shaped exactly to what
- * `routes/review.ts` needs (TASK-035). `start()`/`startRework()` answer
- * `"agent-missing"` rather than throwing — no `claude` on this machine is an
- * ordinary, expected outcome (REQ-009), not a server bug.
- */
 export interface StartReviewOptions {
-	/**
-	 * Look at the whole change again rather than only what moved since the
-	 * stored pass. The reader's way out of a delta pass, never a fallback
-	 * the code takes on its own.
-	 */
 	full?: boolean;
 }
 
 export interface ReviewRunner {
 	start(options?: StartReviewOptions): StartReviewResult;
-	/**
-	 * A rework shares the same one-run-at-a-time lane as a full pass
-	 * (TASK-048) — starting one while either is active answers `"conflict"`
-	 * exactly like `start()` does.
-	 */
+
 	startRework(
 		findingId: string,
 		instruction: ReworkInstruction,
 	): StartReviewResult;
-	/** cancels the current run, if there is one; false when there is nothing to cancel */
+
 	cancelCurrent(): boolean;
 	current(): RunDto | null;
-	/**
-	 * The last completed pass for the reviewed changeset, read straight from
-	 * the store — deliberately independent of `current()`'s run bookkeeping,
-	 * so a pass persisted before a server restart still renders (TASK-041).
-	 * Null when no pass has ever been saved for this changeset.
-	 */
 	currentPass(): Promise<CurrentPass | null>;
 }
 
@@ -162,13 +140,6 @@ export function createReviewRunner(
 	};
 }
 
-/**
- * The run and the stored pass as one answer, the shape `GET /api/review`
- * has always had. Shared so `POST /api/changeset/refresh` cannot drift from
- * it: a refreshed changeset and the freshness read against it have to come
- * back together, or the dialog states a fact about a snapshot that is
- * already gone.
- */
 export async function reviewStatusOf(
 	runner: ReviewRunner,
 ): Promise<ReviewStatusDto> {

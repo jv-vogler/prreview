@@ -9,7 +9,6 @@ import styles from "./ReviewSidebar.module.css";
 type SidebarTab = "comments" | "explanations";
 
 export interface ReviewSidebarProps {
-	/** the reader's own width for this panel, dragged on the seam beside it */
 	width: number;
 	findings: readonly ReviewFindingDto[];
 	explanations: readonly ExplanationDto[];
@@ -19,16 +18,9 @@ export interface ReviewSidebarProps {
 	actions: FindingActions;
 	onJumpToExplanation(explanation: ExplanationDto): void;
 	onToggleTopic(topic: Topic): void;
-	/** the publish control docks at the panel's foot, under either tab */
 	publishControl?: ReactNode;
 }
 
-/**
- * The right panel, two readings of the same pass: Comments is the worklist
- * to act on (TASK-044, REQ-005), Explanations is the PR's story to read.
- * One tab bar instead of stacked sections, because the two are different
- * modes — triaging and orienting — and never wanted on screen together.
- */
 export function ReviewSidebar({
 	width,
 	findings,

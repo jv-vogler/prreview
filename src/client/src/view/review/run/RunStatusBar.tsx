@@ -10,20 +10,11 @@ import { REVIEW_FAILURE_COPY } from "./reviewFailureCopy";
 import { useElapsedSince } from "./useElapsedSince";
 import type { ReviewRunState } from "./useReviewRun";
 
-/**
- * What a review run is doing, and what went wrong when it did not run
- * (TASK-037, REQ-008). It refuses to be a bare spinner: "Running…" with
- * nothing behind it is indistinguishable from a hang, and the server
- * already knows the difference.
- */
-
-/** how long without a move before the bar stops saying everything is fine */
 const STALL_MS = 90_000;
 
 export function RunStatusBar({ review }: { review: ReviewRunState }) {
 	const { run, pass } = review;
-	// a rework's status renders next to the comment it targets instead
-	// (TASK-049) — this bar is the full-pass story only
+
 	if (run === null || run.kind !== "review") {
 		return null;
 	}
@@ -49,11 +40,6 @@ export function RunStatusBar({ review }: { review: ReviewRunState }) {
 	return null;
 }
 
-/**
- * What the finished run cost, kept on screen after it ends: a review is slow
- * enough that "how long did that take" is a question worth answering without
- * making the reader have watched the clock.
- */
 function CompletedRun({
 	run,
 	findings,
@@ -93,7 +79,6 @@ function completedTake(
 	return parts.join(" · ");
 }
 
-/** "4 findings, 1 blocker" — worst tier called out, worst-first per reviewTier.ts */
 function findingsTake(findings: readonly ReviewFindingDto[]): string {
 	if (findings.length === 0) {
 		return "no findings";
@@ -107,7 +92,6 @@ function findingsTake(findings: readonly ReviewFindingDto[]): string {
 	return `${total}, ${counts[worst]} ${REVIEW_TIER_LABEL[worst].toLowerCase()}${counts[worst] === 1 ? "" : "s"}`;
 }
 
-/** Both instants come from the server, so this never straddles two clocks. */
 function runDurationMs(run: RunDto): number | null {
 	if (run.startedAt === undefined || run.endedAt === undefined) {
 		return null;
@@ -120,11 +104,6 @@ function runDurationMs(run: RunDto): number | null {
 	return Math.max(0, ended - started);
 }
 
-/**
- * SEC-003's honesty measure: the agent may write to the reviewed repo, so
- * prreview cannot promise the run left the tree untouched. This is where it
- * says so, plainly, with the file list — never silently.
- */
 function ResidueWarning({ files }: { files: string[] }) {
 	return (
 		<div className={styles.bar} data-run-status="residue" role="alert">
@@ -153,8 +132,7 @@ function ActiveRun({ run, onCancel }: { run: RunDto; onCancel(): void }) {
 
 	return (
 		<div className={styles.bar} data-run-status="running" role="status">
-			{/* once a plan exists its active step carries the "alive" signal —
-			 * two pulses in one bar would fight each other */}
+			{}
 			{itinerary === null && (
 				<span className={styles.pulse} data-stalled={stalled || undefined} />
 			)}
@@ -184,15 +162,6 @@ function ActiveRun({ run, onCancel }: { run: RunDto; onCancel(): void }) {
 	);
 }
 
-/**
- * The one line that has to be honest.
- *
- * A run with no reported activity yet is starting up, and says so. A run
- * that has gone quiet past the stall threshold says *that*, rather than
- * continuing to report the last thing it did as though it were still doing
- * it — the difference between "reading a file" and "has been reading a file
- * for four minutes" is the whole question the reader is asking.
- */
 function describe(
 	run: RunDto,
 	stalled: boolean,
@@ -242,11 +211,6 @@ function FailedRun({ run, onRetry }: { run: RunDto; onRetry(): void }) {
 	);
 }
 
-/**
- * A run stopped by the reader's own Stop control (TASK-037): without this
- * the bar simply vanishes, which reads as a bug rather than as the outcome
- * of a deliberate click.
- */
 function CancelledRun({ run, onRetry }: { run: RunDto; onRetry(): void }) {
 	const durationMs = elapsedAtEnd(run);
 	return (

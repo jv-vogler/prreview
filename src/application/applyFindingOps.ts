@@ -4,12 +4,6 @@ import { findingIndexFor } from "../domain/finding/findingId";
 import type { FindingEdit, StoredReview } from "../domain/pass/StoredReview";
 import type { SessionStore } from "./ports/SessionStore";
 
-/**
- * The reader's three moves on one comment (REQ-006): overwrite its body,
- * remove it from view, or bring a removed one back. `restore` exists
- * because `delete` is meant to be undoable — nothing here is destructive
- * until a new pass overwrites the whole artifact.
- */
 export type FindingOp =
 	| { kind: "edit"; findingId: string; body: string }
 	| { kind: "delete"; findingId: string }
@@ -19,13 +13,6 @@ export interface ApplyFindingOpsDeps {
 	sessionStore: SessionStore;
 }
 
-/**
- * The single write path for curating one comment (TASK-046): every mutation
- * — edit, delete, restore — goes through here, so every one of them is
- * validated the same way and lands in the store the same way. Never touches
- * `pass.findings` itself; curation is a layer on top, kept in
- * `findingEdits`, so the engine's own answer stays intact underneath it.
- */
 export async function applyFindingOps(
 	deps: ApplyFindingOpsDeps,
 	changesetId: ChangesetId,

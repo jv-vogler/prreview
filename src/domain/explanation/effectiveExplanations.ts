@@ -3,12 +3,6 @@ import type { FindingPlacement } from "../changeset/placeOnDiff";
 import { placeOnDiff } from "../changeset/placeOnDiff";
 import type { StoredReview } from "../pass/StoredReview";
 
-/**
- * One explanation with its spot on the rendered diff resolved, through the
- * same `placeOnDiff` contract findings use — never a fork of it. An
- * unplaceable explanation is still returned, placement and all: the diff
- * view drops it, but it reaches the wire so it is never silently lost.
- */
 export interface EffectiveExplanation {
 	id: string;
 	path: string;
@@ -19,10 +13,6 @@ export interface EffectiveExplanation {
 	placement: FindingPlacement;
 }
 
-/**
- * Positional like `findingId`: nothing ever reorders or removes an
- * explanation for the life of a pass, so its index is a stable identity.
- */
 export function explanationId(index: number): string {
 	return `explanation-${index}`;
 }

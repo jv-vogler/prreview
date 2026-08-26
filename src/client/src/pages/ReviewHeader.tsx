@@ -10,11 +10,9 @@ export interface ReviewHeaderProps {
 	onToggleExplanations(): void;
 	reviewDisabled: boolean;
 	onReview(): void;
-	/** anything that went wrong, in the order it should be read; nulls ignored */
 	errors: readonly (string | null)[];
 }
 
-/** What the change is, the two controls that act on it, and anything that failed. */
 export function ReviewHeader({
 	changeset,
 	aiAvailable,

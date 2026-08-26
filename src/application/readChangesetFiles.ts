@@ -11,11 +11,6 @@ export interface ReadChangesetFilesDeps {
 	githubService: GithubService | null;
 }
 
-/**
- * The diff text for a resolved changeset, parsed into the IR: the source
- * text is `git diff -M -C --unified=3` or the GithubService's PR diff; every
- * changeset source goes through the same parser.
- */
 export async function readChangesetFiles(
 	deps: ReadChangesetFilesDeps,
 	ref: ChangesetRef,
@@ -49,12 +44,6 @@ async function diffTextFor(
 	return deps.git.diff(ref.baseSha, ref.headSha);
 }
 
-/**
- * GitHub refuses to serve a diff past its size caps (20k lines / 300 files),
- * and our own exec guard cuts off a diff that overflows its output budget.
- * Both mean the same thing to the reader: this PR cannot be reviewed whole.
- * Say that, with the way out, instead of relaying a raw gh failure.
- */
 async function prDiffOrTooLarge(
 	githubService: GithubService,
 	number: number,

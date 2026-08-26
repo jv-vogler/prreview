@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 import { taskSchemas } from "./taskSchemas";
 import { assertSchemaFitsArgv, toJsonSchema } from "./toJsonSchema";
 
-/**
- * TEST-001: this is the test whose absence once broke every run while the
- * suite stayed green (CON-002) — every schema registered for
- * `--json-schema` must survive the exact validator the real CLI uses.
- */
 describe("toJsonSchema", () => {
 	it("drops $schema so no meta-schema URI has to resolve", () => {
 		const json = toJsonSchema(taskSchemas.review);
@@ -31,12 +26,6 @@ describe("toJsonSchema", () => {
 		},
 	);
 
-	/*
-	 * The tier/kind rule has to reach the CLI, not just `parse`. Ajv is the
-	 * validator that still has a turn left to fix a bad finding; by the time
-	 * `reviewOutputSchema.parse` sees one, the only move left is discarding a
-	 * finished pass.
-	 */
 	it("carries the defect/question split into the schema the CLI validates", () => {
 		const findings = JSON.parse(toJsonSchema(taskSchemas.review)).properties
 			.findings;

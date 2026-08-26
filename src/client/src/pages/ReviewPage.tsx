@@ -50,25 +50,14 @@ const api = createApiClient();
 
 const NO_HIGHLIGHT: ReadonlySet<string> = new Set();
 
-/**
- * Two candidate presentations for change explanations, side by side while
- * the design settles: folded chips by default, `?explanations=margin` for
- * always-open cards pinned to the right edge. Read once at module scope —
- * the page has no router, so the URL never changes underneath it.
- */
 const EXPLANATIONS_MODE: ExplanationsMode =
 	new URLSearchParams(window.location.search).get("explanations") === "margin"
 		? "margin"
 		: "chips";
 
-/**
- * The one screen (REQ-001): a GitHub-style diff of whatever changeset the
- * server resolved at boot. No tabs, no routes beyond this one.
- */
 export function ReviewPage() {
 	const [changeset, setChangeset] = useState<ChangesetDto | null>(null);
-	// null = not yet known; the AI surface stays absent, not disabled, until
-	// the session answers (REQ-009) — never assume availability while waiting
+
 	const [aiAvailable, setAiAvailable] = useState(false);
 	const [githubAvailable, setGithubAvailable] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
@@ -94,9 +83,7 @@ export function ReviewPage() {
 					setGithubAvailable(session.featureFlags.githubAvailable);
 				}
 			},
-			() => {
-				// the diff still works with no agent surface; nothing to recover
-			},
+			() => {},
 		);
 		return () => {
 			cancelled = true;
@@ -126,7 +113,6 @@ function ResolvedReview({
 	githubAvailable,
 }: {
 	changeset: ChangesetDto;
-	/** adopts a changeset the server re-resolved, so the diff matches the pass */
 	onChangeset(changeset: ChangesetDto): void;
 	aiAvailable: boolean;
 	githubAvailable: boolean;
@@ -145,16 +131,13 @@ function ResolvedReview({
 	const [curationError, setCurationError] = useState<string | null>(null);
 	const [publishing, setPublishing] = useState(false);
 	const [publishError, setPublishError] = useState<string | null>(null);
-	// once accepted or discarded, a rework's proposal never reappears for its
-	// run, however long that run stays the "current" one on screen
+
 	const [dismissedRunId, setDismissedRunId] = useState<string | null>(null);
 	const findings = useMemo<readonly ReviewFindingDto[]>(
 		() => review.pass?.findings ?? [],
 		[review.pass],
 	);
-	// in the diff's own order, not the order the agent thought of them: the
-	// sidebar's read-through, the topic colors and the scroll all follow one
-	// sequence (explanationOrder.ts)
+
 	const explanations = useMemo<readonly ExplanationDto[]>(
 		() =>
 			sortExplanationsByDiff(
@@ -163,17 +146,14 @@ function ResolvedReview({
 			),
 		[review.pass, changeset.files],
 	);
-	// shown by default; one toggle drops or restores all of them
+
 	const [showExplanations, setShowExplanations] = useState(true);
-	// a Review click over a stored pass always confirms first: the run
-	// replaces that pass, and destructive never rides on a bare click
+
 	const [confirmingReReview, setConfirmingReReview] = useState(false);
-	// the re-resolution a Review click starts with, and its own failure —
-	// a target that has vanished says so here, not by starting a run
+
 	const [reResolving, setReResolving] = useState(false);
 	const [reResolveError, setReResolveError] = useState<string | null>(null);
-	// folded by default so the diff keeps the screen; a run finishing live
-	// unfolds it once, because that is the moment the account is news
+
 	const [overviewFolded, setOverviewFolded] = useState(true);
 	const previousRunStatus = useRef<string | null>(null);
 	useEffect(() => {
@@ -185,17 +165,10 @@ function ResolvedReview({
 		previousRunStatus.current = status;
 		if (status === "succeeded" && (was === "running" || was === "queued")) {
 			setOverviewFolded(false);
-			// the pass was computed against whatever the server resolved when
-			// the run started, which a refresh may have moved: re-read the
-			// changeset so the diff on screen carries the placements the pass
-			// was anchored to
 			getChangeset(api).then(onChangeset, noop);
 		}
 	}, [review.run, onChangeset]);
 
-	// Review never runs against the snapshot taken at boot: it re-resolves
-	// the target first, so the dialog's commit count is true at click time
-	// and the run reviews the commits that are actually there.
 	const onReviewPressed = useCallback(() => {
 		setReResolving(true);
 		setReResolveError(null);
@@ -220,8 +193,7 @@ function ResolvedReview({
 		() => findings.filter((finding) => !finding.deleted),
 		[findings],
 	);
-	// what the sidebar's jumps and topic chips light up on the diff; never
-	// part of the renderer's version, so highlighting folds nothing
+
 	const [highlighted, setHighlighted] = useState<{
 		key: string;
 		ids: ReadonlySet<string>;
@@ -317,8 +289,6 @@ function ResolvedReview({
 		);
 	}, [review.applyPass]);
 
-	// absent, not disabled (REQ-009's treatment, mirrored here): no publish
-	// control at all without a GitHub backend or without a PR to publish to
 	const canPublish = githubAvailable && changeset.ref.source.kind === "pr";
 
 	const onRework = useCallback(
@@ -377,8 +347,6 @@ function ResolvedReview({
 		],
 	);
 
-	// files without hunks (binary, mode-only, pure renames) have no rows to
-	// render; they stay in the tree but not in the code view
 	const renderedFiles = useMemo(
 		() => changeset.files.filter((file) => file.hunks.length > 0),
 		[changeset.files],
@@ -522,7 +490,6 @@ function ResolvedReview({
 	);
 }
 
-/** A Review click is refused while anything is already resolving or running. */
 function reviewBusy(review: ReviewRunState, reResolving: boolean): boolean {
 	return (
 		review.starting ||

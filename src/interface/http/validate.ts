@@ -2,11 +2,6 @@ import type { Context } from "hono";
 import type { z } from "zod";
 import { ValidationError } from "../../domain/errors/ValidationError";
 
-/**
- * Request bodies are zod-validated the moment they enter. Malformed JSON and
- * schema failures both become ValidationError, which the onError edge maps
- * to 400 `validation`.
- */
 export async function validatedJson<Schema extends z.ZodType>(
 	context: Context,
 	schema: Schema,
@@ -22,11 +17,6 @@ export async function validatedJson<Schema extends z.ZodType>(
 	return parsedOrValidationError(schema, body);
 }
 
-/**
- * Same boundary for a body that may legitimately be absent: a request with
- * no body at all validates as `{}`, so an endpoint can gain an option
- * without every caller having to start sending one.
- */
 export async function optionalJson<Schema extends z.ZodType>(
 	context: Context,
 	schema: Schema,
@@ -44,7 +34,6 @@ export async function optionalJson<Schema extends z.ZodType>(
 	return parsedOrValidationError(schema, body);
 }
 
-/** Same boundary for query strings. */
 export function validatedQuery<Schema extends z.ZodType>(
 	context: Context,
 	schema: Schema,

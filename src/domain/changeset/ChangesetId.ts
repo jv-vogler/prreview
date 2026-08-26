@@ -1,9 +1,7 @@
 import type { ChangesetSource } from "./ChangesetSource";
 
-/** "pr:acme/api#482" | "branch:feat-x..main" | "range:a1b2c3..d4e5f6" | "worktree" */
 export type ChangesetId = string;
 
-/** Sessions are keyed by this. */
 export function changesetIdFor(source: ChangesetSource): ChangesetId {
 	switch (source.kind) {
 		case "pr":

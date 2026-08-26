@@ -3,15 +3,7 @@ import { devNull, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { exec } from "../../src/infrastructure/git/exec";
 
-/**
- * Env for every git command a fixture runs: user config is blanked so the
- * machine's gitconfig cannot shape fixture content, and identity comes from
- * env so commits work on a bare CI runner.
- */
 const FIXTURE_GIT_ENV = {
-	// git sets these for hooks and for `rebase --exec`, and a child git
-	// inherits them: without clearing them a fixture repo is operated on as
-	// if it were whichever repo invoked the test run
 	GIT_DIR: undefined,
 	GIT_WORK_TREE: undefined,
 	GIT_INDEX_FILE: undefined,
@@ -27,30 +19,20 @@ const FIXTURE_GIT_ENV = {
 
 export interface FixtureRepo {
 	readonly root: string;
-	/** run git inside the repo with the fixture env; returns stdout */
 	git(args: readonly string[]): Promise<string>;
 	write(relativePath: string, content: string | Buffer): Promise<void>;
 	remove(relativePath: string): Promise<void>;
-	/** `git add -A` + commit; returns the new head sha */
 	commitAll(message: string): Promise<string>;
 	headSha(): Promise<string>;
-	/** clone this repo into a fresh temp dir (sets origin and origin/HEAD) */
 	clone(): Promise<FixtureRepo>;
 	dispose(): Promise<void>;
 }
 
 export interface FixtureRepoOptions {
-	/** branch name for `git init -b`; default "main" */
 	defaultBranch?: string;
-	/** create the initial README commit; default true */
 	initialCommit?: boolean;
 }
 
-/**
- * A real git repository in a temp directory — the adapter tests' ground
- * truth. Compose commits, branches, renames, binary files, and dirty state
- * through the returned handle.
- */
 export async function createFixtureRepo(
 	options: FixtureRepoOptions = {},
 ): Promise<FixtureRepo> {

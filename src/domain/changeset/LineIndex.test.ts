@@ -9,13 +9,10 @@ describe("buildLineIndex", () => {
 		const index = buildLineIndex(file);
 		const [firstHunk, secondHunk] = file.hunks;
 
-		// first hunk spans lines 2–8 on both sides
 		expect(index.newLines.get(2)).toBe(firstHunk.id);
 		expect(index.newLines.get(5)).toBe(firstHunk.id);
 		expect(index.newLines.get(8)).toBe(firstHunk.id);
 		expect(index.oldLines.get(5)).toBe(firstHunk.id);
-
-		// second hunk spans lines 10–16; its id carries the dupIndex suffix
 		expect(index.newLines.get(13)).toBe(secondHunk.id);
 		expect(index.oldLines.get(13)).toBe(secondHunk.id);
 	});

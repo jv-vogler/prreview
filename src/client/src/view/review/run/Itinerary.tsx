@@ -8,13 +8,6 @@ export interface ItineraryProps {
 	stalled: boolean;
 }
 
-/**
- * The review's own plan, echoed back exactly as the agent wrote it
- * (TASK-XXX): a rail of `TodoWrite` steps, each showing only what the agent
- * itself has marked done, in progress, or not yet started. Nothing here is
- * inferred from tool activity — a step advances when the agent's own plan
- * says it did, never before.
- */
 export function Itinerary({ steps, stalled }: ItineraryProps) {
 	if (steps.length === 0) {
 		return null;

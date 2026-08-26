@@ -60,13 +60,6 @@ describe("verifyRef", () => {
 		await expect(client.verifyRef("no-such-branch")).rejects.toThrow();
 	});
 
-	/*
-		The one that only a real git can fail. `rev-parse --verify` handed a
-		full 40-hex string echoes it back without looking for the object, so
-		every fake that models the documented contract passes while the adapter
-		says "present" about a commit this repo has never seen. That answer is
-		what stopped a PR head from being fetched once its branch was deleted.
-	*/
 	it("rejects a full-length sha this repo does not have", async () => {
 		const repo = await fixtureRepo();
 		const client = new GitClient(repo.root);
@@ -193,7 +186,6 @@ describe("diffWorktree", () => {
 		await repo.write("staged.txt", "original staged\n");
 		await repo.write("unstaged.txt", "original unstaged\n");
 		await repo.commitAll("two files");
-
 		await repo.write("staged.txt", "edited and staged\n");
 		await repo.git(["add", "staged.txt"]);
 		await repo.write("unstaged.txt", "edited, left unstaged\n");
@@ -307,11 +299,8 @@ describe("worktree management", () => {
 		const client = new GitClient(repo.root);
 		const dir = join(await realpath(tmpdir()), `prreview-wt-${Date.now()}`);
 		await client.addWorktree(dir, firstSha);
-
 		expect(await readFile(join(dir, "file.txt"), "utf8")).toBe("first\n");
-		// detached: the user's branch set is untouched
 		expect(await client.localBranches()).toEqual(["main"]);
-
 		await client.removeWorktree(dir);
 		await expect(stat(dir)).rejects.toThrow();
 	});
@@ -361,7 +350,6 @@ describe("worktreeFingerprint", () => {
 		await repo.write("file.txt", "edited\n");
 		const dirty = await client.worktreeFingerprint();
 		expect(dirty).not.toBe(clean);
-
 		await repo.write("file.txt", "original\n");
 		expect(await client.worktreeFingerprint()).toBe(clean);
 	});
@@ -460,7 +448,6 @@ describe("isDirty", () => {
 
 		await repo.write("README.md", "# edited\n");
 		expect(await client.isDirty()).toBe(true);
-
 		await repo.git(["add", "-A"]);
 		expect(await client.isDirty()).toBe(true);
 	});

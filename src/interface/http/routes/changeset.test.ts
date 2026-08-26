@@ -68,11 +68,6 @@ describe("GET /api/changeset", () => {
 	});
 });
 
-/**
- * A real runner over a fake engine, with a resolver the test moves: the
- * point of refresh is that the second resolution answers something the first
- * did not, which a frozen snapshot cannot express.
- */
 function refreshableApp() {
 	const engine = new FakeEngine();
 	engine.events = [

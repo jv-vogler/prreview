@@ -12,12 +12,6 @@ export interface PublishSummary {
 	excluded: PublishExclusion[];
 }
 
-/**
- * Mirrors `publishReview`'s own filter (REQ-010, REQ-011) so the "Send
- * review" control can state, before sending, exactly what will go and what
- * will not (TASK-052) — a client guess that drifted from the server's own
- * rule is the failure mode this exists to avoid.
- */
 export function summarizePublish(
 	findings: readonly ReviewFindingDto[],
 ): PublishSummary {

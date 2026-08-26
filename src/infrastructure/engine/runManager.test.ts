@@ -113,7 +113,6 @@ describe("createRunManager", () => {
 		};
 		manager.start(job, 10_000);
 		await vi.runAllTimersAsync();
-
 		report({ kind: "activity", activity: "Reading a.ts" });
 		await vi.advanceTimersByTimeAsync(600);
 
@@ -130,7 +129,6 @@ describe("createRunManager", () => {
 		const gate = deferred<{ ok: true }>();
 
 		const job: RunJob = ({ runId, signal }) => {
-			// touch the idle clock once, well inside the budget, then go silent
 			manager.report(runId, { kind: "activity", activity: "Reading a.ts" });
 			return new Promise((resolve) => {
 				signal.addEventListener("abort", () => resolve({ ok: true }));
@@ -140,8 +138,6 @@ describe("createRunManager", () => {
 
 		manager.start(job, 1_000);
 		await vi.advanceTimersByTimeAsync(500);
-		// a touch inside the budget should have rearmed the clock; without a
-		// second touch the run should still time out at 1000ms from the touch
 		await vi.advanceTimersByTimeAsync(1_100);
 
 		expect(events.at(-1)).toMatchObject({

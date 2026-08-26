@@ -3,22 +3,8 @@ import { useRouteError } from "react-router";
 import { HttpError } from "../../infrastructure/httpClients/HttpError";
 import styles from "./ErrorScreen.module.css";
 
-/**
- * No answer, or an answer from something standing in front of a server that
- * is not there: the client's own `unreachable` (0) and the gateway statuses
- * the dev proxy answers with once the API server is gone.
- */
 const NO_SERVER_BEHIND_IT = new Set([0, 502, 503, 504]);
 
-/**
- * The router's error boundary — the edge.
- *
- * Without it a failed load reaches React Router's default page, and a load
- * that failed by *hanging* reaches nothing at all: the reader sits on
- * "Loading…" indefinitely while the real reason — usually that no server is
- * running — is a line in a terminal behind the browser. A screen that cannot
- * be filled has to say why it cannot be filled.
- */
 export function ErrorScreen() {
 	const error = useRouteError();
 	const noServer =

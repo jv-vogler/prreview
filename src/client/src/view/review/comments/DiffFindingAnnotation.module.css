@@ -1,9 +1,3 @@
-/*
- * The collapsed marker keeps its own row, and the row says so: recessed to
- * the inset tone so it reads as a seam in the diff rather than a line of code
- * that lost its text. Darker is what separates it; the space around the
- * marker is what makes the marker findable.
- */
 .annotation {
 	display: flex;
 	flex-direction: column;
@@ -17,12 +11,6 @@
 		inset 0 calc(-1 * var(--borderWidth-thin)) 0 var(--borderColor-muted);
 }
 
-/*
- * The marker keeps breathing so it stays findable while the reader scrolls
- * past it. The loop is affordable because the diff is virtualized: only rows
- * near the viewport exist, so this animates a handful of markers at a time
- * rather than one per comment in the pass.
- */
 @keyframes marker-arrive {
 	0% {
 		transform: scale(0.6);
@@ -38,13 +26,6 @@
 	}
 }
 
-/*
- * A ring that leaves the pill and fades: visible because the spread grows
- * while the colour is still opaque. Both ends are invisible for the opposite
- * reasons — no spread at the start, no colour at the end — and pairing them
- * the other way round animates between two invisible states, which is exactly
- * what a first attempt here did.
- */
 @keyframes marker-pulse {
 	0% {
 		box-shadow: 0 0 0 0 var(--marker-halo);
@@ -79,7 +60,6 @@
 }
 
 .marker:hover {
-	/* a marker under the pointer is already found; the pulse only fights the hover */
 	animation-play-state: running, paused;
 	transform: scale(1.08);
 	border-color: var(--borderColor-emphasis);
@@ -107,7 +87,6 @@
 	--marker-halo: var(--fgColor-success);
 }
 
-/* asked, not ranked: its own colour rather than the mildest tier's */
 .marker[data-kind="question"] {
 	border-color: var(--borderColor-accent-muted);
 	background: var(--bgColor-accent-muted);

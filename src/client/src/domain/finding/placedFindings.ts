@@ -1,10 +1,5 @@
 import type { AnchorSideDto, ReviewFindingDto } from "@dto/ReviewDto";
 
-/**
- * Where one comment's gutter marker goes on the rendered diff — every
- * comment whose placement is `exact` or `clamped` gets one; `unplaceable`
- * comments never appear here, only in the sidebar (REQ-010).
- */
 export interface PlacedFinding {
 	fileId: string;
 	side: AnchorSideDto;
@@ -30,7 +25,6 @@ export function placedFindings(
 	return placed;
 }
 
-/** One rendered diff line can carry more than one comment; they share a marker. */
 export interface AnnotationGroup {
 	fileId: string;
 	side: AnchorSideDto;

@@ -20,9 +20,8 @@ import { type CliArgs, parseCliArgs } from "./args";
 
 const execFileAsync = promisify(execFile);
 
-/** loopback only, unconditionally — there is no --host on purpose (SEC-001) */
 const BIND_HOST = "127.0.0.1";
-/** how far the get-port walk-up looks before falling back to any free port */
+
 const PORT_WALK_SPAN = 100;
 const USAGE_EXIT_CODE = 2;
 const FAILURE_EXIT_CODE = 1;
@@ -48,8 +47,6 @@ async function main(): Promise<void> {
 		createAppEventPublisher(hub),
 	);
 
-	// --dev pins the port (the Vite proxy targets it) and leaves static
-	// serving to Vite
 	const port = args.dev
 		? await pinnedPort(args.port)
 		: await getPort({
@@ -70,8 +67,6 @@ async function main(): Promise<void> {
 	announce(url, args, initial.announce);
 
 	if (args.open && !args.dev) {
-		// fire-and-forget: a browser that cannot be opened (WSL2, headless
-		// boxes) must not take the server down with it
 		open(url).catch(() => {
 			process.stderr.write(
 				`prreview: could not open a browser — visit ${url} yourself\n`,
@@ -80,12 +75,6 @@ async function main(): Promise<void> {
 	}
 }
 
-/**
- * Boot's resolution, as a function the server can call again: pressing
- * Review re-resolves the same target rather than reusing the snapshot taken
- * at boot, so a commit pushed while prreview is serving is reviewed instead
- * of ignored.
- */
 async function currentChangeset(
 	container: Container,
 	args: CliArgs,
@@ -101,15 +90,6 @@ async function currentChangeset(
 	return { ref, announce, files };
 }
 
-/**
- * A pinned port cannot walk, so it has to be free. Checked before serving
- * rather than reported from the failed listen: `serve` emits that error
- * where nothing can catch it, and the reader gets a stack trace instead of
- * the one fact that matters. In dev the answer is never "use another port"
- * anyway, since the Vite proxy targets this one: a server already holding it
- * means the browser is quietly talking to that older process, its stored
- * review and all.
- */
 async function pinnedPort(port: number): Promise<number> {
 	const free = await getPort({
 		host: BIND_HOST,
@@ -123,7 +103,6 @@ async function pinnedPort(port: number): Promise<number> {
 	return port;
 }
 
-/** Boot's one expected failure, so it prints as a sentence and not a stack. */
 class PortInUseError extends Error {}
 
 function listen(app: Hono, port: number): Promise<void> {
@@ -153,7 +132,6 @@ async function detectRepoRoot(cwd: string): Promise<string> {
 	}
 }
 
-/** What was resolved, the explicit form that overrides it, and where to look. */
 function announce(
 	url: string,
 	args: { open: boolean; dev: boolean },
@@ -173,18 +151,12 @@ function announce(
 	);
 }
 
-/**
- * The one catch around boot: usage errors (commander's) exit 2; any other
- * AppError becomes a single human sentence and exit 1; the unexpected prints
- * raw.
- */
 function handleBootFailure(error: unknown): never {
 	if (error instanceof PortInUseError) {
 		process.stderr.write(`prreview: ${error.message}\n`);
 		process.exit(FAILURE_EXIT_CODE);
 	}
 	if (error instanceof CommanderError) {
-		// commander already wrote its message (or the help/version text)
 		process.exit(error.exitCode === 0 ? 0 : USAGE_EXIT_CODE);
 	}
 	if (error instanceof AppError) {

@@ -1,11 +1,3 @@
-/*
- * Everything here exists to not read as a comment: comments are white
- * cards with radius, a tier stripe and buttons; this is a flat, square-
- * cornered strip of prose in the recessed tone, hairline-bordered, inert.
- * It floats over code (see DiffExplanationAnnotation), so the background
- * must be an opaque token and the shadow is what separates it from the
- * lines underneath.
- */
 .balloon {
 	box-sizing: border-box;
 	width: 100%;
@@ -16,12 +8,6 @@
 	box-shadow: var(--shadow-floating-small);
 }
 
-/*
- * The icon and the topic chip get the first row to themselves, so the
- * prose below runs the full width of the card instead of wrapping into
- * the narrow column left over beside the chip. Both sit at the left edge,
- * the side the code is on.
- */
 .header {
 	display: flex;
 	align-items: center;
@@ -29,14 +15,6 @@
 	margin-bottom: var(--base-size-8);
 }
 
-/*
- * The topics panel's "this one" answer. Deliberately not a colored border:
- * a topic already wears a color, and half the palette is blue, so a blue
- * ring would read as another topic rather than as selection. Selection is
- * therefore weight, not hue — a thick neutral edge, a lifted shadow, and a
- * scale that overshoots once and settles, which is the part the eye
- * actually follows to the card.
- */
 .balloon[data-highlighted] {
 	border-color: var(--borderColor-emphasis);
 	box-shadow:
@@ -55,7 +33,6 @@
 	}
 }
 
-/* not this topic: readable, just no longer the thing being followed */
 .balloon[data-dimmed] {
 	opacity: 0.55;
 }
@@ -90,7 +67,6 @@
 	margin-top: var(--base-size-4);
 }
 
-/* a clamped card sits beside a line it is not about; it has to say so */
 .clampNote {
 	margin: var(--base-size-8) 0 0;
 	color: var(--fgColor-muted);

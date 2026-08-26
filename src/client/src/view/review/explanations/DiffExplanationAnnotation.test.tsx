@@ -38,10 +38,8 @@ describe("DiffExplanationAnnotation", () => {
 			name: "Fold change explanation",
 		});
 		expect(document.querySelector("[data-explanation-id]")).not.toBeNull();
-
 		fireEvent.click(chip);
 		expect(document.querySelector("[data-explanation-id]")).toBeNull();
-
 		fireEvent.click(chip);
 		expect(document.querySelector("[data-explanation-id]")).not.toBeNull();
 	});

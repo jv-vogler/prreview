@@ -1,37 +1,18 @@
 import { spawn } from "node:child_process";
 
-/**
- * Anything larger than this is not a payload prreview should hold in memory;
- * the blob endpoint enforces its own much smaller limit on top.
- */
 const DEFAULT_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
 
 export interface ExecOptions {
 	cwd?: string;
-	/**
-	 * Variables layered over process.env for this one spawn. An `undefined`
-	 * value clears the inherited one, which is how a caller escapes ambient
-	 * state it must not inherit.
-	 */
 	env?: Record<string, string | undefined>;
-	/** kill the child and fail once this elapses; default: no timeout */
 	timeoutMs?: number;
-	/** default 10MB; exceeding it kills the child and fails */
 	maxOutputBytes?: number;
-	/** written to the child's stdin and closed; omitted, stdin is /dev/null */
 	stdin?: string;
 }
 
-/**
- * The raw failure of a spawned command: adapters throw raw, never AppError.
- * Use-cases convert this into app meaning; nothing below the application
- * layer interprets it. stderr rides along as `cause` and as an own field for
- * programmatic access.
- */
 export class ExecError extends Error {
 	readonly command: string;
 	readonly args: readonly string[];
-	/** null when the child never exited normally (killed, timed out) */
 	readonly exitCode: number | null;
 	readonly stderr: string;
 	readonly timedOut: boolean;
@@ -58,12 +39,6 @@ export class ExecError extends Error {
 	}
 }
 
-/**
- * Thin `child_process.spawn` wrapper: argv array, `shell: false`, so no
- * interpolation ever reaches a shell. Resolves with stdout decoded as utf8;
- * rejects with ExecError on nonzero exit, timeout, output overflow, or spawn
- * failure (ENOENT propagates as-is from node).
- */
 export function exec(
 	command: string,
 	args: readonly string[],
@@ -72,7 +47,6 @@ export function exec(
 	return run(command, args, options).then((stdout) => stdout.toString("utf8"));
 }
 
-/** Same contract as exec, but stdout stays raw bytes — for blob reads. */
 export function execBuffer(
 	command: string,
 	args: readonly string[],
@@ -96,10 +70,6 @@ function run(
 			stdio: ["pipe", "pipe", "pipe"],
 		});
 
-		// A child that exits before reading stdin (a fast-failing `gh`/`git`
-		// invocation) turns this write into an EPIPE. The exit code is already
-		// what gets reported below; an unhandled 'error' here would otherwise
-		// crash the process instead.
 		child.stdin.on("error", () => {});
 		if (options.stdin === undefined) {
 			child.stdin.end();
@@ -114,9 +84,6 @@ function run(
 		let timedOut = false;
 		let overflowed = false;
 
-		// Killing the child is not enough to unblock the 'close' event: a
-		// grandchild (sh's sleep, git's subprocess) can inherit the stdio pipes
-		// and keep them open forever. Dropping our read ends guarantees 'close'.
 		const killChild = () => {
 			child.kill("SIGKILL");
 			child.stdout.destroy();
@@ -157,7 +124,6 @@ function run(
 			stderrChunks.push(chunk);
 		});
 
-		// Spawn-level failure (ENOENT and friends): the rawest error there is.
 		child.on("error", (error) => settle({ ok: false, error }));
 
 		child.on("close", (exitCode) => {

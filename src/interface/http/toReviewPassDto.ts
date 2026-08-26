@@ -10,11 +10,6 @@ import type {
 	ReviewPassDto,
 } from "./dto/ReviewDto";
 
-/**
- * Turns the persisted pass into the wire shape the client renders
- * (TASK-041): `effectiveFindings` already resolved each finding's curation
- * and placement (TASK-046, TASK-050); this is only the DTO mapping.
- */
 export function toReviewPassDto(
 	stored: StoredReview,
 	files: readonly FileDiff[],

@@ -63,7 +63,6 @@ describe("SessionStore", () => {
 		};
 		await store.saveReview(review);
 		await store.flush();
-
 		expect(await store.loadReview("worktree")).toEqual(review);
 	});
 
@@ -117,7 +116,6 @@ describe("SessionStore", () => {
 		await store.saveReview(first);
 		await store.saveReview(second);
 		await store.flush();
-
 		expect((await store.loadReview("worktree"))?.createdAt).toBe("t2");
 	});
 
@@ -143,8 +141,7 @@ describe("SessionStore", () => {
 	it("still loads a pass that predates a tightened length budget", async () => {
 		const sessionDir = join(dataDir, "sessions", "worktree");
 		await mkdir(sessionDir, { recursive: true });
-		// written when the ceiling was 1500; lowering it must not retroactively
-		// corrupt a session that was within budget the day it was recorded
+
 		const overview = "x".repeat(1220);
 		await writeFile(
 			join(sessionDir, "review.json"),

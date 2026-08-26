@@ -30,7 +30,6 @@ async function rejectionOf(promise: Promise<unknown>): Promise<unknown> {
 	throw new Error("expected the promise to reject");
 }
 
-/** A gh-backed world where PR #482 exists and its head is already local. */
 function ghWorld() {
 	return buildTestContainer({
 		git: {

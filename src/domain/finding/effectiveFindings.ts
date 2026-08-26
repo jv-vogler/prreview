@@ -10,21 +10,12 @@ import type { StoredReview } from "../pass/StoredReview";
 import { effectiveBody, isDeleted } from "./curation";
 import { findingIdAt } from "./findingId";
 
-/**
- * One finding as curation and placement have left it: the engine's own
- * answer (TASK-031) with the reader's edits layered on top (TASK-046) and
- * its spot on the rendered diff resolved (TASK-040) — the shared read of
- * the artifact that both `toReviewPassDto` (the wire view) and
- * `publishReview` (TASK-050, what actually gets sent to GitHub) build on,
- * so a finding is placed and curated exactly once.
- */
 export interface EffectiveFinding {
 	id: string;
 	path: string;
 	startLine: number;
 	endLine: number;
 	kind: ReviewFindingKind;
-	/** absent exactly when this is a question */
 	tier?: ReviewTier;
 	title: string;
 	body: string;
@@ -33,13 +24,10 @@ export interface EffectiveFinding {
 	verified: boolean;
 	lane: ReviewLane;
 	placement: FindingPlacement;
-	/** true once the reader has overwritten `body` (TASK-046) */
 	edited: boolean;
-	/** dismissed by the reader; still returned so it can be restored */
 	deleted: boolean;
 }
 
-/** Every finding, including dismissed ones — callers that must exclude those filter themselves. */
 export function effectiveFindings(
 	stored: StoredReview,
 	files: readonly FileDiff[],

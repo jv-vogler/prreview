@@ -26,12 +26,10 @@
 	border-left-color: var(--fgColor-muted);
 }
 
-/* a question is not on the ladder, so it borrows no tier's colour */
 .balloon[data-kind="question"] {
 	border-left-color: var(--fgColor-accent);
 }
 
-/* dismissed, not gone: still readable, visibly no longer in play */
 .balloon[data-dismissed="true"] {
 	border-left-color: var(--borderColor-muted);
 	opacity: 0.6;
@@ -43,11 +41,6 @@
 		border-left-color var(--motion-transition-stateChange);
 }
 
-/*
- * Editing swaps the rendered body for a textarea in the same place, which
- * without this reads as the card being rebuilt. Fading the replacement in
- * keeps it one card changing mode.
- */
 .editor {
 	animation: editor-open var(--motion-duration-short) var(--motion-easing-enter)
 		both;
@@ -123,10 +116,6 @@
 	font-size: var(--text-body-size-small);
 }
 
-/*
- * A finding taken on trust reads differently from one just verified, and the
- * reader has to be able to tell which they are looking at.
- */
 .carried {
 	margin: var(--base-size-4) 0 0;
 	color: var(--fgColor-muted);

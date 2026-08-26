@@ -1,29 +1,4 @@
 #!/usr/bin/env node
-// A mock `claude` for looking at the review UI without paying an agent.
-//
-// This is a *generator*, not a replay. `test/bin/claude` replays a recorded
-// stream byte for byte, which is what a test wants and exactly what UI work
-// cannot use: a recording's line numbers belong to the repo it was recorded
-// against, so against any other changeset every finding would be
-// unplaceable and the screen you are trying to look at is not the screen
-// users get. This one reads the numbered diff out of the prompt it was
-// handed (reviewPrompt.ts's own format) and answers with findings anchored
-// to real line numbers actually in front of it.
-//
-// It is a real agent as far as everything else is concerned: it goes on
-// PATH as `claude`, so the run manager, the progress events, the SSE
-// channel, the zod gate and the store all run the production path.
-//
-// CJS on purpose — extensionless scripts load as CJS regardless of the root
-// "type": "module".
-//
-// Usage:  npm run dev:mock     (then click "Review")
-//
-// Knobs:
-//   MOCK_AGENT_DELAY_MS   ms between emitted lines (default 150; 0 for instant)
-//   MOCK_AGENT_FAIL       any value → terminal failure, for the error surface
-//   MOCK_AGENT_EMPTY      any value → a clean pass with no findings
-
 const { setTimeout: sleep } = require("node:timers/promises");
 
 const VERSION = "0.0.0-mock (prreview mock agent)";
@@ -50,9 +25,6 @@ async function main() {
 	await emitLine({ type: "system", subtype: "init", session_id: SESSION_ID, cwd: process.cwd(), model: "mock-agent" });
 	await sleep(delayMs);
 
-	// advances the same five-step plan reviewPrompt.ts asks the real agent
-	// for, interleaved with the Read bursts — without this the itinerary
-	// rail is invisible to `npm run dev:mock`
 	await emitPlanCreated();
 	await sleep(delayMs);
 	await emitTaskUpdate(0, "in_progress");
@@ -118,12 +90,6 @@ async function main() {
 	});
 }
 
-/**
- * Parses `reviewPrompt.ts`'s `### path — status` / fenced ```diff blocks
- * back into `{path, lines: [{lineNumber, marker, content}]}`. Anything the
- * format does not recognize is simply not a file — a reworded prompt
- * degrades to zero findings, never to a crash.
- */
 function parseNumberedDiff(prompt) {
 	const change = prompt.split("## The change\n\n")[1] ?? "";
 	const sections = change.split(/\n(?=### )/);
@@ -150,11 +116,6 @@ function parseNumberedDiff(prompt) {
 	return files;
 }
 
-/**
- * The delta framing, read back out of the prompt: null when this is a full
- * pass. `reviewPrompt.ts` names the ids it wants re-checked in one sentence,
- * which is all the mock needs to answer them.
- */
 function parseReuse(prompt) {
 	if (!prompt.includes("## Since the last review")) {
 		return null;
@@ -164,9 +125,6 @@ function parseReuse(prompt) {
 	return { recheckIds };
 }
 
-// One new finding on the file that moved, plus a verdict for every id the
-// prompt asked about: enough for the merge and the carried marking to be
-// visible without a paid run.
 function buildDeltaPass(files, reuse) {
 	const file = files[0];
 	const anchor = file?.lines.find((line) => line.marker === "+") ?? file?.lines[0];
@@ -222,14 +180,11 @@ function buildPass(files) {
 			proof: "Inferred: this is the mock agent, nothing was actually run.",
 			verified: false,
 			lane: "review",
-			// so a later delta pass has something to carry without re-checking
+
 			dependsOn: [file.path],
 		};
 	});
 	if (files.length > 0) {
-		// exercises REQ-010's unplaceable lane (a path outside the diff),
-		// same as the sidebar has to handle for a real run's finding that
-		// cites a file the reader is not looking at
 		findings.push({
 			path: "does/not/exist/in/this/diff.ts",
 			startLine: 1,
@@ -242,8 +197,7 @@ function buildPass(files) {
 			verified: false,
 			lane: "review",
 		});
-		// a question: no tier, no alert block, its own count and chip in the
-		// sidebar — the whole point being visible without a paid run
+
 		const questionAnchor = files[0].lines.find((line) => line.marker === "+") ?? files[0].lines[0];
 		findings.push({
 			path: files[0].path,
@@ -275,9 +229,6 @@ function buildPass(files) {
 	};
 }
 
-// 2–3 explanations anchored to real parsed lines, at least two sharing a
-// `topic`, so `npm run dev:mock` shows the balloons and the grouping
-// without a paid run
 function buildExplanations(files) {
 	const explanations = files.slice(0, 3).map((file, index) => {
 		const anchor =
@@ -291,16 +242,14 @@ function buildExplanations(files) {
 				`Mock account of what ${file.path} now does.`,
 				"It exists so the balloon has more than one sentence to lay out.",
 			],
-			// one reconstruction among read reasons, so `grounding` is
-			// exercised on both values even though nothing renders it
+
 			grounding: index === 0 ? "inferred" : "code",
 			...(index < 2
 				? { topic: "Mock intent: two files change for one reason" }
 				: { topic: "Mock second theme: the supporting change" }),
 		};
 	});
-	// one with no line in the diff, so the sidebar's explanation section
-	// (the never-silently-lost lane) is visible without a paid run
+
 	explanations.push({
 		path: "not/in/the/diff.ts",
 		startLine: 7,
@@ -324,7 +273,6 @@ function alertFor(tier) {
 	}
 }
 
-// mirrors reviewPrompt.ts's "## Working plan" five steps, in order
 const PLAN_STEPS = [
 	{ subject: "Find the ticket", activeForm: "Finding the ticket" },
 	{ subject: "Read the big picture", activeForm: "Reading the big picture" },
@@ -333,9 +281,6 @@ const PLAN_STEPS = [
 	{ subject: "Write it up", activeForm: "Writing it up" },
 ];
 
-// TaskCreate appends one task per call and TaskUpdate moves one by id, ids
-// running from 1 in creation order — the real print-mode shape, since
-// TodoWrite does not exist under `claude -p`.
 async function emitPlanCreated() {
 	for (const step of PLAN_STEPS) {
 		await emitToolUse("TaskCreate", { ...step, description: step.subject });

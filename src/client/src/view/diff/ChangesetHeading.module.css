@@ -9,16 +9,6 @@
 	gap: var(--base-size-12);
 }
 
-/*
- * The subject line, and the one place the app spends Mona Sans's width axis.
- *
- * The face carries `font-stretch: 75% 125%` (fonts.css) and nothing used it,
- * so every glyph in the app rendered at a single width. A display line is
- * where that axis pays: a few percent wider reads as deliberate at title size
- * without shouting. It stays out of running prose on purpose — condensing
- * body text buys horizontal room at the cost of the reading, which is the
- * opposite of what this pass is for.
- */
 .title {
 	display: flex;
 	flex-wrap: wrap;
@@ -31,7 +21,6 @@
 	color: var(--fgColor-default);
 }
 
-/* the repository is what a reader orients on first, so it carries the weight */
 .repo {
 	font-weight: var(--base-text-weight-semibold);
 	font-stretch: 108%;
@@ -62,7 +51,6 @@
 	text-decoration: underline;
 }
 
-/* a quiet outlined link, styled as a sibling of RunStatusBar's .stop/.retry */
 .prLink {
 	display: inline-flex;
 	flex: none;

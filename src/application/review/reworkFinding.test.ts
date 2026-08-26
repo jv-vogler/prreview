@@ -84,8 +84,6 @@ describe("buildReworkJob", () => {
 		expect(reported).toEqual([
 			{ kind: "activity", activity: "Reading src/a.ts" },
 		]);
-		// never overwrites the stored pass itself — only the reader's own
-		// accept, through the edit path, does that
 		expect(sessionStore.saved).toHaveLength(1);
 	});
 

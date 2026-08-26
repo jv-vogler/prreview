@@ -1,11 +1,6 @@
 const FRAME_SEPARATOR = "\n\n";
 const READ_TIMEOUT_MS = 2_000;
 
-/**
- * Reads `count` SSE frames' `data` payloads off a streaming response body,
- * then releases the reader WITHOUT cancelling — cancelling would count as a
- * disconnect, and the tests that need one own that call themselves.
- */
 export async function readSseFrames(
 	body: ReadableStream<Uint8Array>,
 	count: number,

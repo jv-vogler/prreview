@@ -103,7 +103,6 @@ describe("OverviewPanel", () => {
 		const verdict = () =>
 			container.querySelector("[data-scope]") as HTMLElement;
 		expect(verdict().dataset.scope).toBe("matches");
-		// below the overview: the verdict row is the panel's last block
 		expect(verdict().closest("div")?.previousElementSibling).not.toBeNull();
 
 		rerender(
@@ -143,7 +142,6 @@ describe("OverviewPanel", () => {
 		expect(screen.queryByText("The long account.")).toBeNull();
 		const verdict = screen.getByText("Matches the ticket.");
 		expect(verdict.getAttribute("data-scope")).toBe("matches");
-
 		fireEvent.click(screen.getByRole("button", { name: /Overview/ }));
 		expect(onToggleFold).toHaveBeenCalledTimes(1);
 	});

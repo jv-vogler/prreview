@@ -4,26 +4,14 @@ import styles from "./ReReviewDialog.module.css";
 
 export interface ReReviewDialogProps {
 	freshness: PassFreshnessDto | null;
-	/** true when the changeset is the working tree — no commit to compare */
 	worktree: boolean;
 	editedCount: number;
 	dismissedCount: number;
-	/** the pending GitHub review this pass (or an earlier one) left behind */
 	pendingReviewUrl: string | null;
 	onConfirm(options: { full: boolean }): void;
 	onCancel: () => void;
 }
 
-/**
- * Running a review over a stored pass replaces that pass, so it never
- * starts on a bare click: this dialog states what exists and what a new
- * run does with it, as facts, before asking. Cancel is the focused
- * default — the destructive path is always the deliberate one.
- *
- * A re-review reads only the files that moved. Nothing can tell whether a
- * change somewhere else resolved a finding in a file that did not, so the
- * way out is a choice the reader makes rather than a rule the code guesses.
- */
 export function ReReviewDialog({
 	freshness,
 	worktree,

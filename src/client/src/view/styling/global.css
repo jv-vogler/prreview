@@ -1,5 +1,3 @@
-/* App-wide base styles. Colors are Primer tokens only (CON-012). */
-
 *,
 *::before,
 *::after {
@@ -20,14 +18,6 @@ body {
 	-webkit-font-smoothing: antialiased;
 }
 
-/*
- * Every control in the app moves the same way.
- *
- * This is a base rather than a shared class because the alternative is each
- * component deciding its own timing, and a screen where four buttons ease at
- * four speeds reads as unfinished even when nobody can say why. Components
- * still own their own colors; what they inherit from here is the tempo.
- */
 button {
 	font: inherit;
 	color: inherit;
@@ -44,7 +34,6 @@ button:not(:disabled) {
 	cursor: pointer;
 }
 
-/* the press. One pixel is enough to feel; more looks like a bug */
 button:not(:disabled):active {
 	transform: translateY(1px);
 }
@@ -53,11 +42,6 @@ a {
 	transition: color var(--motion-transition-hover);
 }
 
-/*
- * The parts we did not draw still belong to the design: without these, the
- * keyboard ring and the selection come from the browser's own palette and go
- * off-theme in dark mode.
- */
 :focus-visible {
 	outline: var(--borderWidth-thick) solid var(--focus-outlineColor);
 	outline-offset: var(--base-size-2);
@@ -67,16 +51,6 @@ a {
 	background: var(--bgColor-accent-muted);
 }
 
-/*
- * Scrollbars, which are part of the design whether or not we draw them.
- *
- * The two styling mechanisms are mutually exclusive rather than
- * complementary: Chromium ignores `::-webkit-scrollbar` entirely once
- * `scrollbar-width` or `scrollbar-color` is set anywhere on the element. So
- * the richer treatment (an inset, fully rounded thumb that only shows itself
- * on hover) is the webkit one, and the standard properties are applied only
- * where the pseudos do not exist, which is Firefox.
- */
 ::-webkit-scrollbar {
 	width: var(--base-size-12);
 	height: var(--base-size-12);

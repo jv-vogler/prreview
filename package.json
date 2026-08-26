@@ -43,7 +43,7 @@
 		"unlink": "npm unlink -g @jv-vogler/prreview",
 		"test": "vitest run",
 		"test:e2e": "playwright test",
-		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input && node scripts/check-dto-imports.mjs && node scripts/check-layering.mjs",
+		"lint": "biome check . && stylelint \"src/**/*.css\" --allow-empty-input && node scripts/check-dto-imports.mjs && node scripts/check-layering.mjs && node scripts/check-comments.mjs",
 		"typecheck": "tsc -b",
 		"prepack": "npm run build",
 		"prepare": "husky",

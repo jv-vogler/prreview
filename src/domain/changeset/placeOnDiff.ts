@@ -1,7 +1,6 @@
 import type { FileDiff } from "../changeset/FileDiff";
 import { buildLineIndex, type LineIndex } from "../changeset/LineIndex";
 
-/** which side of the diff a placed comment anchors to */
 export type AnchorSide = "old" | "new";
 
 export interface FindingTarget {
@@ -10,13 +9,6 @@ export interface FindingTarget {
 	endLine: number;
 }
 
-/**
- * Whether one finding reaches a human, and where (TASK-040). `exact` means
- * every line in the requested range is an actual rendered diff line;
- * `clamped` means the file is in the diff but the range is not, so the
- * nearest rendered line stands in, carrying the original range for display;
- * `unplaceable` means there is nothing in the diff to anchor to at all.
- */
 export type FindingPlacement =
 	| { kind: "exact"; fileId: string; side: AnchorSide; line: number }
 	| {
@@ -34,12 +26,6 @@ interface RenderableLine {
 	line: number;
 }
 
-/**
- * Decides where — or whether — a finding's `{path, startLine, endLine}`
- * lands on the rendered diff (REQ-010). `path` must match a file in the diff
- * exactly, as the prompt instructs the agent to use it (reviewPrompt.ts's
- * `## Anchoring`).
- */
 export function placeOnDiff(
 	target: FindingTarget,
 	files: readonly FileDiff[],
@@ -52,8 +38,6 @@ export function placeOnDiff(
 	const index = buildLineIndex(file);
 	const renderableLines = collectRenderableLines(index);
 	if (renderableLines.length === 0) {
-		// present in the diff, but nothing about it is rendered (binary, a
-		// pure rename with no hunks) — there is still nowhere to clamp to
 		return { kind: "unplaceable" };
 	}
 
@@ -78,7 +62,6 @@ export function placeOnDiff(
 	};
 }
 
-/** the new side is tried first, matching the prompt's own default anchoring */
 function exactSideFor(
 	target: FindingTarget,
 	index: LineIndex,
@@ -123,7 +106,7 @@ function nearestRenderableLine(
 	let bestDistance = Math.abs(best.line - target);
 	for (const candidate of candidates.slice(1)) {
 		const distance = Math.abs(candidate.line - target);
-		// ties favor the new side, matching the prompt's default anchoring
+
 		const strictlyCloser = distance < bestDistance;
 		const tiedButNewSide =
 			distance === bestDistance &&

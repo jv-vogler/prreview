@@ -286,7 +286,6 @@ describe("DELETE /api/review/run", () => {
 	});
 });
 
-/** Seeds one finding by running a review pass to completion (a fresh FakeEngine). */
 async function appWithOneFinding(
 	options: {
 		source?: CurrentChangeset["ref"]["source"];
