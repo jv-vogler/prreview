@@ -8,8 +8,12 @@ const DEFAULT_MAX_OUTPUT_BYTES = 10 * 1024 * 1024;
 
 export interface ExecOptions {
 	cwd?: string;
-	/** extra variables layered over process.env for this one spawn */
-	env?: Record<string, string>;
+	/**
+	 * Variables layered over process.env for this one spawn. An `undefined`
+	 * value clears the inherited one, which is how a caller escapes ambient
+	 * state it must not inherit.
+	 */
+	env?: Record<string, string | undefined>;
 	/** kill the child and fail once this elapses; default: no timeout */
 	timeoutMs?: number;
 	/** default 10MB; exceeding it kills the child and fails */

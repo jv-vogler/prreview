@@ -9,6 +9,13 @@ import { exec } from "../../src/infrastructure/git/exec";
  * env so commits work on a bare CI runner.
  */
 const FIXTURE_GIT_ENV = {
+	// git sets these for hooks and for `rebase --exec`, and a child git
+	// inherits them: without clearing them a fixture repo is operated on as
+	// if it were whichever repo invoked the test run
+	GIT_DIR: undefined,
+	GIT_WORK_TREE: undefined,
+	GIT_INDEX_FILE: undefined,
+	GIT_PREFIX: undefined,
 	GIT_CONFIG_GLOBAL: devNull,
 	GIT_CONFIG_SYSTEM: devNull,
 	GIT_AUTHOR_NAME: "Fixture",

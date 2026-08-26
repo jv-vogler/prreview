@@ -39,6 +39,24 @@ const DIFF_FLAGS = [
 const DEFAULT_BRANCH_CANDIDATES = ["main", "master"];
 
 /**
+ * git exports these to hooks and to `rebase --exec`, and a child git honours
+ * them over its own cwd. Inheriting them points every command at whichever
+ * repository invoked prreview instead of the one being reviewed, so the repo
+ * is always the one `cwd` names and never an ambient one.
+ *
+ * GIT_TERMINAL_PROMPT is here for a different reason: a git that decides to
+ * prompt (credentials on fetch) would hang a headless server forever, and
+ * failing raw is always better.
+ */
+const REPO_FROM_CWD_ONLY: Record<string, string | undefined> = {
+	GIT_DIR: undefined,
+	GIT_WORK_TREE: undefined,
+	GIT_INDEX_FILE: undefined,
+	GIT_PREFIX: undefined,
+	GIT_TERMINAL_PROMPT: "0",
+};
+
+/**
  * Hex oid, abbreviated or full: our own diffs print full oids (--full-index),
  * but a PR diff fetched from GitHub carries git's abbreviations, and git
  * resolves those itself. The pattern exists to keep anything that is not an
@@ -323,19 +341,11 @@ export class GitClient {
 	}
 
 	private git(args: readonly string[]): Promise<string> {
-		return exec("git", args, {
-			cwd: this.cwd,
-			// A git that decides to prompt (credentials on fetch) would hang a
-			// headless server forever; failing raw is always better.
-			env: { GIT_TERMINAL_PROMPT: "0" },
-		});
+		return exec("git", args, { cwd: this.cwd, env: REPO_FROM_CWD_ONLY });
 	}
 
 	private gitBuffer(args: readonly string[]): Promise<Buffer> {
-		return execBuffer("git", args, {
-			cwd: this.cwd,
-			env: { GIT_TERMINAL_PROMPT: "0" },
-		});
+		return execBuffer("git", args, { cwd: this.cwd, env: REPO_FROM_CWD_ONLY });
 	}
 }
 
