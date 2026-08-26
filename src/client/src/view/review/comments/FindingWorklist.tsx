@@ -4,14 +4,14 @@ import {
 	countQuestions,
 } from "../../../domain/finding/countByTier";
 import { Collapsible } from "../../layout/Collapsible";
-import type { FindingActions } from "./FindingActions";
-import { FindingBalloon } from "./FindingBalloon";
-import styles from "./FindingWorklist.module.css";
 import {
 	findingTierLabel,
 	REVIEW_TIER_LABEL,
 	REVIEW_TIER_ORDER,
-} from "./reviewTier";
+} from "../shared/reviewTier";
+import type { FindingActions } from "./FindingActions";
+import { FindingBalloon } from "./FindingBalloon";
+import styles from "./FindingWorklist.module.css";
 
 export interface FindingWorklistProps {
 	findings: readonly ReviewFindingDto[];

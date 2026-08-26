@@ -8,11 +8,11 @@ import {
 	XIcon,
 } from "@primer/octicons-react";
 import { useState } from "react";
+import { findingTierLabel } from "../shared/reviewTier";
 import type { FindingActions } from "./FindingActions";
 import styles from "./FindingBalloon.module.css";
 import { FindingMarkdown } from "./FindingMarkdown";
 import { ReworkControl } from "./ReworkControl";
-import { findingTierLabel } from "./reviewTier";
 
 export interface FindingBalloonProps {
 	finding: ReviewFindingDto;

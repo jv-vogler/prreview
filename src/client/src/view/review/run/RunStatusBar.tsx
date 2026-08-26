@@ -2,7 +2,7 @@ import type { ReviewFindingDto } from "@dto/ReviewDto";
 import type { RunDto } from "@dto/RunDto";
 import { AlertIcon, StopIcon } from "@primer/octicons-react";
 import { countByTier } from "../../../domain/finding/countByTier";
-import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "../comments/reviewTier";
+import { REVIEW_TIER_LABEL, REVIEW_TIER_ORDER } from "../shared/reviewTier";
 import { formatElapsed } from "./formatElapsed";
 import { Itinerary } from "./Itinerary";
 import styles from "./RunStatusBar.module.css";
