@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,7 +10,16 @@ const MAX_FILES_PER_FOLDER = 15;
 
 const SOURCE_FILE = /\.(?:ts|tsx)$/;
 const TEST_FILE = /\.test\.(?:ts|tsx)$/;
-const RELATIVE_IMPORT = /\bfrom\s*["'](\.[^"']+)["']/g;
+
+const RELATIVE_IMPORT_PATTERNS = [
+	/\bfrom\s*["'](\.[^"']+)["']/g,
+	/\bimport\s*\(\s*["'](\.[^"']+)["']\s*\)/g,
+	/^\s*import\s+["'](\.[^"']+)["']/gm,
+	/\brequire\s*\(\s*["'](\.[^"']+)["']\s*\)/g,
+];
+
+const RULES_FILE = join(ROOT, "CLAUDE.md");
+const DOCUMENTED_DOMAIN_FOLDER = /^\| `domain\/([A-Za-z]+)\/` \|/gm;
 
 const STACKS = [
 	{
@@ -83,9 +92,17 @@ function layerOf(path) {
 function importsOf(absolute) {
 	const text = readFileSync(absolute, "utf8");
 	const here = dirname(absolute);
-	return [...text.matchAll(RELATIVE_IMPORT)].map((match) =>
-		repoPath(resolve(here, match[1])),
+	return RELATIVE_IMPORT_PATTERNS.flatMap((pattern) =>
+		[...text.matchAll(pattern)].map((match) =>
+			repoPath(resolve(here, match[1])),
+		),
 	);
+}
+
+function domainFolders() {
+	return readdirSync(join(SRC, "domain"), { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => entry.name);
 }
 
 const files = sourceFiles(SRC).map((absolute) => ({
@@ -158,6 +175,30 @@ for (const file of files) {
 			"types-folder",
 			file.path,
 			"types live with the layer that owns them",
+		);
+	}
+}
+
+const documentedFolders = new Set(
+	[...readFileSync(RULES_FILE, "utf8").matchAll(DOCUMENTED_DOMAIN_FOLDER)].map(
+		(match) => match[1],
+	),
+);
+for (const folder of domainFolders()) {
+	if (!documentedFolders.has(folder)) {
+		report(
+			"undocumented",
+			`src/domain/${folder}`,
+			"no row in CLAUDE.md's folder table says what this holds",
+		);
+	}
+}
+for (const folder of documentedFolders) {
+	if (!existsSync(join(SRC, "domain", folder))) {
+		report(
+			"undocumented",
+			"CLAUDE.md",
+			`the folder table has a row for domain/${folder}/, which does not exist`,
 		);
 	}
 }
