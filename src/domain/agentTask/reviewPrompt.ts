@@ -1,3 +1,4 @@
+import type { DiffLine } from "../../domain/changeset/DiffLine";
 import type { FileDiff } from "../../domain/changeset/FileDiff";
 import type { Hunk } from "../../domain/changeset/Hunk";
 
@@ -487,9 +488,15 @@ function renderFile(file: FileDiff): string {
 	return `${heading}\n\n\`\`\`diff\n${body}\n\`\`\``;
 }
 
+const DIFF_MARKER: Record<DiffLine["type"], string> = {
+	add: "+",
+	del: "-",
+	context: " ",
+};
+
 function renderHunk(hunk: Hunk): string {
 	const lines = hunk.lines.map((line) => {
-		const marker = line.type === "add" ? "+" : line.type === "del" ? "-" : " ";
+		const marker = DIFF_MARKER[line.type];
 		const lineNumber = line.newLine ?? line.oldLine ?? "";
 		return `${lineNumber} ${marker} ${line.content}`;
 	});

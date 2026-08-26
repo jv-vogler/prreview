@@ -39,11 +39,7 @@ export function buildContainer(
 			? overrides.githubService
 			: selectGithubService(toolchain, git, config);
 	const engine: Engine | null =
-		overrides.engine !== undefined
-			? overrides.engine
-			: toolchain.agent.kind === "claude"
-				? new ClaudeEngine()
-				: null;
+		overrides.engine !== undefined ? overrides.engine : selectEngine(toolchain);
 	const sessionStore: SessionStore =
 		overrides.sessionStore ??
 		new FileSessionStore({ dataDir: join(config.repoRoot, ".prreview") });
@@ -73,6 +69,10 @@ export interface Container {
 	sessionStore: SessionStore;
 	toolchain: Toolchain;
 	resolveChangeset: ResolveChangeset;
+}
+
+function selectEngine(toolchain: Toolchain): Engine | null {
+	return toolchain.agent.kind === "claude" ? new ClaudeEngine() : null;
 }
 
 function selectGithubService(

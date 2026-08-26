@@ -37,11 +37,7 @@ export function buildTestContainer(
 		github: { kind: githubServiceKind(setup.github) },
 	};
 	const engine: Engine | null =
-		setup.engine !== undefined
-			? setup.engine
-			: toolchain.agent.kind === "claude"
-				? new FakeEngine()
-				: null;
+		setup.engine !== undefined ? setup.engine : selectFakeEngine(toolchain);
 	const sessionStore = setup.sessionStore ?? new FakeSessionStore();
 	const repoRoot = setup.repoRoot ?? DEFAULT_REPO_ROOT;
 	const container = buildContainer({ repoRoot }, toolchain, {
@@ -51,6 +47,10 @@ export function buildTestContainer(
 		sessionStore,
 	});
 	return { container, git, githubService, engine, toolchain };
+}
+
+function selectFakeEngine(toolchain: Toolchain): Engine | null {
+	return toolchain.agent.kind === "claude" ? new FakeEngine() : null;
 }
 
 function githubServiceKind(

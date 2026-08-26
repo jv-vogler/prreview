@@ -17,6 +17,9 @@
 			"preset": "recommended",
 			"complexity": {
 				"noExcessiveCognitiveComplexity": "error"
+			},
+			"style": {
+				"noNestedTernary": "error"
 			}
 		}
 	}

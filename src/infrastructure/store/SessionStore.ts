@@ -61,12 +61,7 @@ export class SessionStore implements SessionStorePort {
 		if (alreadyRegistered) {
 			return;
 		}
-		const base =
-			existing === undefined || existing === ""
-				? ""
-				: existing.endsWith("\n")
-					? existing
-					: `${existing}\n`;
+		const base = newlineTerminated(existing);
 		await this.writeFileAtomic(excludePath, `${base}${GIT_EXCLUDE_ENTRY}\n`);
 	}
 
@@ -181,4 +176,11 @@ async function readTextFileIfPresent(
 		}
 		throw error;
 	}
+}
+
+function newlineTerminated(existing: string | undefined): string {
+	if (existing === undefined || existing === "") {
+		return "";
+	}
+	return existing.endsWith("\n") ? existing : `${existing}\n`;
 }
