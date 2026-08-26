@@ -26,9 +26,12 @@ interface RenderableLine {
 	line: number;
 }
 
+export type DiffAnchor = "end" | "middle";
+
 export function placeOnDiff(
 	target: DiffTarget,
 	files: readonly FileDiff[],
+	anchor: DiffAnchor = "end",
 ): DiffPlacement {
 	const file = files.find((candidate) => candidate.path === target.path);
 	if (file === undefined) {
@@ -41,17 +44,19 @@ export function placeOnDiff(
 		return { kind: "unplaceable" };
 	}
 
+	const anchorLine = anchor === "middle" ? middleLine(target) : target.endLine;
+
 	const exactSide = exactSideFor(target, index);
 	if (exactSide !== null) {
 		return {
 			kind: "exact",
 			fileId: file.id,
 			side: exactSide,
-			line: target.endLine,
+			line: anchorLine,
 		};
 	}
 
-	const nearest = nearestRenderableLine(target.endLine, renderableLines);
+	const nearest = nearestRenderableLine(anchorLine, renderableLines);
 	return {
 		kind: "clamped",
 		fileId: file.id,
@@ -60,6 +65,10 @@ export function placeOnDiff(
 		requestedStartLine: target.startLine,
 		requestedEndLine: target.endLine,
 	};
+}
+
+function middleLine(target: DiffTarget): number {
+	return Math.round((target.startLine + target.endLine) / 2);
 }
 
 function exactSideFor(target: DiffTarget, index: LineIndex): AnchorSide | null {

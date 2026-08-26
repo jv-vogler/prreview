@@ -201,6 +201,65 @@ describe("placeOnDiff", () => {
 		expect(placement).toEqual({ kind: "unplaceable" });
 	});
 
+	it("with a middle anchor, clamps a wide range to the closest line to its midpoint", () => {
+		const target = file({
+			hunks: [
+				hunk({
+					id: "hunk-1",
+					lines: [{ type: "add", content: "a", newLine: 2 }],
+				}),
+				hunk({
+					id: "hunk-2",
+					lines: [{ type: "add", content: "b", newLine: 40 }],
+				}),
+			],
+		});
+
+		const placement = placeOnDiff(
+			{ path: target.path, startLine: 2, endLine: 78 },
+			[target],
+			"middle",
+		);
+
+		expect(placement).toEqual({
+			kind: "clamped",
+			fileId: "file-1",
+			side: "new",
+			line: 40,
+			requestedStartLine: 2,
+			requestedEndLine: 78,
+		});
+	});
+
+	it("with a middle anchor, an exact range still resolves to its own midpoint", () => {
+		const target = file({
+			hunks: [
+				hunk({
+					lines: [
+						{ type: "context", content: "a", oldLine: 1, newLine: 1 },
+						{ type: "add", content: "b", newLine: 2 },
+						{ type: "add", content: "c", newLine: 3 },
+						{ type: "add", content: "d", newLine: 4 },
+						{ type: "context", content: "e", oldLine: 2, newLine: 5 },
+					],
+				}),
+			],
+		});
+
+		const placement = placeOnDiff(
+			{ path: target.path, startLine: 2, endLine: 4 },
+			[target],
+			"middle",
+		);
+
+		expect(placement).toEqual({
+			kind: "exact",
+			fileId: "file-1",
+			side: "new",
+			line: 3,
+		});
+	});
+
 	it("places a single-line file's only line exactly", () => {
 		const target = file({
 			hunks: [
