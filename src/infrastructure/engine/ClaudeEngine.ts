@@ -15,7 +15,6 @@ import {
 import { exec } from "../git/exec";
 import { parseAgentVersion } from "../toolchain/agentVersion";
 import { buildTaskArgv, buildVersionArgv } from "./argv";
-import { PROMPT_DELIVERY } from "./promptDelivery";
 import { parseStreamJson, type StreamResultRecord } from "./streamJson";
 
 const AGENT_COMMAND = "claude";
@@ -228,11 +227,6 @@ function writePrompt(
 	child: ChildProcessWithoutNullStreams,
 	prompt: string,
 ): void {
-	if (PROMPT_DELIVERY !== "stdin") {
-		throw new Error(
-			`prompt delivery ${PROMPT_DELIVERY} is documented but not implemented`,
-		);
-	}
 	child.stdin.on("error", () => {});
 	child.stdin.end(prompt);
 }
