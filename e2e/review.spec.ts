@@ -145,6 +145,22 @@ test.describe("review pass", () => {
 		).toBeHidden();
 		await expect(page.locator("[data-scope='matches']")).toBeVisible();
 
+		// clicking Review over a stored pass never starts a run directly: the
+		// dialog states the facts first, and cancel keeps everything
+		await page.getByRole("button", { name: "Review", exact: true }).click();
+		const dialog = page.getByRole("dialog", { name: "Review again?" });
+		await expect(dialog).toBeVisible();
+		await expect(
+			dialog.getByText("This working tree was already reviewed", {
+				exact: false,
+			}),
+		).toBeVisible();
+		await dialog
+			.getByRole("button", { name: "Keep the current review" })
+			.click();
+		await expect(dialog).toBeHidden();
+		await expect(page.locator("[data-comment-id]").first()).toBeVisible();
+
 		// ?explanations=margin: the comparison mode keeps every card open,
 		// pinned right, with no chips (the pass is stored, so no second run)
 		await page.goto(`${server.url}?explanations=margin`);

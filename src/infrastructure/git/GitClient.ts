@@ -175,6 +175,11 @@ export class GitClient {
 		return (await this.git(["merge-base", a, b])).trim();
 	}
 
+	async countCommits(from: string, to: string): Promise<number> {
+		const raw = await this.git(["rev-list", "--count", `${from}..${to}`, "--"]);
+		return Number.parseInt(raw.trim(), 10);
+	}
+
 	/** Canonical diff text between two commits. */
 	async diff(base: string, head: string): Promise<string> {
 		return this.git([...DIFF_SAFE_CONFIG, "diff", ...DIFF_FLAGS, base, head]);

@@ -33,6 +33,7 @@ import type { ExplanationsMode } from "../view/review/DiffExplanationAnnotation"
 import { HighlightedExplanationsContext } from "../view/review/highlightedExplanations";
 import { OverviewPanel } from "../view/review/OverviewPanel";
 import { PublishControl } from "../view/review/PublishControl";
+import { ReReviewDialog } from "../view/review/ReReviewDialog";
 import { ReviewSidebar } from "../view/review/ReviewSidebar";
 import { RunStatusBar } from "../view/review/RunStatusBar";
 import { REVIEW_FAILURE_COPY } from "../view/review/reviewFailureCopy";
@@ -146,6 +147,9 @@ function ResolvedReview({
 	);
 	// shown by default; one toggle drops or restores all of them
 	const [showExplanations, setShowExplanations] = useState(true);
+	// a Review click over a stored pass always confirms first: the run
+	// replaces that pass, and destructive never rides on a bare click
+	const [confirmingReReview, setConfirmingReReview] = useState(false);
 	// folded by default so the diff keeps the screen; a run finishing live
 	// unfolds it once, because that is the moment the account is news
 	const [overviewFolded, setOverviewFolded] = useState(true);
@@ -394,6 +398,20 @@ function ResolvedReview({
 		<HighlightedExplanationsContext.Provider
 			value={highlighted?.ids ?? NO_HIGHLIGHT}
 		>
+			{confirmingReReview && (
+				<ReReviewDialog
+					freshness={review.freshness}
+					worktree={changeset.ref.source.kind === "worktree"}
+					editedCount={activeComments.filter((c) => c.edited).length}
+					dismissedCount={comments.filter((c) => c.deleted).length}
+					pendingReviewUrl={review.pass?.published?.htmlUrl ?? null}
+					onConfirm={() => {
+						setConfirmingReReview(false);
+						review.start();
+					}}
+					onCancel={() => setConfirmingReReview(false)}
+				/>
+			)}
 			<div className={styles.layout}>
 				<div style={{ width }}>
 					<FileTreePanel
@@ -437,7 +455,11 @@ function ResolvedReview({
 											review.run?.status === "queued" ||
 											review.run?.status === "running"
 										}
-										onClick={review.start}
+										onClick={
+											review.pass === null
+												? review.start
+												: () => setConfirmingReReview(true)
+										}
 									>
 										Review
 									</button>

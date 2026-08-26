@@ -8,6 +8,7 @@ function storedReview(explanations: ReviewExplanation[]): StoredReview {
 	return {
 		changesetId: "worktree",
 		createdAt: "2026-08-22T00:00:00.000Z",
+		headSha: null,
 		pass: {
 			overview: "x",
 			verdict: "x",

@@ -3,6 +3,7 @@ import type {
 	GithubService,
 	PendingReview,
 	PrInfo,
+	PrReviewCommentInfo,
 	ReviewInput,
 } from "../../application/ports/GithubService";
 import type { Toolchain } from "../../domain/session/Toolchain";
@@ -24,7 +25,19 @@ const REVIEWS_ENDPOINT = (pr: number) =>
 const REVIEW_ENDPOINT = (pr: number, id: number) =>
 	`repos/{owner}/{repo}/pulls/${pr}/reviews/${id}`;
 
+const REVIEW_COMMENTS_ENDPOINT = (pr: number) =>
+	`repos/{owner}/{repo}/pulls/${pr}/comments`;
+
 const PENDING_STATE = "PENDING";
+
+interface RawReviewComment {
+	id: number;
+	in_reply_to_id?: number;
+	path: string;
+	line: number | null;
+	user: { login: string } | null;
+	body: string;
+}
 
 interface RawReview {
 	id: number;
@@ -84,6 +97,25 @@ export class GhCliGithubService implements GithubService {
 
 	async fetchPrHead(number: number): Promise<string> {
 		return this.git.fetchPrHead(number);
+	}
+
+	/** `--paginate`: a busy PR's comments span pages, and a partial read would lie. */
+	async listPrReviewComments(pr: number): Promise<PrReviewCommentInfo[]> {
+		const json = await this.gh([
+			"api",
+			"--paginate",
+			"--slurp",
+			REVIEW_COMMENTS_ENDPOINT(pr),
+		]);
+		const pages = JSON.parse(json) as RawReviewComment[][];
+		return pages.flat().map((comment) => ({
+			id: comment.id,
+			inReplyToId: comment.in_reply_to_id ?? null,
+			path: comment.path,
+			line: comment.line,
+			author: comment.user?.login ?? "unknown",
+			body: comment.body,
+		}));
 	}
 
 	/**

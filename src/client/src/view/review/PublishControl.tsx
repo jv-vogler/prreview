@@ -72,7 +72,7 @@ export function PublishControl({
 					<a href={published.htmlUrl} target="_blank" rel="noreferrer">
 						view on GitHub
 					</a>
-					.
+					. Sending again replaces it.
 				</p>
 			)}
 		</div>

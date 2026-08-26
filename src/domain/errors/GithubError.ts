@@ -3,6 +3,7 @@ import { AppError } from "./AppError";
 export type GithubErrorReason =
 	| "gh-unauthenticated"
 	| "unsupported-backend"
+	| "diff-too-large"
 	| "network";
 
 export class GithubError extends AppError {

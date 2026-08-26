@@ -17,6 +17,9 @@ const publishedRecordSchema = z.object({
 export const storedReviewSchema = z.object({
 	changesetId: z.string(),
 	createdAt: z.string(),
+	// defaulted so a review.json written before the field still loads;
+	// null also means "worktree — no commit to name"
+	headSha: z.string().nullable().default(null),
 	// the pass's own length budgets are not applied here: they gate what the
 	// engine may write, and re-applying them on read makes tightening one
 	// retroactively corrupt every session already on disk

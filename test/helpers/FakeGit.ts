@@ -27,6 +27,8 @@ export interface FakeGitState {
 	fingerprint?: string;
 	/** `${aSha}..${bSha}` → merge-base sha; absent pairs fall back to aSha (linear history) */
 	mergeBases?: Record<string, string>;
+	/** `${from}..${to}` → commit count; absent pairs reject like unknown shas */
+	commitCounts?: Record<string, number>;
 	/** `${baseSha}..${headSha}` → diff text; absent pairs yield an empty diff */
 	diffs?: Record<string, string>;
 	worktreeDiff?: string;
@@ -122,6 +124,14 @@ export class FakeGit implements Git {
 
 	async mergeBase(a: string, b: string): Promise<string> {
 		return this.state.mergeBases?.[`${a}..${b}`] ?? a;
+	}
+
+	async countCommits(from: string, to: string): Promise<number> {
+		const count = this.state.commitCounts?.[`${from}..${to}`];
+		if (count === undefined) {
+			throw new Error(`fake git: unknown range ${from}..${to}`);
+		}
+		return count;
 	}
 
 	async diff(base: string, head: string): Promise<string> {

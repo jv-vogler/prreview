@@ -67,8 +67,12 @@ export function reviewRoute(deps: ReviewRouteDeps): Hono {
 	});
 
 	route.get("/", async (context) => {
-		const pass = await deps.runner.currentPass();
-		const body: ReviewStatusDto = { run: deps.runner.current(), pass };
+		const current = await deps.runner.currentPass();
+		const body: ReviewStatusDto = {
+			run: deps.runner.current(),
+			pass: current?.pass ?? null,
+			freshness: current?.freshness ?? null,
+		};
 		return context.json(body);
 	});
 

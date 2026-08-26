@@ -17,6 +17,7 @@ function comment(overrides: Partial<ReviewCommentDto>): ReviewCommentDto {
 		placement: { kind: "exact", fileId: "file-1", side: "new", line: 1 },
 		edited: false,
 		deleted: false,
+		published: false,
 		...overrides,
 	};
 }

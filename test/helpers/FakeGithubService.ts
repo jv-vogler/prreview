@@ -2,6 +2,7 @@ import type {
 	GithubService,
 	PendingReview,
 	PrInfo,
+	PrReviewCommentInfo,
 	ReviewInput,
 } from "../../src/application/ports/GithubService";
 import { GithubError } from "../../src/domain/errors/GithubError";
@@ -21,6 +22,7 @@ export interface FakeGithubState {
 	/** fetchPrHead result per PR; falls back to the PR's headRefOid */
 	prHeads?: Record<number, string>;
 	pendingReviews?: Record<number, PendingReview>;
+	prReviewComments?: Record<number, PrReviewCommentInfo[]>;
 }
 
 export class FakeGithubService implements GithubService {
@@ -71,6 +73,10 @@ export class FakeGithubService implements GithubService {
 			throw new Error(`fake gh: cannot fetch head of pull request #${number}`);
 		}
 		return sha;
+	}
+
+	async listPrReviewComments(pr: number): Promise<PrReviewCommentInfo[]> {
+		return this.state.prReviewComments?.[pr] ?? [];
 	}
 
 	async findPendingReview(pr: number): Promise<PendingReview | null> {

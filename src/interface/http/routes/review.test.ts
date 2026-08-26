@@ -16,6 +16,7 @@ function testApp(
 		statusPorcelainAfter?: string;
 		files?: CurrentChangeset["files"];
 		source?: CurrentChangeset["ref"]["source"];
+		headSha?: string | null;
 		github?: TestContainerSetup["github"];
 	} = {},
 ) {
@@ -35,7 +36,7 @@ function testApp(
 		ref: {
 			source: options.source ?? { kind: "worktree" },
 			baseSha: "a".repeat(40),
-			headSha: null,
+			headSha: options.headSha ?? null,
 			resolvedAt: "2026-08-21T00:00:00.000Z",
 		},
 		announce: { resolved: "working tree changes", overrideHint: "x" },
@@ -114,10 +115,47 @@ describe("POST /api/review", () => {
 });
 
 describe("GET /api/review", () => {
+	it("answers same-commit freshness once a pass at the served head exists", async () => {
+		const engine = new FakeEngine();
+		engine.events = [
+			{
+				type: "result",
+				ok: true,
+				structuredOutput: {
+					overview: "x",
+					verdict: "x",
+					ticket: null,
+					explanations: [],
+					findings: [],
+				},
+				text: null,
+				sessionId: "s1",
+				model: "m",
+				numTurns: 1,
+				costUsd: 0,
+			},
+		];
+		const { app } = testApp(engine, {
+			source: { kind: "pr", repo: "o/r", number: 7 },
+			headSha: "b".repeat(40),
+		});
+		const started = await app.request("/api/review", { method: "POST" });
+		expect(started.status).toBe(202);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		const response = await app.request("/api/review");
+		const body = (await response.json()) as { freshness: unknown };
+		expect(body.freshness).toEqual({ kind: "same-commit" });
+	});
+
 	it("answers null when nothing has run yet", async () => {
 		const { app } = testApp(new FakeEngine());
 		const response = await app.request("/api/review");
-		expect(await response.json()).toEqual({ run: null, pass: null });
+		expect(await response.json()).toEqual({
+			run: null,
+			pass: null,
+			freshness: null,
+		});
 	});
 
 	it("surfaces residue left behind by a successful run (SEC-003/TASK-030)", async () => {
@@ -249,6 +287,7 @@ describe("DELETE /api/review/run", () => {
 async function appWithOneFinding(
 	options: {
 		source?: CurrentChangeset["ref"]["source"];
+		headSha?: string | null;
 		github?: TestContainerSetup["github"];
 		files?: CurrentChangeset["files"];
 		findings?: Record<string, unknown>[];

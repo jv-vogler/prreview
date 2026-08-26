@@ -24,6 +24,7 @@ function stateWith(
 	return {
 		run,
 		pass,
+		freshness: null,
 		applyPass: vi.fn(),
 		starting: false,
 		startError: null,
@@ -200,6 +201,7 @@ describe("RunStatusBar", () => {
 					lane: "review",
 					edited: false,
 					deleted: false,
+					published: false,
 					placement: { kind: "exact", fileId: "a.ts", side: "new", line: 1 },
 				},
 				{
@@ -215,6 +217,7 @@ describe("RunStatusBar", () => {
 					lane: "review",
 					edited: false,
 					deleted: false,
+					published: false,
 					placement: { kind: "exact", fileId: "a.ts", side: "new", line: 2 },
 				},
 			],
