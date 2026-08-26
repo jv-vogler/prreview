@@ -1,0 +1,23 @@
+.copy {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--base-size-20);
+	height: var(--base-size-20);
+	margin-left: var(--base-size-4);
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: var(--borderRadius-medium);
+	color: var(--fgColor-muted);
+	cursor: pointer;
+}
+
+.copy:hover {
+	background: var(--control-transparent-bgColor-hover);
+	color: var(--fgColor-default);
+}
+
+.copy[data-copied="true"] {
+	color: var(--fgColor-success);
+}

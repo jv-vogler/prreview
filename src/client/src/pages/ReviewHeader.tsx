@@ -5,6 +5,8 @@ import styles from "./ReviewPage.module.css";
 export interface ReviewHeaderProps {
 	changeset: ChangesetDto;
 	aiAvailable: boolean;
+	viewedCount: number;
+	fileCount: number;
 	explanationCount: number;
 	showExplanations: boolean;
 	onToggleExplanations(): void;
@@ -16,6 +18,8 @@ export interface ReviewHeaderProps {
 export function ReviewHeader({
 	changeset,
 	aiAvailable,
+	viewedCount,
+	fileCount,
 	explanationCount,
 	showExplanations,
 	onToggleExplanations,
@@ -34,6 +38,14 @@ export function ReviewHeader({
 					/>
 				</div>
 				<div className={styles.controls}>
+					{fileCount > 0 && (
+						<span
+							className={styles.viewedCount}
+							data-viewed-count={viewedCount}
+						>
+							{viewedCount} of {fileCount} files viewed
+						</span>
+					)}
 					{explanationCount > 0 && (
 						<button
 							type="button"

@@ -41,8 +41,10 @@ import {
 import { DiffFindingAnnotation } from "../review/findings/DiffFindingAnnotation";
 import type { FindingActions } from "../review/findings/FindingActions";
 import { PIERRE_DIFF_CHROME_CSS } from "../styling/pierreChromeCss";
+import { CopyPathButton } from "./CopyPathButton";
 import styles from "./DiffWorkspace.module.css";
 import { FileFoldChevron } from "./FileFoldChevron";
+import { FileViewedToggle } from "./FileViewedToggle";
 import { useHeaderFoldClicks } from "./useHeaderFoldClicks";
 
 interface DiffAnnotationMeta {
@@ -62,6 +64,8 @@ export interface DiffWorkspaceProps {
 	renderedFiles: readonly FileDiffDto[];
 	foldedFileIds: ReadonlySet<string>;
 	onToggleFold(fileId: string): void;
+	viewedFileIds: ReadonlySet<string>;
+	onToggleViewed(fileId: string): void;
 	handleRef: React.RefObject<DiffWorkspaceHandle | null>;
 	findings: readonly ReviewFindingDto[];
 	expandedFindingIds: ReadonlySet<string>;
@@ -100,6 +104,8 @@ export function DiffWorkspace({
 	renderedFiles,
 	foldedFileIds,
 	onToggleFold,
+	viewedFileIds,
+	onToggleViewed,
 	handleRef,
 	findings,
 	expandedFindingIds,
@@ -301,6 +307,27 @@ export function DiffWorkspace({
 						/>
 					);
 				}}
+				renderHeaderFilenameSuffix={(item) => {
+					const file = filesById.get(item.id);
+					if (file === undefined) {
+						return null;
+					}
+					return <CopyPathButton path={file.path} />;
+				}}
+				renderHeaderMetadata={(item) => {
+					const file = filesById.get(item.id);
+					if (file === undefined) {
+						return null;
+					}
+					return (
+						<FileViewedToggle
+							fileId={file.id}
+							path={file.path}
+							viewed={viewedFileIds.has(file.id)}
+							onToggle={onToggleViewed}
+						/>
+					);
+				}}
 				renderAnnotation={(annotation) => (
 					<>
 						<DiffExplanationAnnotation
@@ -325,6 +352,7 @@ export function DiffWorkspace({
 				options={{
 					theme: PIERRE_THEME_NAME,
 					diffStyle: "unified",
+					overflow: "wrap",
 					diffIndicators: "classic",
 					loadDiffFiles,
 					hunkSeparators: "line-info",

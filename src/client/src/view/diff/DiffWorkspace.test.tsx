@@ -86,6 +86,8 @@ function workspace(overrides: {
 			renderedFiles={[FILE]}
 			foldedFileIds={new Set()}
 			onToggleFold={() => {}}
+			viewedFileIds={new Set()}
+			onToggleViewed={() => {}}
 			handleRef={{ current: null }}
 			findings={[] as readonly ReviewFindingDto[]}
 			expandedFindingIds={new Set()}

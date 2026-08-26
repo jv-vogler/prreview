@@ -135,6 +135,44 @@ test.describe("review pass", () => {
 		});
 		await expect(page.locator("[data-explanation-chip]")).toHaveCount(0);
 	});
+
+	test("tracks which files the reader has been through, and reopens one to show a comment", async ({
+		page,
+	}) => {
+		const server = await launchPrreview({
+			cwd: repo.root,
+			pathValue: shim.withMockAgent,
+		});
+		servers.push(server);
+		await page.goto(server.url);
+
+		await expect(page.getByText("0 of 1 files viewed")).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Copy src/greeting.ts" }),
+		).toBeVisible();
+
+		await page.getByRole("button", { name: "Review" }).click();
+		await expect(
+			page.getByText("Reviewed 1 file(s) with the mock agent"),
+		).toBeVisible({ timeout: RUN_SETTLE_TIMEOUT_MS });
+
+		const fold = page.locator("[data-file-fold]").first();
+		const viewed = page.getByRole("checkbox", {
+			name: "Mark src/greeting.ts viewed",
+		});
+		await viewed.check();
+		await expect(page.getByText("1 of 1 files viewed")).toBeVisible();
+		await expect(fold).toHaveAttribute("data-folded", "true");
+
+		await page
+			.locator("[data-finding-row]")
+			.filter({ hasText: "Mock finding on src/greeting.ts" })
+			.click();
+
+		await expect(fold).toHaveAttribute("data-folded", "false");
+		await expect(page.locator("[data-finding-id]").first()).toBeVisible();
+		await expect(viewed).toBeChecked();
+	});
 });
 
 const COMMITTED_GREETING = [
