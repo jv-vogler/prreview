@@ -1,7 +1,6 @@
 import type { PublishEvent } from "../../application/ports/EventPublisher";
 import type { RunManager } from "../../application/ports/RunManager";
 import { assessPassFreshness } from "../../application/review/passFreshness";
-import type { ReworkInstruction } from "../../application/review/reworkFinding";
 import { buildReworkJob } from "../../application/review/reworkFinding";
 import { buildReviewJob } from "../../application/review/runReview";
 import type { Container } from "../../container";
@@ -9,6 +8,7 @@ import {
 	REVIEW_IDLE_TIMEOUT_MS,
 	REWORK_IDLE_TIMEOUT_MS,
 } from "../../domain/agentTask/limits";
+import type { ReworkInstruction } from "../../domain/agentTask/reworkPrompt";
 import { changesetIdFor } from "../../domain/changeset/ChangesetId";
 import { createRunManager } from "../../infrastructure/engine/runManager";
 import type { PassFreshnessDto, ReviewPassDto } from "./dto/ReviewDto";
