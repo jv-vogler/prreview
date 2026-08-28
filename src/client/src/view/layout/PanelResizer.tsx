@@ -6,14 +6,28 @@ export interface PanelResizerProps {
 	spec: PanelWidthSpec;
 	width: number;
 	onWidth(width: number): void;
+	onDraggingChange?(dragging: boolean): void;
 }
 
 const KEY_STEP = 16;
 
-export function PanelResizer({ spec, width, onWidth }: PanelResizerProps) {
-	const [dragging, setDragging] = useState(false);
+export function PanelResizer({
+	spec,
+	width,
+	onWidth,
+	onDraggingChange,
+}: PanelResizerProps) {
+	const [dragging, setDraggingState] = useState(false);
 	const originRef = useRef<{ x: number; width: number } | null>(null);
 	const growth = spec.side === "left" ? 1 : -1;
+
+	const setDragging = useCallback(
+		(next: boolean) => {
+			setDraggingState(next);
+			onDraggingChange?.(next);
+		},
+		[onDraggingChange],
+	);
 
 	const onPointerDown = useCallback(
 		(event: React.PointerEvent<HTMLHRElement>) => {
@@ -25,7 +39,7 @@ export function PanelResizer({ spec, width, onWidth }: PanelResizerProps) {
 			originRef.current = { x: event.clientX, width };
 			setDragging(true);
 		},
-		[width],
+		[width, setDragging],
 	);
 
 	const onPointerMove = useCallback(
@@ -46,7 +60,7 @@ export function PanelResizer({ spec, width, onWidth }: PanelResizerProps) {
 			originRef.current = null;
 			setDragging(false);
 		},
-		[],
+		[setDragging],
 	);
 
 	const onKeyDown = useCallback(

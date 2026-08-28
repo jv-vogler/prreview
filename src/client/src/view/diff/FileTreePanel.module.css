@@ -1,14 +1,16 @@
 .panel {
 	height: 100%;
-	overflow-y: auto;
-	border-right: var(--borderWidth-thin) solid var(--borderColor-default);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
 	background: var(--bgColor-default);
 	padding: var(--base-size-8);
 }
 
 .heading {
 	margin: 0;
-	padding: var(--base-size-4) var(--base-size-8);
+	padding: var(--base-size-4) var(--base-size-24) var(--base-size-4)
+		var(--base-size-8);
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-semibold);
 	color: var(--fgColor-muted);
@@ -25,6 +27,9 @@
 	display: flex;
 	flex-direction: column;
 	gap: var(--base-size-2);
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
 }
 
 .list > li[data-group-start="true"] {
