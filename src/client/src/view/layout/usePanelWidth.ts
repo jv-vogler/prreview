@@ -7,6 +7,7 @@ export interface PanelWidthSpec {
 	max: number;
 	side: "left" | "right";
 	label: string;
+	title: string;
 }
 
 export const FILE_PANEL: PanelWidthSpec = {
@@ -16,6 +17,7 @@ export const FILE_PANEL: PanelWidthSpec = {
 	max: 640,
 	side: "left",
 	label: "Resize the file panel",
+	title: "file",
 };
 
 export const REVIEW_PANEL: PanelWidthSpec = {
@@ -26,6 +28,7 @@ export const REVIEW_PANEL: PanelWidthSpec = {
 	max: 720,
 	side: "right",
 	label: "Resize the review panel",
+	title: "review",
 };
 
 export function clampPanelWidth(spec: PanelWidthSpec, width: number): number {
@@ -66,4 +69,39 @@ export function usePanelWidth(spec: PanelWidthSpec): PanelWidth {
 	);
 
 	return { width, setWidth };
+}
+
+function foldStorageKey(spec: PanelWidthSpec): string {
+	return `${spec.storageKey}.folded`;
+}
+
+function readStoredFold(spec: PanelWidthSpec): boolean {
+	try {
+		return window.localStorage.getItem(foldStorageKey(spec)) === "true";
+	} catch {
+		return false;
+	}
+}
+
+export interface PanelFold {
+	folded: boolean;
+	toggle(): void;
+}
+
+export function usePanelFold(spec: PanelWidthSpec): PanelFold {
+	const [folded, setFoldedState] = useState<boolean>(() =>
+		readStoredFold(spec),
+	);
+
+	const toggle = useCallback(() => {
+		setFoldedState((current) => {
+			const next = !current;
+			try {
+				window.localStorage.setItem(foldStorageKey(spec), String(next));
+			} catch {}
+			return next;
+		});
+	}, [spec]);
+
+	return { folded, toggle };
 }

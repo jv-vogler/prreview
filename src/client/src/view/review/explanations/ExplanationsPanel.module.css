@@ -38,6 +38,66 @@
 	color: var(--fgColor-default);
 }
 
+.topicToggle {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: flex-start;
+	gap: var(--base-size-8);
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--fgColor-default);
+	cursor: pointer;
+	font-size: var(--text-body-size-small);
+	font-weight: var(--base-text-weight-semibold);
+	line-height: var(--text-body-lineHeight-small);
+	text-align: left;
+}
+
+.topicToggle:hover,
+.topicToggle[aria-pressed="true"] {
+	text-decoration: underline;
+	text-underline-offset: var(--base-size-2);
+}
+
+.dot {
+	flex: none;
+	width: var(--base-size-8);
+	height: var(--base-size-8);
+	margin-top: var(--base-size-6);
+	border-radius: var(--borderRadius-full);
+	background: var(--fgColor-muted);
+}
+
+.topicToggle[aria-pressed="true"] .dot {
+	box-shadow: 0 0 0 var(--borderWidth-thick) var(--borderColor-emphasis);
+}
+
+.topicToggle[data-topic-color="0"] .dot {
+	background: var(--fgColor-accent);
+}
+
+.topicToggle[data-topic-color="1"] .dot {
+	background: var(--fgColor-success);
+}
+
+.topicToggle[data-topic-color="2"] .dot {
+	background: var(--fgColor-attention);
+}
+
+.topicToggle[data-topic-color="3"] .dot {
+	background: var(--fgColor-done);
+}
+
+.topicToggle[data-topic-color="4"] .dot {
+	background: var(--fgColor-sponsors);
+}
+
+.topicToggle[data-topic-color="5"] .dot {
+	background: var(--fgColor-danger);
+}
+
 .fileCount {
 	flex: none;
 	margin-left: auto;

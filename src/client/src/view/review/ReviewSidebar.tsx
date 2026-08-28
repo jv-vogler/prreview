@@ -9,7 +9,6 @@ import styles from "./ReviewSidebar.module.css";
 type SidebarTab = "comments" | "explanations";
 
 export interface ReviewSidebarProps {
-	width: number;
 	findings: readonly ReviewFindingDto[];
 	explanations: readonly ExplanationDto[];
 	expandedFindingIds: ReadonlySet<string>;
@@ -22,7 +21,6 @@ export interface ReviewSidebarProps {
 }
 
 export function ReviewSidebar({
-	width,
 	findings,
 	explanations,
 	expandedFindingIds,
@@ -36,11 +34,7 @@ export function ReviewSidebar({
 	const [tab, setTab] = useState<SidebarTab>("comments");
 	const active: SidebarTab = explanations.length === 0 ? "comments" : tab;
 	return (
-		<aside
-			className={styles.panel}
-			style={{ width }}
-			aria-label="Review sidebar"
-		>
+		<aside className={styles.panel} aria-label="Review sidebar">
 			{explanations.length > 0 ? (
 				<div className={styles.tabs} role="tablist">
 					<Tab

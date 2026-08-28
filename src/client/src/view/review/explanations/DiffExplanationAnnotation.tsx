@@ -1,6 +1,6 @@
 import type { ExplanationDto } from "@dto/ReviewDto";
 import { BookIcon } from "@primer/octicons-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import styles from "./DiffExplanationAnnotation.module.css";
 import { ExplanationBalloon } from "./ExplanationBalloon";
@@ -20,11 +20,19 @@ export function DiffExplanationAnnotation({
 	topicColors,
 }: DiffExplanationAnnotationProps) {
 	const [open, setOpen] = useState(true);
+	const [mounted, setMounted] = useState(true);
 	const anchorRef = useRef<HTMLDivElement>(null);
 	const stackRef = useRef<HTMLDivElement>(null);
 	const layout = useExplanationCardLayout();
-	const showCards = mode === "margin" || open;
+	const closing = mode === "chips" && mounted && !open;
+	const showCards = mode === "margin" || mounted;
 	const stackId = explanations[0]?.id;
+
+	useEffect(() => {
+		if (mode === "margin" || open) {
+			setMounted(true);
+		}
+	}, [mode, open]);
 
 	useLayoutEffect(() => {
 		const stack = stackRef.current;
@@ -66,7 +74,16 @@ export function DiffExplanationAnnotation({
 			)}
 			{showCards &&
 				createPortal(
-					<div className={styles.floating} ref={stackRef}>
+					<div
+						className={styles.floating}
+						ref={stackRef}
+						data-closing={closing || undefined}
+						onAnimationEnd={(event) => {
+							if (closing && event.target === event.currentTarget) {
+								setMounted(false);
+							}
+						}}
+					>
 						{explanations.map((explanation) => (
 							<ExplanationBalloon
 								key={explanation.id}
@@ -76,6 +93,7 @@ export function DiffExplanationAnnotation({
 										? undefined
 										: topicColors.get(explanation.topic)
 								}
+								onDismiss={mode === "chips" ? () => setOpen(false) : undefined}
 							/>
 						))}
 					</div>,

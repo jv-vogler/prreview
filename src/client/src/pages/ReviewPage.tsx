@@ -27,10 +27,11 @@ import {
 } from "../view/diff/DiffWorkspace";
 import { FileTreePanel } from "../view/diff/FileTreePanel";
 import { useFileFolding } from "../view/diff/useFileFolding";
-import { PanelResizer } from "../view/layout/PanelResizer";
+import { FoldablePanel } from "../view/layout/FoldablePanel";
 import {
 	FILE_PANEL,
 	REVIEW_PANEL,
+	usePanelFold,
 	usePanelWidth,
 } from "../view/layout/usePanelWidth";
 import type { ExplanationsMode } from "../view/review/explanations/DiffExplanationAnnotation";
@@ -120,7 +121,9 @@ function ResolvedReview({
 	githubAvailable: boolean;
 }) {
 	const filePanel = usePanelWidth(FILE_PANEL);
+	const filePanelFold = usePanelFold(FILE_PANEL);
 	const reviewPanel = usePanelWidth(REVIEW_PANEL);
+	const reviewPanelFold = usePanelFold(REVIEW_PANEL);
 	const [cursorFileIndex, setCursorFileIndex] = useState(0);
 	const folding = useFileFolding();
 	const handleRef = useRef<DiffWorkspaceHandle>(null);
@@ -390,18 +393,19 @@ function ResolvedReview({
 				/>
 			)}
 			<div className={styles.layout}>
-				<div style={{ width: filePanel.width }}>
+				<FoldablePanel
+					spec={FILE_PANEL}
+					width={filePanel.width}
+					onWidth={filePanel.setWidth}
+					folded={filePanelFold.folded}
+					onToggleFold={filePanelFold.toggle}
+				>
 					<FileTreePanel
 						files={changeset.files}
 						currentFileIndex={cursorFileIndex}
 						onJumpToFile={onJumpToFile}
 					/>
-				</div>
-				<PanelResizer
-					spec={FILE_PANEL}
-					width={filePanel.width}
-					onWidth={filePanel.setWidth}
-				/>
+				</FoldablePanel>
 				<div className={styles.main}>
 					{aiAvailable && <RunStatusBar review={review} />}
 					<div className={styles.overview}>
@@ -455,14 +459,14 @@ function ResolvedReview({
 				</div>
 				{review.pass !== null &&
 					(findings.length > 0 || explanations.length > 0) && (
-						<>
-							<PanelResizer
-								spec={REVIEW_PANEL}
-								width={reviewPanel.width}
-								onWidth={reviewPanel.setWidth}
-							/>
+						<FoldablePanel
+							spec={REVIEW_PANEL}
+							width={reviewPanel.width}
+							onWidth={reviewPanel.setWidth}
+							folded={reviewPanelFold.folded}
+							onToggleFold={reviewPanelFold.toggle}
+						>
 							<ReviewSidebar
-								width={reviewPanel.width}
 								findings={findings}
 								explanations={explanations}
 								expandedFindingIds={expandedFindingIds}
@@ -483,7 +487,7 @@ function ResolvedReview({
 									) : undefined
 								}
 							/>
-						</>
+						</FoldablePanel>
 					)}
 			</div>
 		</HighlightedExplanationsContext.Provider>

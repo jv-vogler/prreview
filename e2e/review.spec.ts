@@ -56,8 +56,13 @@ test.describe("review pass", () => {
 		await expect(chip).toBeVisible();
 		const balloon = page.locator("[data-explanation-id]").first();
 		await expect(balloon).toBeVisible();
-		await expect(balloon.getByRole("button")).toHaveCount(0);
 		await chip.click();
+		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
+		await chip.click();
+		await expect(balloon).toBeVisible();
+		await balloon
+			.getByRole("button", { name: "Hide change explanation" })
+			.click();
 		await expect(page.locator("[data-explanation-id]")).toHaveCount(0);
 		await chip.click();
 		await expect(balloon).toBeVisible();
