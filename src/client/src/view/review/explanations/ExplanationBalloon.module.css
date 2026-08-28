@@ -3,6 +3,7 @@
 	width: 100%;
 	padding: var(--base-size-12);
 	border: var(--borderWidth-thin) solid var(--borderColor-muted);
+	border-radius: var(--borderRadius-large);
 	background: var(--bgColor-muted);
 	color: var(--fgColor-default);
 	box-shadow: var(--shadow-floating-small);
@@ -55,6 +56,31 @@
 	flex: none;
 	display: flex;
 	color: var(--fgColor-muted);
+}
+
+.dismiss {
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--base-size-20);
+	height: var(--base-size-20);
+	margin-left: auto;
+	padding: 0;
+	border: none;
+	border-radius: var(--borderRadius-medium);
+	background: none;
+	color: var(--fgColor-muted);
+	cursor: pointer;
+	transition:
+		color var(--motion-transition-hover),
+		background-color var(--motion-transition-hover);
+}
+
+.dismiss:hover,
+.dismiss:focus-visible {
+	background: var(--control-transparent-bgColor-hover);
+	color: var(--fgColor-default);
 }
 
 .sentence {

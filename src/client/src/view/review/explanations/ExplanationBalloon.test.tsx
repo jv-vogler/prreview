@@ -1,6 +1,6 @@
 import type { ExplanationDto } from "@dto/ReviewDto";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { ExplanationBalloon } from "./ExplanationBalloon";
 
 const EXPLANATION: ExplanationDto = {
@@ -57,5 +57,16 @@ describe("ExplanationBalloon", () => {
 		void topic;
 		render(<ExplanationBalloon explanation={rest} />);
 		expect(screen.queryByText("cache TTL")).toBeNull();
+	});
+
+	it("offers a dismiss button that calls onDismiss when given one", () => {
+		const onDismiss = vi.fn();
+		render(
+			<ExplanationBalloon explanation={EXPLANATION} onDismiss={onDismiss} />,
+		);
+		fireEvent.click(
+			screen.getByRole("button", { name: "Hide change explanation" }),
+		);
+		expect(onDismiss).toHaveBeenCalledOnce();
 	});
 });

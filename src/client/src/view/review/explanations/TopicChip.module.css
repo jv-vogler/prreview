@@ -1,7 +1,7 @@
 .chip {
-	flex: none;
-	display: inline-flex;
-	align-items: center;
+	flex: 0 1 auto;
+	display: inline-block;
+	min-width: 0;
 	max-width: 100%;
 	height: var(--base-size-20);
 	padding: 0 var(--base-size-8);
@@ -12,6 +12,8 @@
 	color: var(--fgColor-muted);
 	font-size: var(--text-body-size-small);
 	font-weight: var(--base-text-weight-medium);
+	line-height: calc(var(--base-size-20) - 2 * var(--borderWidth-thin));
+	text-align: left;
 	text-overflow: ellipsis;
 	vertical-align: text-bottom;
 	white-space: nowrap;
@@ -21,19 +23,7 @@ button.chip {
 	cursor: pointer;
 }
 
-.wrapped {
-	flex: 0 1 auto;
-	min-width: 0;
-	height: auto;
-	min-height: var(--base-size-20);
-	padding: var(--base-size-2) var(--base-size-8);
-	overflow: visible;
-	text-align: left;
-	white-space: normal;
-}
-
 button.chip[aria-pressed="true"] {
-	border-width: var(--borderWidth-thick);
 	border-color: var(--borderColor-emphasis);
 	font-weight: var(--base-text-weight-semibold);
 }

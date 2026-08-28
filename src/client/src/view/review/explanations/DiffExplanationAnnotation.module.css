@@ -51,8 +51,34 @@
 @keyframes floating-open {
 	from {
 		opacity: 0;
+		transform: translateY(calc(-1 * var(--base-size-4)));
 	}
 	to {
 		opacity: 1;
+		transform: none;
+	}
+}
+
+.floating[data-closing="true"] {
+	animation: floating-close var(--motion-duration-short)
+		var(--motion-easing-exit) both;
+	pointer-events: none;
+}
+
+@keyframes floating-close {
+	from {
+		opacity: 1;
+		transform: none;
+	}
+	to {
+		opacity: 0;
+		transform: translateY(calc(-1 * var(--base-size-4)));
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.floating,
+	.floating[data-closing="true"] {
+		animation-duration: 0s;
 	}
 }

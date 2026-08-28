@@ -1,5 +1,5 @@
 import type { ExplanationDto } from "@dto/ReviewDto";
-import { BookIcon } from "@primer/octicons-react";
+import { BookIcon, XIcon } from "@primer/octicons-react";
 import { Fragment } from "react";
 import styles from "./ExplanationBalloon.module.css";
 import { useHighlightedExplanations } from "./highlightedExplanations";
@@ -8,9 +8,11 @@ import { TopicChip } from "./TopicChip";
 export function ExplanationBalloon({
 	explanation,
 	topicColor,
+	onDismiss,
 }: {
 	explanation: ExplanationDto;
 	topicColor?: number;
+	onDismiss?(): void;
 }) {
 	const selection = useHighlightedExplanations();
 	const highlighted = selection.has(explanation.id);
@@ -29,7 +31,17 @@ export function ExplanationBalloon({
 					<BookIcon size={14} />
 				</span>
 				{explanation.topic !== undefined && (
-					<TopicChip label={explanation.topic} color={topicColor} wrap />
+					<TopicChip label={explanation.topic} color={topicColor} />
+				)}
+				{onDismiss !== undefined && (
+					<button
+						type="button"
+						className={styles.dismiss}
+						aria-label="Hide change explanation"
+						onClick={onDismiss}
+					>
+						<XIcon size={14} />
+					</button>
 				)}
 			</div>
 			{explanation.says.map((sentence, index) => (

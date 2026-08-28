@@ -39,8 +39,11 @@ describe("DiffExplanationAnnotation", () => {
 		});
 		expect(document.querySelector("[data-explanation-id]")).not.toBeNull();
 		fireEvent.click(chip);
-		expect(document.querySelector("[data-explanation-id]")).toBeNull();
+		expect(chip.getAttribute("aria-expanded")).toBe("false");
+		expect(document.querySelector("[data-closing='true']")).not.toBeNull();
 		fireEvent.click(chip);
+		expect(chip.getAttribute("aria-expanded")).toBe("true");
+		expect(document.querySelector("[data-closing]")).toBeNull();
 		expect(document.querySelector("[data-explanation-id]")).not.toBeNull();
 	});
 

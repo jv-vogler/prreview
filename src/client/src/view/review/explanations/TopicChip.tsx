@@ -4,19 +4,16 @@ export function TopicChip({
 	label,
 	color,
 	pressed,
-	wrap,
 	onToggle,
 }: {
 	label: string;
 	color?: number;
 	pressed?: boolean;
-	wrap?: boolean;
 	onToggle?(): void;
 }) {
-	const className = wrap ? `${styles.chip} ${styles.wrapped}` : styles.chip;
 	if (onToggle === undefined) {
 		return (
-			<span className={className} data-topic-color={color}>
+			<span className={styles.chip} data-topic-color={color} title={label}>
 				{label}
 			</span>
 		);
@@ -24,9 +21,10 @@ export function TopicChip({
 	return (
 		<button
 			type="button"
-			className={className}
+			className={styles.chip}
 			data-topic-color={color}
 			aria-pressed={pressed}
+			title={label}
 			onClick={onToggle}
 		>
 			{label}

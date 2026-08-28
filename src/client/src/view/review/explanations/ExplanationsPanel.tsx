@@ -13,7 +13,6 @@ import { Collapsible } from "../../layout/Collapsible";
 import { BacktickText } from "./ExplanationBalloon";
 import styles from "./ExplanationsPanel.module.css";
 import { useHighlightedExplanations } from "./highlightedExplanations";
-import { TopicChip } from "./TopicChip";
 
 export interface ExplanationsPanelProps {
 	explanations: readonly ExplanationDto[];
@@ -92,15 +91,18 @@ function TopicSection({
 						<ChevronRightIcon size={16} />
 					)}
 				</button>
-				<TopicChip
-					label={topic.label}
-					color={color}
-					wrap
-					pressed={topic.explanations.every((explanation) =>
+				<button
+					type="button"
+					className={styles.topicToggle}
+					data-topic-color={color}
+					aria-pressed={topic.explanations.every((explanation) =>
 						highlighted.has(explanation.id),
 					)}
-					onToggle={() => onToggleTopic(topic)}
-				/>
+					onClick={() => onToggleTopic(topic)}
+				>
+					<span className={styles.dot} aria-hidden="true" />
+					{topic.label}
+				</button>
 				<span className={styles.fileCount}>
 					{paths.length} {paths.length === 1 ? "file" : "files"}
 				</span>
